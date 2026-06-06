@@ -438,20 +438,23 @@
   const SCENE_TRANSITION_DURATION = 0.82;
   const SCENE_TRANSITION_LOAD_WINDOW = 1.08;
   const MAX_ACTIVE_PICKUPS = 6;
-  const HERO_MAX_ATTACKS_PER_SECOND = 5;
+  const HERO_ATTACK_SPEED_SCALE = 0.5;
+  const HERO_PROJECTILE_SIZE_SCALE = 0.75;
+  const HERO_MIN_ATTACKS_PER_SECOND = 1 * HERO_ATTACK_SPEED_SCALE;
+  const HERO_MAX_ATTACKS_PER_SECOND = 5 * HERO_ATTACK_SPEED_SCALE;
   const HERO_MIN_ATTACK_INTERVAL = 1 / HERO_MAX_ATTACKS_PER_SECOND;
   const HERO_LEVEL_EVOLUTION_ATTACK_GROWTH_CAP = 2;
   const HERO_TEMP_ATTACK_GROWTH_CAP = 1.65;
   const HERO_BASE_ATTACKS_PER_SECOND = {
-    poop: 1.08,
-    ikun: 1.16,
-    jet: 1.28,
-    alchemist: 1.02,
-    paper: 1.12,
-    dragonWood: 1.06,
-    voidChef: 1.04,
-    neonMedic: 1.14,
-    tigerMetal: 1.22,
+    poop: 1.08 * HERO_ATTACK_SPEED_SCALE,
+    ikun: 1.16 * HERO_ATTACK_SPEED_SCALE,
+    jet: 1.28 * HERO_ATTACK_SPEED_SCALE,
+    alchemist: 1.02 * HERO_ATTACK_SPEED_SCALE,
+    paper: 1.12 * HERO_ATTACK_SPEED_SCALE,
+    dragonWood: 1.06 * HERO_ATTACK_SPEED_SCALE,
+    voidChef: 1.04 * HERO_ATTACK_SPEED_SCALE,
+    neonMedic: 1.14 * HERO_ATTACK_SPEED_SCALE,
+    tigerMetal: 1.22 * HERO_ATTACK_SPEED_SCALE,
   };
   const STRONG_ATTACK_CRIT_BONUS = 4;
   const HARD_TRIAL_UNLOCK_DAY = 15;
@@ -2743,11 +2746,11 @@
 
   function heroAttacksPerSecond(options = {}) {
     const aps = baseHeroAttacksPerSecond(meta.selectedHero) + levelEvolutionAttackGrowth() + temporaryAttackGrowth(options);
-    return clamp(aps, 1, HERO_MAX_ATTACKS_PER_SECOND);
+    return clamp(aps, HERO_MIN_ATTACKS_PER_SECOND, HERO_MAX_ATTACKS_PER_SECOND);
   }
 
   function intervalFromAttacksPerSecond(aps) {
-    return Math.max(HERO_MIN_ATTACK_INTERVAL, 1 / clamp(aps, 1, HERO_MAX_ATTACKS_PER_SECOND));
+    return Math.max(HERO_MIN_ATTACK_INTERVAL, 1 / clamp(aps, HERO_MIN_ATTACKS_PER_SECOND, HERO_MAX_ATTACKS_PER_SECOND));
   }
 
   function permanentAutoInterval() {
@@ -2769,8 +2772,9 @@
     const haste = clamp(Number(stats.haste) || 0, 0, 95);
     const luck = Math.max(0, Number(stats.luck) || 0);
     const scoreBonus = Math.max(1, Number(stats.scoreBonus) || 1);
-    const autoInterval = clamp(Number(options.autoInterval) || 0.82, HERO_MIN_ATTACK_INTERVAL, 1);
-    const manualIntervalMs = clamp(Number(options.manualIntervalMs) || 760, HERO_MIN_ATTACK_INTERVAL * 1000, 1000);
+    const slowestAttackInterval = 1 / HERO_MIN_ATTACKS_PER_SECOND;
+    const autoInterval = clamp(Number(options.autoInterval) || 0.82, HERO_MIN_ATTACK_INTERVAL, slowestAttackInterval);
+    const manualIntervalMs = clamp(Number(options.manualIntervalMs) || 760, HERO_MIN_ATTACK_INTERVAL * 1000, slowestAttackInterval * 1000);
     const tierFactor = attackTierFactor(tier);
     const heroFactor = heroProfile(heroKey).power || 1;
     const critFactor = expectedCritMultiplier(crit, 1.64);
@@ -5983,12 +5987,16 @@
     const list = Array.isArray(shots) ? shots : [shots];
     const room = Math.max(0, effectBudget().projectiles - projectiles.length);
     if (room <= 0) return;
-    projectiles.push(...list.slice(0, room).map((shot) => ({
-      ...shot,
-      maxLife: shot.maxLife || shot.life || 0.8,
-      strong: shot.strong === undefined ? !!shot.manual : !!shot.strong,
-      strongMult: shot.strongMult || (shot.manual ? strongAttackDamageMultiplier(shot) : 1),
-    })));
+    projectiles.push(...list.slice(0, room).map((shot) => {
+      return {
+        ...shot,
+        rx: (shot.rx || 24) * HERO_PROJECTILE_SIZE_SCALE,
+        ry: (shot.ry || 18) * HERO_PROJECTILE_SIZE_SCALE,
+        maxLife: shot.maxLife || shot.life || 0.8,
+        strong: shot.strong === undefined ? !!shot.manual : !!shot.strong,
+        strongMult: shot.strongMult || (shot.manual ? strongAttackDamageMultiplier(shot) : 1),
+      };
+    }));
   }
 
   function applyEffectiveQuality(next, silent = false) {
