@@ -1,0 +1,13 @@
+.wrangler/
+tmp/
+shitsupermanimages/
+
+check-*.png
+online-check-*.png
+
+*.log
+*.err
+
+node_modules/
+.DS_Store
+Thumbs.db

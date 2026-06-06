@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>大便超人</title>
+  <link rel="preload" as="image" href="assets/background-city-refit.png" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/menu-hero-refit.png" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/background-deep-refit.png">
+  <link rel="preload" as="image" href="assets/background-adventure-refit.png">
+  <link rel="preload" as="image" href="assets/mount-atlas.png">
+  <link rel="preload" as="image" href="assets/mail-festival-seal.png">
+  <link rel="preload" as="image" href="assets/adventure-route-compass.png">
+  <link rel="preload" as="image" href="assets/stage-contract-badge.png">
+  <link rel="stylesheet" href="styles.css?v=20260606-stability-visuals">
+</head>
+<body class="menu-open">
+  <main class="game-shell" aria-label="大便超人">
+    <canvas id="gameCanvas" width="1280" height="720" aria-label="游戏画面"></canvas>
+
+    <section id="orientationHint" class="orientation-hint" hidden aria-label="横屏提示">
+      <div class="orientation-hint-panel">
+        <strong>请横屏游玩</strong>
+        <span>大便超人的躲避、Boss 战和道具按钮都按横屏手感设计。</span>
+        <button id="orientationFullscreenButton" type="button">进入横屏全屏</button>
+      </div>
+    </section>
+
+    <section class="hud" aria-label="游戏状态">
+      <div class="hud-stat">
+        <span>分数</span>
+        <strong id="scoreText">0</strong>
+      </div>
+      <div class="hud-bars" aria-label="生命和能量">
+        <div class="hud-meta">
+          <span>Lv.<strong id="levelText">1</strong> · 战 <strong id="runPowerText">0</strong></span>
+          <span id="powerText">普通便弹</span>
+        </div>
+        <div class="bar">
+          <span>生命</span>
+          <i><b id="healthBar"></b></i>
+        </div>
+        <div class="bar energy">
+          <span>能量</span>
+          <i><b id="energyBar"></b></i>
+        </div>
+        <div class="bar xp">
+          <span>经验</span>
+          <i><b id="expBar"></b></i>
+        </div>
+      </div>
+      <div class="hud-stat right">
+        <span id="bestLabel">最佳</span>
+        <strong id="bestText">0</strong>
+      </div>
+    </section>
+
+    <section id="bossHud" class="boss-hud" hidden aria-label="BOSS 状态">
+      <span id="bossNameText">马桶霸王</span>
+      <small id="bossPressureText">战况评估</small>
+      <i><b id="bossBar"></b></i>
+    </section>
+
+    <section id="missionHud" class="mission-hud" hidden aria-label="局内悬赏">
+      <span id="missionText">悬赏准备中</span>
+    </section>
+
+    <section id="menuPanel" class="menu-panel" aria-live="polite">
+      <div class="brand-lockup">
+        <p>厕所城空袭</p>
+        <h1>大便超人</h1>
+      </div>
+      <img class="rules-art" src="assets/menu-hero-refit.png" alt="" aria-hidden="true">
+      <div id="panelCopy" class="panel-copy">冲破马桶机器人的封锁，用便便弹把纸卷带回城市。</div>
+      <div class="progress-panel" aria-label="闯关和养成">
+        <div class="page-tabs">
+          <button id="growthPageButton" type="button" class="is-selected">养成</button>
+          <button id="mailPageButton" type="button">邮箱</button>
+          <button id="heroPageButton" type="button">英雄</button>
+          <button id="mountPageButton" type="button">坐骑</button>
+          <button id="equipmentPageButton" type="button">装备</button>
+          <button id="shopPageButton" type="button">商店</button>
+          <button id="achievementPageButton" type="button">成就</button>
+          <button id="rulesPageButton" type="button">规则</button>
+        </div>
+        <div class="mode-tabs">
+          <button id="endlessModeButton" type="button" class="is-selected">无尽模式</button>
+          <button id="stageModeButton" type="button">闯关模式</button>
+          <button id="adventureModeButton" type="button">冒险模式</button>
+          <button id="dailyModeButton" type="button">每日挑战</button>
+        </div>
+        <div id="moduleHeader" class="module-header" hidden>
+          <button id="moduleBackButton" type="button">返回</button>
+          <strong id="moduleTitle">养成</strong>
+        </div>
+        <div id="stagePage" class="progress-page stage-page" hidden aria-label="闯关选关">
+          <div id="stageSummary" class="stage-summary">选择关卡后开始挑战。</div>
+          <div id="stageGrid" class="stage-grid" aria-label="关卡选择"></div>
+          <button id="stageStartButton" class="stage-start-button" type="button">开始本关</button>
+        </div>
+        <div id="growthPage" class="progress-page" hidden>
+        <div class="meta-strip">
+          <span>金币 <strong id="coinText">0</strong></span>
+          <span>材料 <strong id="materialText">0</strong></span>
+          <span>便便币 <strong id="poopCoinText">0</strong></span>
+          <span>专属石 <strong id="evoStoneText">0</strong></span>
+          <span>超人 Lv.<strong id="metaLevelText">1</strong></span>
+          <span>进化 <strong id="evolutionText">0</strong></span>
+          <span>称号 <strong id="activeTitleText">暂无</strong></span>
+        </div>
+        <div class="growth-actions">
+          <button id="upgradeHeroButton" type="button">升级超人</button>
+          <button id="evolveHeroButton" type="button">进化超人</button>
+        </div>
+        <div class="hero-actions">
+          <button id="signInButton" type="button">每日签到</button>
+        </div>
+        <div id="signInText" class="inventory-line">签到可获得少量便便币和阶段礼包，第 15/30 天会解锁传说级生肖五行英雄与坐骑。</div>
+        <div id="inventoryText" class="inventory-line">背包：护盾 0 · 磁铁 0 · 能量 0</div>
+        <div class="attribute-panel" aria-label="角色属性">
+          <div id="combatPowerText" class="combat-power">战力 0</div>
+          <div id="attributeText" class="attribute-line">生命 0 · 能量 0 · 攻击 0 · 幸运 0</div>
+          <div id="equipmentText" class="equipment-line">头盔 - · 衣服 - · 靴子 - · 武器 - · 项链 -</div>
+        </div>
+        </div>
+        <div id="mailPage" class="progress-page mail-page" hidden aria-label="邮箱页面">
+          <div id="mailSummary" class="inventory-line">周末和节假日会投放补给。</div>
+          <div class="mail-actions">
+            <button id="claimAllMailButton" type="button">领取全部</button>
+            <button id="refreshMailButton" type="button">刷新邮箱</button>
+          </div>
+          <div id="mailList" class="mail-list"></div>
+        </div>
+        <div id="heroPage" class="progress-page hero-page" hidden aria-label="英雄页面">
+          <div id="heroTrialAccessText" class="inventory-line trial-access-line">试用每日免费 3 局；可用便便币购买今日试用权。</div>
+          <div class="trial-access-actions">
+            <button id="buyHeroTrialPassButton" type="button">购买今日试用权</button>
+          </div>
+          <div id="heroGrid" class="hero-grid">
+            <div class="hero-card">
+              <div class="hero-portrait hero-poop"></div>
+              <div class="hero-card-name">大便超人</div>
+              <div class="hero-card-stat">便便弹 · 大便能量波</div>
+              <button id="selectPoopHeroButton" type="button">选择</button>
+            </div>
+            <div class="hero-card">
+              <div class="hero-portrait hero-ikun"></div>
+              <div class="hero-card-name">蔡徐坤</div>
+              <div class="hero-card-stat">篮球投掷 · 鸡啄击</div>
+              <button id="selectIkunHeroButton" type="button">第 3 天解锁</button>
+            </div>
+          </div>
+        </div>
+        <div id="mountPage" class="progress-page mount-page" hidden aria-label="坐骑页面">
+          <div id="mountText" class="inventory-line">可以选择不乘坐坐骑；骑乘时英雄会坐在坐骑上，未解锁坐骑需要金币和极稀有便便币。</div>
+          <div id="mountTrialAccessText" class="inventory-line trial-access-line">试用每日免费 3 局；可用便便币购买今日试用权。</div>
+          <div class="trial-access-actions">
+            <button id="buyMountTrialPassButton" type="button">购买今日试用权</button>
+          </div>
+          <div id="mountGrid" class="mount-grid"></div>
+        </div>
+        <div id="equipmentPage" class="progress-page equipment-page" hidden aria-label="装备页面">
+          <div class="equipment-section">
+            <div class="equipment-title">已穿戴</div>
+            <div id="equippedGrid" class="equipment-grid"></div>
+          </div>
+          <div class="equipment-section">
+            <div class="equipment-title">装备背包</div>
+            <div class="equipment-actions">
+              <button id="sellWeakEquipmentButton" type="button">一键售出低品</button>
+              <button id="sellAllEquipmentButton" type="button">出售全部背包</button>
+            </div>
+            <div id="equipmentBagGrid" class="equipment-bag-grid"></div>
+          </div>
+        </div>
+        <div id="shopPage" class="progress-page shop-page" hidden aria-label="商店页面">
+          <div id="shopDetail" class="shop-detail" aria-live="polite">点击商品查看作用，再点购买放入背包。</div>
+          <div class="shop-grid">
+            <div class="shop-card" data-shop-key="shield">
+              <div class="shop-icon shop-shield"></div>
+              <div class="shop-name">护盾</div>
+              <div class="shop-price">6000 金币</div>
+              <button id="buyShieldButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="magnet">
+              <div class="shop-icon shop-magnet"></div>
+              <div class="shop-name">磁铁</div>
+              <div class="shop-price">7000 金币</div>
+              <button id="buyMagnetButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="energy">
+              <div class="shop-icon shop-energy"></div>
+              <div class="shop-name">能量瓶</div>
+              <div class="shop-price">4500 金币</div>
+              <button id="buyEnergyButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="luckyBox">
+              <div class="shop-icon shop-chest"></div>
+              <div class="shop-name">幸运宝箱</div>
+              <div class="shop-price">250000 金币</div>
+              <button id="buyLuckyBoxButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="material">
+              <div class="shop-icon shop-material"></div>
+              <div class="shop-name">材料补给</div>
+              <div class="shop-price">32500 金币</div>
+              <button id="buyMaterialPackButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="battle">
+              <div class="shop-icon shop-battle"></div>
+              <div class="shop-name">战斗礼包</div>
+              <div class="shop-price">39000 金币</div>
+              <button id="buyBattlePackButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="gear">
+              <div class="shop-icon shop-gear"></div>
+              <div class="shop-name">装备补给箱</div>
+              <div class="shop-price">110000 金币</div>
+              <button id="buyGearBoxButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="reroll">
+              <div class="shop-icon shop-reroll"></div>
+              <div class="shop-name">天赋重骰券</div>
+              <div class="shop-price">18000 金币</div>
+              <button id="buyRerollButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="revive">
+              <div class="shop-icon shop-revive"></div>
+              <div class="shop-name">复活心核</div>
+              <div class="shop-price">1 便便币</div>
+              <button id="buyReviveButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="storm">
+              <div class="shop-icon shop-storm"></div>
+              <div class="shop-name">臭弹炸弹</div>
+              <div class="shop-price">21000 金币</div>
+              <button id="buyStormButton" type="button">购买</button>
+            </div>
+            <div class="shop-card" data-shop-key="wing">
+              <div class="shop-icon shop-wing"></div>
+              <div class="shop-name">顺风羽翼</div>
+              <div class="shop-price">26000 金币</div>
+              <button id="buyWingButton" type="button">购买</button>
+            </div>
+          </div>
+          <div class="inventory-line">每局自动从背包携带最多 3 种可用道具；每种单局只能使用或触发 1 次。</div>
+        </div>
+        <div id="achievementPage" class="progress-page achievement-page" hidden aria-label="成就页面">
+          <div id="achievementSummary" class="achievement-summary">完成目标可领取奖励和称号。</div>
+          <div id="achievementGrid" class="achievement-grid"></div>
+        </div>
+        <div id="rulesPage" class="progress-page rules-page" hidden>
+      <div class="rules-card" aria-label="游戏规则">
+        <h2>规则</h2>
+        <div class="move-choice" aria-label="移动方式">
+          <span>移动</span>
+          <button id="tapMoveButton" type="button" class="is-selected">按住飞行</button>
+          <button id="dragMoveButton" type="button">滑动角色</button>
+        </div>
+        <div class="move-choice" aria-label="操作区域">
+          <span>区域</span>
+          <button id="controlSideButton" type="button">左攻右移</button>
+        </div>
+        <div class="move-choice quality-choice" aria-label="画质模式">
+          <span>画质</span>
+          <button id="qualityAutoButton" type="button" class="is-selected">自动</button>
+          <button id="qualitySmoothButton" type="button">流畅</button>
+        </div>
+        <ul>
+          <li>可选择“按住飞行”，也可选择带阻尼的“滑动角色”；所有模式得分效率提升为基础值的 10 倍，按住飞行模式仍有额外基础得分效率。</li>
+          <li>画质默认自动，设备变卡时会降低粒子和背景特效；也可手动切到流畅模式。</li>
+          <li>大便超人会周期自动扔出便便弹，每次进化都会提高攻速；所有操作模式都会在场上有敌人或 Boss 且能量足够时自动释放强化攻击，无需再双击或额外点按。</li>
+          <li>“大招”消耗 65% 最大能量，向前释放 3 秒英雄专属爆发特效；冷却 15 秒。</li>
+          <li>收集纸卷、能量瓶、护盾和磁铁，击败机器人获得经验。</li>
+          <li>本局等级提升会小幅提高生命、能量、攻击和攻速，顶部会同步显示当前战斗力。</li>
+          <li>每局会随机刷新 3 个悬赏任务，完成后立即获得金币、材料、经验和分数奖励；全清悬赏会触发大奖。</li>
+          <li>成就会记录累计纸卷、击破、闪避、通关、Boss 和装备目标，奖励会随达成难度提高，少数高难成就会给极少量便便币。</li>
+          <li>邮箱会在周末投放轻量补给，节假日和儿童节、父亲节等特别节日投放更大的限时礼包并附带祝福；节日便便币奖励已提高到五倍，每封节日邮件有 30% 概率触发幸运暴击再翻倍，每封邮件只能领取一次。</li>
+          <li>每局开局会获得战场态势，例如顺风航线、赏金航线、污泥风暴、能量过载和精英巡逻。</li>
+          <li>本局等级达到关键节点会获得随机天赋，例如疾射、厚皮、拾荒、大招蓄能、重击专精和便便僚机。</li>
+          <li>连续收集、击破和极限闪避会进入狂热模式；受伤后会短暂降低压力并刷新补给，节奏更适合手机游玩。</li>
+          <li>右侧会出现来袭预警；能量自然恢复和纸卷回能已降低，强化攻击消耗与伤害都更高，与大招一样需要更谨慎地选择时机。</li>
+          <li>拾取“技能核心”可补能、缩短大招冷却，并短暂强化攻击节奏。</li>
+          <li>中后段会出现闪反试炼，拾取闪反徽印后进入短暂窗口，连续 3 次贴身极限闪避会自动触发闪反冲击，清理近身威胁并压制 Boss。</li>
+          <li>高难获取英雄和坐骑可在主菜单试用；试用每日免费 3 局，也可花少量便便币购买当日试用权。试用英雄只能体验基础形态，正式拥有后才能升级和进化。</li>
+          <li>坐骑可在主菜单解锁、升级、试用和切换；局内会通过闪避、拾取和重击充能，满能量后自动触发专属技能。</li>
+          <li>连击达到关键段位会刷新额外补给；无尽 Boss 成长更快，闯关目标分与 Boss 战力全面上调，BOSS 出招前会出现红色预警圈，看到预警就准备躲弹道。</li>
+          <li>Boss 破防后会掉落破防核心，拾取后进入短暂反击节奏，补充能量、延长压制并对 Boss 追加伤害；是否冒险去吃核心会影响后续输出窗口。</li>
+          <li>局内会随机出现“奇遇胶囊”，拾取后可能触发天赋盲盒、黄金喷泉、冲击波、时空滑流或弱点雷达；奇遇航线已翻新为可见紫色航道，贴着航道飞行可蓄出额外胶囊或技能核心。</li>
+          <li>冒险模式现在需要同时满足分数、航图目标和本关契约；通过事件、云海顺流、补给空投、遗迹、极限闪避、精英和宝藏击破来积累探索、线索、货箱和契约进度，目标未完成时会继续探索，BOSS 关也会等航图和契约完成后才现身。</li>
+          <li>冒险契约分为侦察、护送、讨伐和遗迹四类，每类鼓励不同跑法；完成契约会获得普通补给、航图推进和短时签章增益，不会新增便便币来源。</li>
+          <li>冒险会出现云海顺流，贴着移动顺流航线可蓄能，拾取顺流贝壳会补能并加速蓄能，蓄满后自动释放冲流爆发。</li>
+          <li>冒险和中后段会出现补给空投、云海遗迹和废都遗迹，拾取后可获得道具、临时强化、遗迹冲击或本局天赋，并推动航图进度。</li>
+          <li>中后段新增五行裂隙事件，场景会切入五行战场；拾取五行灵核可获得木、火、土、金、水五种短时效果，分别偏向续航、爆发、护盾、破甲和回能控场。</li>
+          <li>中后段会出现星轨试炼，场景切入星轨战场；贴着移动星轨飞行会蓄能，蓄满后自动触发星辉爆发，清理弹幕并压制 Boss。</li>
+          <li>中后段新增净化潮汐事件，场景切入净化战场；拾取净化核心会冲洗周围弹幕、补能护盾，并对 Boss 施加破防压力。</li>
+          <li>更后段会出现镜流回廊事件，场景切入镜流战场；贴着移动镜流飞行可蓄能，拾取镜流碎片会获得短护身并加速蓄能，蓄满后自动释放折返脉冲。</li>
+          <li>更后段新增极光铸炉事件，场景切入极光铸炉战场；贴着移动热流飞行可积攒热量，拾取铸炉符印会补能护盾并提高短时攻速，热量蓄满后自动释放铸炉波。</li>
+          <li>中期会出现坐骑试炼，拾取坐骑徽章可快速积攒坐骑能量、缩短冷却并短暂减轻弹幕压力。</li>
+          <li>中后段会出现连击祭坛，拾取连击祭印后进入短暂的连击冲刺状态，维持连击更稳、技巧收益更高，但场面节奏也更紧。</li>
+          <li>黄金纸潮、清风补给和顺风门阵已翻新为可见航道事件：贴着黄金航道飞行会蓄出奖励纸卷，清风航道会持续恢复并减压，顺风航道会补能、延长顺风并软化前方威胁。</li>
+          <li>中后段会出现精英马桶潮；精英怪有更明显的扫描标记，更耐打但在精英潮中会掉落更好的补给。</li>
+          <li>达到 3、5、7、15、25、35、50 级时，攻击方式会继续强化。</li>
+          <li>闯关模式共 60 关；普通关达到目标分数通关，后续普通关会增加受击次数限制，BOSS 关需要击败 BOSS。</li>
+          <li>冒险模式更重视探索节奏：分数、航图和契约都要推进，航图或契约跨过关键进度时会触发远征支援，短暂减压并投放补给。</li>
+          <li>每日挑战会刷新 1 个百分比伤害 Boss，战力固定为玩家当前实时战力的 20 倍；60 秒内造成越多伤害，结算奖励越高，首次击败今日 Boss 会获得大额奖励并额外获得 5 枚便便币。</li>
+          <li>金币可升级超人或购买背包道具；除复活心核外，商店金币商品价格已再次上调，购买前会显示余额、库存和差额。复活心核仍消耗便便币购买。每局会自动从背包携带最多 3 种可用道具，每种单局只能使用或触发 1 次，未带入或未使用的库存会保留。</li>
+          <li>局内升级更偏向临时微成长，长期战力主要来自局外升级、进化、装备和坐骑培养；坐骑可选择不乘坐，解锁需要金币和极稀有便便币。</li>
+          <li>无尽模式也会在后段切换到翻新的深层废都地图；每个英雄首次达到 50万、100万、250万、500万分时，各获得 1 颗自己的专属进化石。</li>
+          <li>每日签到可获得金币、材料、道具和少量便便币；第 3/5/7/10 天解锁早期英雄，第 15/18/24/30 天会继续解锁高阶英雄与对应主题坐骑。</li>
+          <li>Boss 被击败时有 0.5% 概率掉落 1 枚便便币，签到、节日邮件和每日挑战首次击败奖励也会少量发放；便便币只是稀有门槛，坐骑仍需要大量金币购买，五行麒麟座是昂贵的终局坐骑。</li>
+          <li>进度推进后会遭遇 BOSS，中后期和无尽模式 BOSS 战斗力会更快成长，半血后会进入狂暴阶段，普通攻击不会打断 Boss 出招，只有破防、眩晕、麻痹、冻结、缠绕等特殊状态会压制出招。</li>
+          <li>避开管道、飞来的皮搋子、臭气云、肥皂泡、旋转路障、酸液桶和马桶机器人；右侧预警会用不同颜色和轮廓提示即将进入的威胁。</li>
+        </ul>
+      </div>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button id="startButton" type="button">开始游戏</button>
+        <button id="restartButton" type="button" class="secondary" hidden>再来</button>
+        <button id="homeButton" type="button" class="secondary" hidden>返回首页</button>
+      </div>
+    </section>
+
+    <section class="item-controls" aria-label="背包道具">
+      <button id="useShieldButton" type="button" aria-label="使用护盾">盾</button>
+      <button id="useMagnetButton" type="button" aria-label="使用磁铁">磁</button>
+      <button id="useEnergyButton" type="button" aria-label="使用能量">能</button>
+      <button id="useStormButton" type="button" aria-label="使用臭弹炸弹">炸</button>
+      <button id="ultimateButton" type="button" aria-label="释放大招">大招</button>
+    </section>
+
+    <section id="rewardToast" class="reward-toast" hidden aria-label="奖励提示"></section>
+
+    <section id="perkChoice" class="perk-choice" hidden aria-label="本局天赋选择">
+      <div class="perk-choice-panel">
+        <p>本局成长</p>
+        <h2>选择一个天赋</h2>
+        <div id="perkChoiceHint" class="perk-choice-hint">战斗继续进行，未选择会自动推荐。</div>
+        <div id="perkChoiceGrid" class="perk-choice-grid"></div>
+        <button id="perkRerollButton" class="perk-reroll-button" type="button">重骰</button>
+      </div>
+    </section>
+
+    <section class="utility-controls" aria-label="设置">
+      <button id="pauseButton" type="button" aria-label="暂停">暂停</button>
+      <button id="endRunButton" type="button" aria-label="结束本局">结束</button>
+      <button id="fullscreenButton" type="button" aria-label="全屏">全屏</button>
+      <button id="muteButton" type="button" aria-label="静音">声音</button>
+    </section>
+  </main>
+
+  <script src="main.js?v=20260606-stability-visuals"></script>
+</body>
+</html>
