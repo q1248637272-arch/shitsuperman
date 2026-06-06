@@ -566,6 +566,7 @@ button:focus-visible {
 .mail-actions,
 .trial-access-actions,
 .mount-actions,
+.drone-actions,
 .shop-row {
   display: flex;
   flex-wrap: wrap;
@@ -580,6 +581,7 @@ button:focus-visible {
 .mail-actions button,
 .trial-access-actions button,
 .mount-actions button,
+.drone-actions button,
 .shop-row button {
   min-width: 96px;
   height: 34px;
@@ -1027,6 +1029,7 @@ button:focus-visible {
 
 .hero-page,
 .mount-page,
+.drone-page,
 .shop-page {
   padding-right: 2px;
 }
@@ -1043,7 +1046,8 @@ button:focus-visible {
   gap: 8px;
 }
 
-.mount-grid {
+.mount-grid,
+.drone-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
   gap: 8px;
@@ -1052,7 +1056,8 @@ button:focus-visible {
 
 .hero-card,
 .shop-card,
-.mount-card {
+.mount-card,
+.drone-card {
   min-width: 0;
   padding: 8px;
   border: 1px solid rgba(255, 248, 232, 0.2);
@@ -1086,7 +1091,8 @@ button:focus-visible {
 }
 
 .shop-card.is-selected,
-.mount-card.is-selected {
+.mount-card.is-selected,
+.drone-card.is-selected {
   border-color: rgba(245, 200, 75, 0.86);
   background:
     linear-gradient(180deg, rgba(245, 200, 75, 0.22), rgba(255, 248, 232, 0.06)),
@@ -1099,7 +1105,8 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-.mount-card.is-locked {
+.mount-card.is-locked,
+.drone-card.is-locked {
   filter: saturate(0.78);
 }
 
@@ -1314,14 +1321,16 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.mount-actions {
+.mount-actions,
+.drone-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin-top: 7px;
 }
 
-.mount-actions button {
+.mount-actions button,
+.drone-actions button {
   min-width: 0;
   height: 30px;
   padding: 0 8px;
@@ -1329,9 +1338,30 @@ button:focus-visible {
   font-size: 11px;
 }
 
-.mount-actions button:only-child {
+.mount-actions button:only-child,
+.drone-actions button:only-child {
   grid-column: 1 / -1;
 }
+
+.drone-icon {
+  width: min(108px, 30vw);
+  aspect-ratio: 1;
+  margin: 0 auto 7px;
+  border-radius: 8px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 248, 232, 0.16),
+    0 8px 16px rgba(0, 0, 0, 0.32);
+  filter: saturate(1.04) contrast(1.04);
+}
+
+.drone-poopOrb { background-image: url("assets/drone-poop-orb.png"); }
+.drone-aquaNeedle { background-image: url("assets/drone-aqua-needle.png"); }
+.drone-medicHalo { background-image: url("assets/drone-medic-halo.png"); }
+.drone-voidCauldron { background-image: url("assets/drone-void-cauldron.png"); }
+.drone-tigerSpark { background-image: url("assets/drone-tiger-spark.png"); }
 
 .hero-portrait {
   position: relative;
@@ -2833,6 +2863,7 @@ button:focus-visible {
   .mail-actions button,
   .trial-access-actions button,
   .mount-actions button,
+  .drone-actions button,
   .shop-row button {
     min-width: 72px;
     height: 30px;

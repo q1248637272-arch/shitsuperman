@@ -53,6 +53,7 @@
   const mailPageButton = document.getElementById("mailPageButton");
   const heroPageButton = document.getElementById("heroPageButton");
   const mountPageButton = document.getElementById("mountPageButton");
+  const dronePageButton = document.getElementById("dronePageButton");
   const equipmentPageButton = document.getElementById("equipmentPageButton");
   const shopPageButton = document.getElementById("shopPageButton");
   const achievementPageButton = document.getElementById("achievementPageButton");
@@ -75,6 +76,9 @@
   const mountText = document.getElementById("mountText");
   const mountTrialAccessText = document.getElementById("mountTrialAccessText");
   const buyMountTrialPassButton = document.getElementById("buyMountTrialPassButton");
+  const dronePage = document.getElementById("dronePage");
+  const droneGrid = document.getElementById("droneGrid");
+  const droneText = document.getElementById("droneText");
   const equipmentPage = document.getElementById("equipmentPage");
   const shopPage = document.getElementById("shopPage");
   const shopDetail = document.getElementById("shopDetail");
@@ -148,6 +152,11 @@
     heroNeonMedic: loadImage("assets/hero-neon-medic.png", true),
     mountGravityCauldron: loadImage("assets/mount-gravity-cauldron.png", true),
     mountAmbulanceHover: loadImage("assets/mount-ambulance-hover.png", true),
+    dronePoopOrb: loadImage("assets/drone-poop-orb.png", true),
+    droneAquaNeedle: loadImage("assets/drone-aqua-needle.png", true),
+    droneMedicHalo: loadImage("assets/drone-medic-halo.png", true),
+    droneVoidCauldron: loadImage("assets/drone-void-cauldron.png", true),
+    droneTigerSpark: loadImage("assets/drone-tiger-spark.png", true),
     equipmentIcons: loadImage("assets/equipment-icons.png", true),
     laneStarTrail: loadImage("assets/lane-star-trail.png", true),
     laneMirrorCurrent: loadImage("assets/lane-mirror-current.png", true),
@@ -214,6 +223,11 @@
     "heroNeonMedic",
     "mountGravityCauldron",
     "mountAmbulanceHover",
+    "dronePoopOrb",
+    "droneAquaNeedle",
+    "droneMedicHalo",
+    "droneVoidCauldron",
+    "droneTigerSpark",
     "ikunChickenPeck",
     "mountAtlas",
   ];
@@ -411,6 +425,83 @@
     return map;
   }, {});
 
+  const droneProfiles = [
+    {
+      key: "poopOrb",
+      name: "便便圆翼僚机",
+      short: "圆翼",
+      desc: "均衡补刀型，稳定发射便弹并在高天赋等级获得轻微穿透。",
+      skill: "稳定补刀",
+      color: "#f5c84b",
+      asset: "dronePoopOrb",
+      free: true,
+      unlockCoins: 0,
+      unlockMaterials: 0,
+      cadence: 1.2,
+      minCadence: 0.82,
+    },
+    {
+      key: "aquaNeedle",
+      name: "星蓝水针僚机",
+      short: "水针",
+      desc: "高速牵制型，发射水针推慢敌人，适合清理密集小怪。",
+      skill: "水针减速",
+      color: "#54d0ff",
+      asset: "droneAquaNeedle",
+      unlockCoins: 90000,
+      unlockMaterials: 260,
+      unlockStage: 8,
+      cadence: 1.06,
+      minCadence: 0.74,
+    },
+    {
+      key: "medicHalo",
+      name: "霓虹医疗环僚机",
+      short: "医疗环",
+      desc: "守护支援型，发射霓虹针并在压力局面补护盾和生命。",
+      skill: "急救护盾",
+      color: "#9de8ff",
+      asset: "droneMedicHalo",
+      unlockCoins: 140000,
+      unlockMaterials: 420,
+      unlockStage: 14,
+      cadence: 1.34,
+      minCadence: 0.92,
+    },
+    {
+      key: "voidCauldron",
+      name: "虚空引力锅僚机",
+      short: "引力锅",
+      desc: "控场牵引型，发射虚空刃拖慢弹幕和敌人，并压制 Boss 破防条。",
+      skill: "虚空牵引",
+      color: "#33f0df",
+      asset: "droneVoidCauldron",
+      unlockCoins: 220000,
+      unlockMaterials: 620,
+      unlockStage: 22,
+      cadence: 1.48,
+      minCadence: 1.02,
+    },
+    {
+      key: "tigerSpark",
+      name: "白虎电刃僚机",
+      short: "虎刃",
+      desc: "Boss 压制型，发射白虎电刃造成高破防压力。",
+      skill: "白虎破防",
+      color: "#ffe37a",
+      asset: "droneTigerSpark",
+      unlockCoins: 320000,
+      unlockMaterials: 860,
+      unlockStage: 30,
+      cadence: 1.6,
+      minCadence: 1.1,
+    },
+  ];
+  const droneProfileMap = droneProfiles.reduce((map, profile) => {
+    map[profile.key] = profile;
+    return map;
+  }, {});
+
   const keys = new Set();
   const particles = [];
   const projectiles = [];
@@ -517,7 +608,7 @@
     luckyBox: { name: "幸运宝箱", price: shopPriceText("luckyBox"), effect: "开启后随机获得金币、材料和道具，约 30% 概率开出稀有组合，可能附带更多战斗道具。" },
     material: { name: "材料补给", price: shopPriceText("material"), effect: "立即获得大量升级材料，并附带能量瓶，适合准备进化或快速提升属性。" },
     battle: { name: "战斗礼包", price: shopPriceText("battle"), effect: "一次获得护盾、磁铁、能量瓶和臭弹炸弹，适合挑战 Boss 关和每日挑战。" },
-    gear: { name: "装备补给箱", price: shopPriceText("gear"), effect: "开启后获得一件随机装备，英雄等级和关卡进度越高，越容易拿到高品质装备。" },
+    gear: { name: "装备补给箱", price: shopPriceText("gear"), effect: "开启后至少获得紫色及以上装备；彩色装备概率随英雄和关卡进程提升。" },
     reroll: { name: "天赋重骰券", price: shopPriceText("reroll"), effect: "放入背包。进局若被携带，局内最多使用一次，用于刷新天赋选项。" },
     revive: { name: "复活心核", price: shopPriceText("revive"), effect: "放入背包。进局若被携带，濒死时自动触发一次复活，会占用一个携带位。" },
     storm: { name: "臭弹炸弹", price: shopPriceText("storm"), effect: "放入背包。进局若被携带，局内最多使用一次，清除大量障碍并伤害 Boss。" },
@@ -547,6 +638,14 @@
     if (key === "gear") return `备用装备 ${(meta.equipmentBag || []).length}/24`;
     if (meta.inventory && Object.prototype.hasOwnProperty.call(meta.inventory, key)) return `库存 ${meta.inventory[key] || 0}`;
     return "";
+  }
+
+  function shopEffectText(key) {
+    const info = shopInfo[key] || shopInfo.shield;
+    if (key === "gear") {
+      return `${info.effect} 当前彩色概率约 ${(shopGearBoxRainbowChance() * 100).toFixed(1)}%，保底 1.5%，最高 5%。`;
+    }
+    return info.effect;
   }
 
   function shopAffordable(key) {
@@ -751,6 +850,11 @@
       return map;
     }, {}),
     trialMount: "",
+    selectedDrone: "poopOrb",
+    unlockedDrones: droneProfiles.reduce((map, profile) => {
+      map[profile.key] = !!profile.free;
+      return map;
+    }, {}),
     trialRewards: { heroes: {}, mounts: {} },
     trialAccess: { date: "", playsUsed: 0, passDate: "" },
     mail: { lastSyncDate: "", claimedTotal: 0, messages: [] },
@@ -949,7 +1053,7 @@
     { key: "collector", name: "拾荒磁场", desc: "拾取收益提高，磁吸范围更强。", color: "#dfff7a" },
     { key: "overcharge", name: "大招蓄能", desc: "补充能量，大招冷却更短。", color: "#54d0ff" },
     { key: "focus", name: "重击专精", desc: "主动攻击更省能量，暴击更狠。", color: "#c45dff" },
-    { key: "drone", name: "便便僚机", desc: "召唤僚机自动补刀。", color: "#9de8ff" },
+    { key: "drone", name: "僚机信标", desc: "召唤已选择僚机，自动补刀或支援。", color: "#9de8ff" },
     { key: "leech", name: "回收菌群", desc: "击破敌人回复生命和能量。", color: "#6bdc7b" },
     { key: "jackpot", name: "奖券体质", desc: "金币材料和宝藏奖励提高。", color: "#ffe37a" },
     { key: "berserk", name: "低血狂臭", desc: "生命越低，暴击和攻速越高。", color: "#ff5650" },
@@ -1256,6 +1360,7 @@
         unlockedHeroes: { ...metaDefaults.unlockedHeroes, ...((saved && saved.unlockedHeroes) || {}) },
         mountLevels: { ...metaDefaults.mountLevels, ...((saved && saved.mountLevels) || {}) },
         unlockedMounts: { ...metaDefaults.unlockedMounts, ...((saved && saved.unlockedMounts) || {}) },
+        unlockedDrones: { ...metaDefaults.unlockedDrones, ...((saved && saved.unlockedDrones) || {}) },
         trialRewards: {
           heroes: { ...metaDefaults.trialRewards.heroes, ...((saved && saved.trialRewards && saved.trialRewards.heroes) || {}) },
           mounts: { ...metaDefaults.trialRewards.mounts, ...((saved && saved.trialRewards && saved.trialRewards.mounts) || {}) },
@@ -1277,6 +1382,7 @@
       loaded.signIn.lastDate = String(loaded.signIn.lastDate || "");
       loaded.trialHero = String(loaded.trialHero || "");
       loaded.trialMount = String(loaded.trialMount || "");
+      loaded.selectedDrone = String(loaded.selectedDrone || "poopOrb");
       loaded.trialAccess = normalizeTrialAccess(loaded.trialAccess);
       const savedHeroLevels = saved && saved.heroLevels && typeof saved.heroLevels === "object" ? saved.heroLevels : {};
       const savedHeroEvoStones = saved && saved.heroEvoStones && typeof saved.heroEvoStones === "object" ? saved.heroEvoStones : {};
@@ -1317,6 +1423,11 @@
         && mountTrialEligible(mountProfileMap[loaded.selectedMount])
         && !loaded.unlockedMounts[loaded.selectedMount];
       loaded.selectedMount = loaded.unlockedMounts[loaded.selectedMount] || selectedMountTrial ? loaded.selectedMount : "plungerBoard";
+      for (const profile of droneProfiles) {
+        loaded.unlockedDrones[profile.key] = !!profile.free || !!loaded.unlockedDrones[profile.key];
+      }
+      loaded.unlockedDrones.poopOrb = true;
+      loaded.selectedDrone = loaded.unlockedDrones[loaded.selectedDrone] ? loaded.selectedDrone : "poopOrb";
       loaded.dailyChallenge.date = String(loaded.dailyChallenge.date || "");
       loaded.dailyChallenge.rewardedDamage = Math.max(0, Math.floor(Number(loaded.dailyChallenge.rewardedDamage) || 0));
       loaded.dailyChallenge.bossDefeated = !!loaded.dailyChallenge.bossDefeated;
@@ -1985,6 +2096,46 @@
       coins: mountUnlockGoldCost(key),
       poopCoins: mountUnlockPoopCost(key),
     };
+  }
+
+  function playerProgressScore() {
+    const stageProgress = Math.max(1, meta.maxStage || 1, isStageMode() ? activeStageNumber() : state.selectedStage || 1);
+    const adventureProgress = Math.max(1, meta.maxAdventureStage || 1);
+    const bossKills = meta.stats ? Math.max(0, meta.stats.totalBossKills || 0) : 0;
+    const bestScore = meta.stats ? Math.max(0, meta.stats.bestScore || 0) : 0;
+    return stageProgress + adventureProgress * 1.35 + currentHeroLevel() * 0.72 + bossKills * 0.8 + Math.min(42, Math.sqrt(bestScore) * 0.08);
+  }
+
+  function droneProfile(key = meta.selectedDrone) {
+    return droneProfileMap[key] || droneProfileMap.poopOrb || droneProfiles[0];
+  }
+
+  function droneUnlocked(key = meta.selectedDrone) {
+    if (!meta.unlockedDrones) meta.unlockedDrones = { ...metaDefaults.unlockedDrones };
+    const profile = droneProfile(key);
+    return !!profile.free || !!meta.unlockedDrones[profile.key];
+  }
+
+  function droneUnlockAvailable(profile) {
+    if (!profile || profile.free) return true;
+    const stageOk = !profile.unlockStage || (meta.maxStage || 1) >= profile.unlockStage;
+    const adventureOk = !profile.unlockAdventureStage || (meta.maxAdventureStage || 1) >= profile.unlockAdventureStage;
+    return stageOk && adventureOk;
+  }
+
+  function droneUnlockCost(key = meta.selectedDrone) {
+    const profile = droneProfile(key);
+    return {
+      coins: Math.max(0, Math.round(Number(profile.unlockCoins) || 0)),
+      materials: Math.max(0, Math.round(Number(profile.unlockMaterials) || 0)),
+    };
+  }
+
+  function activeDroneProfile() {
+    const profile = droneProfile();
+    if (droneUnlocked(profile.key)) return profile;
+    meta.selectedDrone = "poopOrb";
+    return droneProfile();
   }
 
   function dailyPoopCoinReward(day) {
@@ -5040,7 +5191,7 @@
     } else if (perk.key === "overcharge") {
       state.energy = clamp(state.energy + 16, 0, state.maxEnergy);
     } else if (perk.key === "drone") {
-      state.droneShootTimer = Math.min(state.droneShootTimer || 0.45, 0.35);
+      state.droneShootTimer = Math.min(state.droneShootTimer || 0.45, droneShotInterval(activeDroneProfile(), runPerkLevel("drone")) * 0.45);
     } else if (perk.key === "guardian") {
       state.shieldTimer = Math.max(state.shieldTimer, 3.5 + runPerkLevel("guardian") * 0.9);
     } else if (perk.key === "jackpot") {
@@ -5733,6 +5884,28 @@
     return equipmentQualities[0].key;
   }
 
+  function shopGearBoxRainbowChance() {
+    const progress = clamp((playerProgressScore() - 10) / 165, 0, 1);
+    return clamp(0.015 + progress * 0.035, 0.015, 0.05);
+  }
+
+  function rollShopGearBoxQuality(sourceLevel) {
+    if (Math.random() < shopGearBoxRainbowChance()) return "rainbow";
+    const progress = clamp((sourceLevel + playerProgressScore() * 0.35 - 12) / 92, 0, 1);
+    const weights = [
+      { key: "purple", weight: 78 - progress * 30 },
+      { key: "gold", weight: 18 + progress * 17 },
+      { key: "red", weight: 4 + progress * 13 },
+    ];
+    const total = weights.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * total;
+    for (const entry of weights) {
+      roll -= entry.weight;
+      if (roll <= 0) return entry.key;
+    }
+    return "purple";
+  }
+
   function dropEquipment(source, level) {
     const luck = equipmentStats().luck;
     const bossDrop = source === "boss";
@@ -6066,55 +6239,135 @@
     };
   }
 
-  function updateDrone(dt) {
-    const level = runPerkLevel("drone");
-    if (level <= 0 || state.mode !== "playing") return;
-    state.droneShootTimer -= dt;
-    if (state.droneShootTimer > 0) return;
-    state.droneShootTimer = clamp(1.18 - level * 0.14 - (state.feverTimer > 0 ? 0.12 : 0), 0.54, 1.18);
+  function droneShotInterval(profile, level) {
+    const base = Number(profile.cadence) || 1.25;
+    const min = Number(profile.minCadence) || 0.82;
+    const levelBonus = Math.max(0, level - 1) * 0.1;
+    const feverBonus = state.feverTimer > 0 ? 0.08 : 0;
+    return clamp(base - levelBonus - feverBonus, min, base);
+  }
+
+  function droneTargetY(defaultY = hero.y) {
+    if (boss) return boss.y + Math.sin(state.time * 2.4) * boss.h * 0.16;
+    let target = null;
+    let distance = Infinity;
+    for (const h of hazards) {
+      if (!h || h.type !== "toilet") continue;
+      const dx = h.x - hero.x;
+      if (dx < 60 * playScale() || dx > state.width * 0.76) continue;
+      if (dx < distance) {
+        distance = dx;
+        target = h;
+      }
+    }
+    return target ? target.y : defaultY;
+  }
+
+  function makeDroneProjectile(profile, level, lane = 0) {
     const s = playScale();
-    pushProjectiles({
-      x: hero.x + 38 * s,
-      y: hero.y - (44 + Math.min(18, level * 3)) * s,
-      vx: 640 + state.level * 9 + level * 24,
-      vy: Math.sin(state.time * 5) * 34 * s,
-      life: 0.78 + level * 0.03,
+    const yOffset = (lane === 0 ? -1 : 1) * (42 + Math.min(18, level * 3)) * s;
+    const y = hero.y + yOffset;
+    const aimedVy = clamp((droneTargetY(y) - y) * 1.35, -150 * s, 150 * s);
+    const common = {
+      x: hero.x + (lane === 0 ? 38 : 20) * s,
+      y,
       pulse: 0,
-      kind: "poop",
       manual: false,
       drone: true,
-      damage: Math.max(1, Math.round(state.attackDamage * (0.42 + level * 0.06))),
-      critChance: clamp(runCombatStats().crit * 0.62, 0, 44),
-      critMult: 1.55,
+      strong: false,
+    };
+    if (profile.key === "aquaNeedle") {
+      return {
+        ...common,
+        vx: 700 + state.level * 8 + level * 18,
+        vy: aimedVy * 0.72,
+        life: 0.74 + level * 0.02,
+        kind: "waterBolt",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.34 + level * 0.045))),
+        critChance: clamp(runCombatStats().crit * 0.42, 0, 34),
+        critMult: 1.42,
+        rx: (11 + level * 0.7) * s,
+        ry: (7 + level * 0.45) * s,
+        pierce: level >= 3 && lane === 0 ? 1 : 0,
+      };
+    }
+    if (profile.key === "medicHalo") {
+      if (state.health < state.maxHealth * 0.72 || level >= 2) {
+        state.shieldTimer = Math.max(state.shieldTimer || 0, 0.16 + level * 0.045);
+      }
+      return {
+        ...common,
+        vx: 620 + state.level * 7 + level * 14,
+        vy: aimedVy * 0.58,
+        life: 0.8 + level * 0.025,
+        kind: "neonSyringe",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.28 + level * 0.04))),
+        critChance: clamp(runCombatStats().crit * 0.38, 0, 30),
+        critMult: 1.38,
+        rx: (11 + level * 0.6) * s,
+        ry: (7 + level * 0.4) * s,
+        pierce: 0,
+      };
+    }
+    if (profile.key === "voidCauldron") {
+      return {
+        ...common,
+        vx: 560 + state.level * 6 + level * 12,
+        vy: aimedVy * 0.46,
+        life: 0.92 + level * 0.03,
+        kind: "voidCleaver",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.38 + level * 0.055))),
+        critChance: clamp(runCombatStats().crit * 0.45, 0, 34),
+        critMult: 1.48,
+        rx: (13 + level * 0.8) * s,
+        ry: (9 + level * 0.5) * s,
+        pierce: level >= 2 ? 1 : 0,
+      };
+    }
+    if (profile.key === "tigerSpark") {
+      return {
+        ...common,
+        vx: 650 + state.level * 7 + level * 16,
+        vy: aimedVy * 0.38,
+        life: 0.82 + level * 0.025,
+        kind: "metalTigerSlash",
+        variant: level >= 3 ? "tigerFang" : "",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.48 + level * 0.06))),
+        critChance: clamp(runCombatStats().crit * 0.55 + level * 1.5, 0, 42),
+        critMult: 1.58,
+        rx: (13 + level * 0.75) * s,
+        ry: (8 + level * 0.45) * s,
+        pierce: level >= 3 ? 1 : 0,
+      };
+    }
+    return {
+      ...common,
+      vx: 640 + state.level * 8 + level * 22,
+      vy: lane === 0 ? Math.sin(state.time * 5) * 30 * s : aimedVy * 0.28,
+      life: 0.78 + level * 0.03,
+      kind: "poop",
+      damage: Math.max(1, Math.round(state.attackDamage * (0.4 + level * 0.055))),
+      critChance: clamp(runCombatStats().crit * 0.56, 0, 40),
+      critMult: 1.52,
       rx: (12 + level) * s,
       ry: (9 + level * 0.7) * s,
-      pierce: level >= 3 ? 1 : 0,
+      pierce: level >= 3 && lane === 0 ? 1 : 0,
       color: "#9d5a2c",
       dark: "#4d2716",
       core: "#dfff7a",
-    });
-    if (level >= 2) {
-      pushProjectiles({
-        x: hero.x + 18 * s,
-        y: hero.y + (42 + Math.min(14, level * 2)) * s,
-        vx: 600 + state.level * 8 + level * 20,
-        vy: -28 * s,
-        life: 0.72 + level * 0.03,
-        pulse: 0,
-        kind: "poop",
-        manual: false,
-        drone: true,
-        damage: Math.max(1, Math.round(state.attackDamage * (0.34 + level * 0.05))),
-        critChance: clamp(runCombatStats().crit * 0.58, 0, 40),
-        critMult: 1.5,
-        rx: (10 + level) * s,
-        ry: (8 + level * 0.6) * s,
-        pierce: 0,
-        color: "#8b4f25",
-        dark: "#4d2716",
-        core: "#dfff7a",
-      });
-    }
+    };
+  }
+
+  function updateDrone(dt) {
+    const level = runPerkLevel("drone");
+    if (level <= 0 || state.mode !== "playing") return;
+    const profile = activeDroneProfile();
+    state.droneShootTimer -= dt;
+    if (state.droneShootTimer > 0) return;
+    state.droneShootTimer = droneShotInterval(profile, level);
+    const shots = [makeDroneProjectile(profile, level, 0)];
+    if (level >= 2) shots.push(makeDroneProjectile(profile, level, 1));
+    pushProjectiles(shots);
   }
 
   function isLandscapePlay() {
@@ -7939,7 +8192,7 @@
           continue;
         }
         if ((weakHit || boss.weakDuration > 0) && boss.hp > 0) {
-          const source = weakHit ? (shot.manual ? "manual" : shot.kind === "drone" ? "drone" : "auto") : "glance";
+          const source = weakHit ? (shot.manual ? "manual" : shot.drone ? "drone" : "auto") : "glance";
           registerBossWeakHit(source, shot.x, shot.y);
           if (!boss) {
             projectiles.splice(i, 1);
@@ -11004,37 +11257,55 @@
     ctx.restore();
   }
 
+  function drawDroneSprite(profile, size, pulse) {
+    const img = ensureImage(assets[profile.asset]);
+    if (img && img.complete && img.naturalWidth) {
+      ctx.save();
+      ctx.shadowColor = canvasRgba(profile.color || "#9de8ff", 0.44);
+      ctx.shadowBlur = 10 + pulse * 6;
+      ctx.filter = "saturate(1.08) contrast(1.04)";
+      const radius = size * 0.18;
+      roundRect(-size * 0.5, -size * 0.5, size, size, radius);
+      ctx.clip();
+      ctx.drawImage(img, -size * 0.5, -size * 0.5, size, size);
+      ctx.filter = "none";
+      ctx.restore();
+      return true;
+    }
+    ctx.fillStyle = "rgba(17, 27, 34, 0.72)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size * 0.34, size * 0.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = profile.color || "#9de8ff";
+    ctx.beginPath();
+    ctx.arc(size * 0.14, -size * 0.08, size * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = profile.key === "voidCauldron" ? "#33f0df" : profile.key === "tigerSpark" ? "#ffe37a" : "#dfff7a";
+    ctx.lineWidth = Math.max(1.4, size * 0.045);
+    ctx.beginPath();
+    ctx.arc(0, 0, size * (0.38 + pulse * 0.05), 0, Math.PI * 2);
+    ctx.stroke();
+    return false;
+  }
+
   function drawDrone() {
     const level = runPerkLevel("drone");
     if (level <= 0 || state.mode === "ready") return;
+    const profile = activeDroneProfile();
     const s = playScale();
     const pulse = Math.sin(state.time * 7) * 0.5 + 0.5;
     const drones = level >= 2 ? 2 : 1;
     ctx.save();
     for (let i = 0; i < drones; i += 1) {
       const sign = i === 0 ? -1 : 1;
-      const x = hero.x - (28 + i * 10) * s;
-      const y = hero.y + sign * (48 + pulse * 6) * s;
+      const x = hero.x - (28 + i * 12) * s;
+      const y = hero.y + sign * (48 + pulse * 6 + i * 4) * s;
+      const size = (profile.key === "tigerSpark" ? 58 : profile.key === "medicHalo" ? 54 : 50) * s;
       ctx.save();
       ctx.translate(x, y);
-      ctx.globalAlpha = 0.86;
-      ctx.fillStyle = "rgba(17, 27, 34, 0.72)";
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 18 * s, 13 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#9de8ff";
-      ctx.beginPath();
-      ctx.arc(7 * s, -3 * s, 4 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#dfff7a";
-      ctx.lineWidth = Math.max(1.5, 2 * s);
-      ctx.beginPath();
-      ctx.arc(0, 0, (22 + pulse * 4) * s, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = "#8b4f25";
-      ctx.beginPath();
-      ctx.ellipse(-6 * s, 5 * s, 6 * s, 4 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (i > 0) ctx.scale(0.9, 0.9);
+      ctx.globalAlpha = i > 0 ? 0.72 : 0.88;
+      drawDroneSprite(profile, size, pulse);
       ctx.restore();
     }
     ctx.restore();
@@ -14921,7 +15192,7 @@
     if (activeTitleText) activeTitleText.textContent = meta.activeTitle || "暂无";
     const shownMountLevel = effectiveMountLevel();
     const runCarryText = state.mode === "playing" || state.mode === "perkchoice" ? `本局携带 ${runItemLoadoutText()}` : `入场最多携带 ${RUN_ITEM_SLOT_LIMIT} 种`;
-    inventoryText.textContent = `背包：护盾 ${meta.inventory.shield} · 磁铁 ${meta.inventory.magnet} · 能量 ${meta.inventory.energy} · 臭弹 ${meta.inventory.storm} · 重骰 ${meta.inventory.reroll} · 复活 ${meta.inventory.revive} · 羽翼 ${meta.inventory.wing} · 便便币 ${meta.poopCoins || 0} · ${runCarryText} · 坐骑 ${mountProfile().short} Lv.${shownMountLevel}`;
+    inventoryText.textContent = `背包：护盾 ${meta.inventory.shield} · 磁铁 ${meta.inventory.magnet} · 能量 ${meta.inventory.energy} · 臭弹 ${meta.inventory.storm} · 重骰 ${meta.inventory.reroll} · 复活 ${meta.inventory.revive} · 羽翼 ${meta.inventory.wing} · 便便币 ${meta.poopCoins || 0} · ${runCarryText} · 坐骑 ${mountProfile().short} Lv.${shownMountLevel} · 僚机 ${activeDroneProfile().short}`;
     updateHeroPageUi();
     if (signInButton) {
       const signed = meta.signIn.lastDate === todayKey();
@@ -14965,6 +15236,7 @@
     renderStageSummary();
     renderMailPage();
     renderMountPage();
+    renderDronePage();
     renderEquipmentPage();
     renderAchievementPage();
     refreshShopCards();
@@ -15350,6 +15622,99 @@
     }
   }
 
+  function droneUnlockRequirementText(profile) {
+    if (!profile || profile.free) return "已解锁";
+    const parts = [];
+    if (profile.unlockStage) parts.push(`闯关进度 ${profile.unlockStage}`);
+    if (profile.unlockAdventureStage) parts.push(`冒险进度 ${profile.unlockAdventureStage}`);
+    return parts.length ? `需要${parts.join("、")}` : "可解锁";
+  }
+
+  function unlockDrone(key) {
+    const profile = droneProfile(key);
+    if (droneUnlocked(profile.key)) {
+      selectDrone(profile.key);
+      return;
+    }
+    if (!droneUnlockAvailable(profile)) {
+      panelCopy.textContent = `${profile.name} 尚未开放，${droneUnlockRequirementText(profile)}。`;
+      return;
+    }
+    const cost = droneUnlockCost(profile.key);
+    if (meta.coins < cost.coins || meta.materials < cost.materials) {
+      panelCopy.textContent = `解锁 ${profile.name} 需要 ${cost.coins} 金币和 ${cost.materials} 材料。`;
+      return;
+    }
+    meta.coins -= cost.coins;
+    meta.materials -= cost.materials;
+    meta.unlockedDrones[profile.key] = true;
+    meta.selectedDrone = profile.key;
+    saveMeta();
+    panelCopy.textContent = `${profile.name} 已解锁并设为当前僚机。局内获得“僚机信标”天赋后才会出战。`;
+    showRewardToast([{ type: "medal", label: profile.name, amount: 1 }], { duration: 1500 });
+    renderDronePage();
+    updateMetaUi();
+    beep(920, 0.08, "triangle", 0.04);
+  }
+
+  function selectDrone(key) {
+    const profile = droneProfile(key);
+    if (!droneUnlocked(profile.key)) {
+      unlockDrone(profile.key);
+      return;
+    }
+    meta.selectedDrone = profile.key;
+    saveMeta();
+    renderDronePage();
+    updateMetaUi();
+    panelCopy.textContent = `当前僚机切换为 ${profile.name}：${profile.skill}。局内需要拿到僚机信标天赋才会出现。`;
+    beep(720, 0.055, "sine", 0.032);
+  }
+
+  function renderDronePage() {
+    if (!droneGrid) return;
+    droneGrid.innerHTML = "";
+    const active = activeDroneProfile();
+    if (droneText) {
+      droneText.textContent = `当前僚机：${active.name} · ${active.skill}。天赋激活后出战，金币 ${meta.coins}，材料 ${meta.materials}。`;
+    }
+    for (const profile of droneProfiles) {
+      const unlocked = droneUnlocked(profile.key);
+      const selected = meta.selectedDrone === profile.key;
+      const available = droneUnlockAvailable(profile);
+      const cost = droneUnlockCost(profile.key);
+      const card = document.createElement("div");
+      card.className = "drone-card";
+      card.classList.toggle("is-selected", selected);
+      card.classList.toggle("is-locked", !unlocked);
+      const icon = document.createElement("div");
+      icon.className = `drone-icon drone-${profile.key}`;
+      const name = document.createElement("div");
+      name.className = "hero-card-name";
+      name.textContent = profile.name;
+      const stat = document.createElement("div");
+      stat.className = "hero-card-stat";
+      stat.textContent = `${profile.skill} · ${profile.short}`;
+      const skill = document.createElement("div");
+      skill.className = "mount-skill-text";
+      skill.textContent = unlocked
+        ? profile.desc
+        : available
+          ? `解锁费用 ${cost.coins} 金币 + ${cost.materials} 材料`
+          : `${droneUnlockRequirementText(profile)} 后可解锁`;
+      const actions = document.createElement("div");
+      actions.className = "drone-actions";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = unlocked ? selected ? "已选择" : "选择" : available ? "解锁" : "未开放";
+      button.disabled = (unlocked && selected) || (!unlocked && !available);
+      button.addEventListener("click", () => unlocked ? selectDrone(profile.key) : unlockDrone(profile.key));
+      actions.appendChild(button);
+      card.append(icon, name, stat, skill, actions);
+      droneGrid.appendChild(card);
+    }
+  }
+
   function renderStageGrid() {
     if (!stageGrid) return;
     stageGrid.innerHTML = "";
@@ -15636,7 +16001,7 @@
     status.className = `shop-status${affordable ? "" : " is-short"}`;
     status.textContent = `${currency} ${balance}${stockText ? ` · ${stockText}` : ""}${affordable ? " · 可购买" : ` · 还差 ${cost - balance} ${currency}`}`;
     const effect = document.createElement("p");
-    effect.textContent = info.effect;
+    effect.textContent = shopEffectText(key);
     shopDetail.append(title, price, status, effect);
     shopCards.forEach((card) => {
       card.classList.toggle("is-selected", card.dataset.shopKey === key);
@@ -15657,12 +16022,12 @@
   }
 
   function setMenuPage(page) {
-    const target = ["home", "stage", "growth", "mail", "hero", "mount", "equipment", "shop", "achievement", "rules"].includes(page) ? page : "home";
+    const target = ["home", "stage", "growth", "mail", "hero", "mount", "drone", "equipment", "shop", "achievement", "rules"].includes(page) ? page : "home";
     const moduleOpen = target !== "home";
     menuPanel.classList.toggle("module-open", moduleOpen);
     if (moduleHeader) moduleHeader.hidden = !moduleOpen;
     if (moduleTitle) {
-      moduleTitle.textContent = target === "stage" ? (state.gameMode === "adventure" ? "冒险模式" : "闯关模式") : target === "growth" ? "养成" : target === "mail" ? "邮箱" : target === "hero" ? "英雄" : target === "equipment" ? "装备" : target === "shop" ? "商店" : target === "achievement" ? "成就" : target === "rules" ? "规则" : "";
+      moduleTitle.textContent = target === "stage" ? (state.gameMode === "adventure" ? "冒险模式" : "闯关模式") : target === "growth" ? "养成" : target === "mail" ? "邮箱" : target === "hero" ? "英雄" : target === "drone" ? "僚机" : target === "equipment" ? "装备" : target === "shop" ? "商店" : target === "achievement" ? "成就" : target === "rules" ? "规则" : "";
     }
     if (moduleTitle && target === "mount") moduleTitle.textContent = "坐骑";
     if (stagePage) stagePage.hidden = target !== "stage";
@@ -15670,6 +16035,7 @@
     if (mailPage) mailPage.hidden = target !== "mail";
     if (heroPage) heroPage.hidden = target !== "hero";
     if (mountPage) mountPage.hidden = target !== "mount";
+    if (dronePage) dronePage.hidden = target !== "drone";
     if (equipmentPage) equipmentPage.hidden = target !== "equipment";
     if (shopPage) shopPage.hidden = target !== "shop";
     if (achievementPage) achievementPage.hidden = target !== "achievement";
@@ -15678,6 +16044,7 @@
     if (mailPageButton) mailPageButton.classList.toggle("is-selected", target === "mail");
     if (heroPageButton) heroPageButton.classList.toggle("is-selected", target === "hero");
     if (mountPageButton) mountPageButton.classList.toggle("is-selected", target === "mount");
+    if (dronePageButton) dronePageButton.classList.toggle("is-selected", target === "drone");
     if (equipmentPageButton) equipmentPageButton.classList.toggle("is-selected", target === "equipment");
     if (shopPageButton) shopPageButton.classList.toggle("is-selected", target === "shop");
     if (achievementPageButton) achievementPageButton.classList.toggle("is-selected", target === "achievement");
@@ -15689,6 +16056,7 @@
     }
     if (target === "hero") updateHeroPageUi();
     if (target === "mount") renderMountPage();
+    if (target === "drone") renderDronePage();
     if (target === "stage") {
       renderStageGrid();
       renderStageSummary();
@@ -15789,14 +16157,14 @@
     }
     meta.coins -= cost;
     const progressStage = Math.max(1, meta.maxStage || 1, meta.maxAdventureStage || 1, isStageMode() ? activeStageNumber() : state.selectedStage || 1);
-    const quality = rollEquipmentQuality(currentHeroLevel() + progressStage, true, true);
+    const quality = rollShopGearBoxQuality(currentHeroLevel() + progressStage);
     const slot = equipmentSlots[Math.floor(Math.random() * equipmentSlots.length)];
     const item = makeEquipment(slot.key, quality, Math.max(currentHeroLevel(), progressStage));
     awardEquipment(item);
     meta.coins = Math.max(0, meta.coins);
     saveMeta();
     updateMetaUi();
-    panelCopy.textContent = `装备补给箱开启，获得 ${item.name}。`;
+    panelCopy.textContent = `装备补给箱开启，获得 ${item.name}。当前彩色概率约 ${(shopGearBoxRainbowChance() * 100).toFixed(1)}%。`;
     beep(1040, 0.09, "triangle", 0.045);
   }
 
@@ -16290,6 +16658,7 @@
   if (mailPageButton) mailPageButton.addEventListener("click", () => setMenuPage("mail"));
   if (heroPageButton) heroPageButton.addEventListener("click", () => setMenuPage("hero"));
   if (mountPageButton) mountPageButton.addEventListener("click", () => setMenuPage("mount"));
+  if (dronePageButton) dronePageButton.addEventListener("click", () => setMenuPage("drone"));
   if (claimAllMailButton) claimAllMailButton.addEventListener("click", claimAllMailboxMessages);
   if (refreshMailButton) {
     refreshMailButton.addEventListener("click", () => {
