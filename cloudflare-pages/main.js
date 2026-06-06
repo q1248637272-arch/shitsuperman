@@ -435,6 +435,8 @@
   const BOSS_ATTACK_SPEED_SCALE = 0.72;
   const PICKUP_SIZE_SCALE = 1.3;
   const SCREEN_SHAKE_ENABLED = false;
+  const SCENE_TRANSITION_DURATION = 0.82;
+  const SCENE_TRANSITION_LOAD_WINDOW = 1.08;
   const MAX_ACTIVE_PICKUPS = 6;
   const HERO_MAX_ATTACKS_PER_SECOND = 5;
   const HERO_MIN_ATTACK_INTERVAL = 1 / HERO_MAX_ATTACKS_PER_SECOND;
@@ -913,6 +915,13 @@
     frameAvg: 16.7,
     qualityTimer: 0,
     qualityNoticeTimer: 0,
+    sceneTransitionTimer: 0,
+    sceneTransitionDuration: SCENE_TRANSITION_DURATION,
+    sceneLoadReliefTimer: 0,
+    backgroundWarmTimer: 0,
+    backgroundFrameKey: "",
+    backgroundCurrentFrame: null,
+    backgroundPreviousFrame: null,
     dragPointerId: null,
     dragTargetX: 170,
     dragTargetY: 360,
@@ -5784,6 +5793,28 @@
     return state.score >= 2600 || state.bossLevel >= 3 ? "deep" : "city";
   }
 
+  function warmMapBackground(map, priority = "low") {
+    const keys = map === "adventure"
+      ? ["backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge"]
+      : map === "deep"
+        ? ["backgroundDeepRefit", "backgroundDeep"]
+        : ["backgroundCityRefit", "background"];
+    warmAssetQueue(keys, { priority, delay: priority === "high" ? 20 : 90 });
+  }
+
+  function warmUpcomingBackgrounds() {
+    if (state.mode !== "playing") return;
+    warmMapBackground(activeMap(), "high");
+    if (state.gameMode === "endless") {
+      if (state.score >= 1800 || state.bossLevel >= 2) warmMapBackground("deep", "high");
+      if (state.score >= 4300 || state.bossLevel >= 5) warmMapBackground("adventure", "high");
+    } else if (isStageMode()) {
+      const list = activeStageList();
+      const next = list[Math.min(list.length - 1, activeStageNumber())];
+      if (next && next.map) warmMapBackground(next.map, "low");
+    }
+  }
+
   function isDailyBossActive() {
     return state.gameMode === "daily" || (boss && boss.daily);
   }
@@ -5906,17 +5937,28 @@
 
   function effectBudget() {
     const base = EFFECT_BUDGETS[state.effectiveQuality === "smooth" ? "smooth" : "normal"];
-    if (!isLandscapePlay()) return base;
+    const sceneScale = sceneTransitionActive() ? (state.effectiveQuality === "smooth" ? 0.78 : 0.68) : 1;
+    if (!isLandscapePlay()) {
+      if (sceneScale >= 1) return base;
+      return {
+        particles: Math.max(64, Math.floor(base.particles * sceneScale)),
+        floaters: Math.max(3, Math.floor(base.floaters * sceneScale)),
+        projectiles: base.projectiles,
+        hazards: base.hazards,
+        pop: base.pop * sceneScale,
+        trail: base.trail * sceneScale,
+      };
+    }
     const tight = landscapeTightness();
     const compact = state.height <= 430 ? 0.84 : 0.92;
     const scale = clamp(compact - tight * 0.12, 0.68, 0.94);
     return {
-      particles: Math.max(70, Math.floor(base.particles * scale)),
-      floaters: Math.max(4, Math.floor(base.floaters * scale)),
+      particles: Math.max(70, Math.floor(base.particles * scale * sceneScale)),
+      floaters: Math.max(4, Math.floor(base.floaters * scale * sceneScale)),
       projectiles: Math.max(48, Math.floor(base.projectiles * scale)),
       hazards: Math.max(42, Math.floor(base.hazards * scale)),
-      pop: base.pop * scale,
-      trail: base.trail * scale,
+      pop: base.pop * scale * sceneScale,
+      trail: base.trail * scale * sceneScale,
     };
   }
 
@@ -6295,6 +6337,11 @@
     state.scroll = 0;
     state.speed = 185;
     state.shake = 0;
+    state.sceneTransitionTimer = 0;
+    state.sceneLoadReliefTimer = 0;
+    state.backgroundFrameKey = "";
+    state.backgroundCurrentFrame = null;
+    state.backgroundPreviousFrame = null;
     state.shootCooldown = 0;
     state.autoShootTimer = autoShootInterval() * 0.55;
     state.strongAutoTimer = 0.36;
@@ -6578,6 +6625,7 @@
     const landscapeSpeedEase = isLandscapePlay() ? 0.92 : 1;
     state.speed = (182 + stageBoost + Math.min(136, state.time * 2.25) + state.dangerLevel * 28 - recoverySlow) * landscapeSpeedEase;
     state.scroll += state.speed * dt;
+    prepareBackgroundTransition();
     const movementScoreBoost = state.controlMode === "tap" ? 1.2 : 1;
     const feverBoost = state.feverTimer > 0 ? 1.35 : 1;
     const draftBoost = state.draftTimer > 0 ? 1.16 : 1;
@@ -6625,6 +6673,13 @@
     state.counterPulse = Math.max(0, (state.counterPulse || 0) - dt);
     state.nearMissTimer = Math.max(0, state.nearMissTimer - dt);
     state.hurtFlashTimer = Math.max(0, state.hurtFlashTimer - dt);
+    state.sceneTransitionTimer = Math.max(0, state.sceneTransitionTimer - dt);
+    state.sceneLoadReliefTimer = Math.max(0, state.sceneLoadReliefTimer - dt);
+    state.backgroundWarmTimer = Math.max(0, (state.backgroundWarmTimer || 0) - dt);
+    if (state.backgroundWarmTimer <= 0) {
+      warmUpcomingBackgrounds();
+      state.backgroundWarmTimer = 0.55;
+    }
     state.draftTimer = Math.max(0, state.draftTimer - dt);
     state.styleTimer = Math.max(0, state.styleTimer - dt);
     if (state.styleTimer <= 0) {
@@ -6649,7 +6704,10 @@
     state.shake = SCREEN_SHAKE_ENABLED ? Math.max(0, state.shake - dt * 18) : 0;
     hero.invuln = Math.max(0, hero.invuln - dt);
     updateAdventureRoute(dt);
-    if (state.gameMode !== "daily") maybeStartEvent();
+    if (state.gameMode !== "daily") {
+      maybeStartEvent();
+      prepareBackgroundTransition();
+    }
 
     const thrusting = keys.has("Space") || keys.has("ArrowUp") || keys.has("KeyW") || keys.has("PointerFly");
     const dragging = state.controlMode === "drag" && state.dragPointerId !== null;
@@ -9242,7 +9300,7 @@
       f.a -= dt * 0.08;
       if (f.x < -60 || f.a <= 0) floaters.splice(i, 1);
     }
-    const floaterChance = isSmoothQuality() ? 0.004 : 0.015;
+    const floaterChance = sceneTransitionActive() ? 0 : isSmoothQuality() ? 0.004 : 0.015;
     if (floaters.length < effectBudget().floaters && Math.random() < floaterChance && state.mode === "playing") {
       floaters.push({ x: state.width + 50, y: random(70, state.height - 90), a: 0.42, phase: random(0, 6.28), r: random(8, 18) });
     }
@@ -9255,9 +9313,10 @@
       ctx.translate(random(-state.shake, state.shake), random(-state.shake, state.shake));
     }
     drawBackground();
-    if (!isSmoothQuality() || state.feverTimer > 0) drawAtmosphere();
-    if (!isSmoothQuality()) drawParallaxRibbons();
-    if (!isSmoothQuality()) drawFloaters();
+    const transitioningScene = sceneTransitionActive();
+    if ((!isSmoothQuality() || state.feverTimer > 0) && !transitioningScene) drawAtmosphere();
+    if (!isSmoothQuality() && !transitioningScene) drawParallaxRibbons();
+    if (!isSmoothQuality() && !transitioningScene) drawFloaters();
     drawClassicEventLane();
     drawAdventureCurrentLane();
     drawMysteryRouteLane();
@@ -9283,7 +9342,21 @@
     ctx.restore();
   }
 
-  function drawBackground() {
+  function imageReady(img) {
+    return !!(img && img.complete && img.naturalWidth);
+  }
+
+  function sceneTransitionActive() {
+    return state.sceneTransitionTimer > 0 || state.sceneLoadReliefTimer > 0;
+  }
+
+  function mapBackgroundAssetKey(map) {
+    if (map === "adventure") return imageReady(assets.backgroundAdventureRefit) ? "backgroundAdventureRefit" : "backgroundAdventure";
+    if (map === "deep") return imageReady(assets.backgroundDeepRefit) ? "backgroundDeepRefit" : "backgroundDeep";
+    return imageReady(assets.backgroundCityRefit) ? "backgroundCityRefit" : "background";
+  }
+
+  function desiredBackgroundFrame() {
     const map = activeMap();
     const deepMap = map === "deep";
     const adventureMap = map === "adventure";
@@ -9293,23 +9366,126 @@
     const starTrailMap = (state.eventKind === "starTrail" || state.starTrailPulse > 0) && !elementRiftMap && !purificationMap && !mirrorMap;
     const forgeMap = (state.eventKind === "auroraForge" || state.forgePulse > 0) && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap;
     const cityMap = !deepMap && !adventureMap && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap && !forgeMap;
-    const cityRefitReady = assets.backgroundCityRefit.complete && assets.backgroundCityRefit.naturalWidth;
-    const deepRefitReady = assets.backgroundDeepRefit.complete && assets.backgroundDeepRefit.naturalWidth;
-    const adventureRefitReady = assets.backgroundAdventureRefit.complete && assets.backgroundAdventureRefit.naturalWidth;
-    const cityAsset = cityRefitReady ? assets.backgroundCityRefit : assets.background;
-    const deepAsset = deepRefitReady ? assets.backgroundDeepRefit : assets.backgroundDeep;
-    const adventureAsset = adventureRefitReady ? assets.backgroundAdventureRefit : assets.backgroundAdventure;
-    const img = ensureImage(forgeMap ? assets.backgroundAuroraForge : mirrorMap ? assets.backgroundMirrorCurrent : purificationMap ? assets.backgroundPurificationTide : starTrailMap ? assets.backgroundStarTrail : elementRiftMap ? assets.backgroundElementRift : adventureMap ? adventureAsset : deepMap ? deepAsset : cityAsset);
-    if (!img.complete || !img.naturalWidth) {
-      const grad = ctx.createLinearGradient(0, 0, 0, state.height);
-      grad.addColorStop(0, forgeMap ? "#17255f" : mirrorMap ? "#d9ffff" : purificationMap ? "#d8fff8" : starTrailMap ? "#12345f" : elementRiftMap ? "#235f8f" : adventureMap ? "#1f5167" : deepMap ? "#114252" : "#5bded4");
-      grad.addColorStop(0.52, forgeMap ? "#ffb75a" : mirrorMap ? "#54d0ff" : purificationMap ? "#5bded4" : starTrailMap ? "#7b58d9" : elementRiftMap ? "#f5c84b" : adventureMap ? "#2f8f8c" : deepMap ? "#6e3d87" : "#ffd27c");
-      grad.addColorStop(1, forgeMap ? "#103a40" : mirrorMap ? "#1d3d5c" : purificationMap ? "#fff1a6" : starTrailMap ? "#101823" : elementRiftMap ? "#17312f" : adventureMap ? "#17312f" : deepMap ? "#201926" : "#2a211b");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, state.width, state.height);
+    const cityRefitReady = imageReady(assets.backgroundCityRefit);
+    const deepRefitReady = imageReady(assets.backgroundDeepRefit);
+    const adventureRefitReady = imageReady(assets.backgroundAdventureRefit);
+    let assetKey = mapBackgroundAssetKey(map);
+    let key = `map:${map}:${assetKey}`;
+    if (elementRiftMap) {
+      assetKey = "backgroundElementRift";
+      key = "event:elementRift";
+    } else if (purificationMap) {
+      assetKey = "backgroundPurificationTide";
+      key = "event:purificationTide";
+    } else if (mirrorMap) {
+      assetKey = "backgroundMirrorCurrent";
+      key = "event:mirrorCurrent";
+    } else if (starTrailMap) {
+      assetKey = "backgroundStarTrail";
+      key = "event:starTrail";
+    } else if (forgeMap) {
+      assetKey = "backgroundAuroraForge";
+      key = "event:auroraForge";
+    }
+    const img = ensureImage(assets[assetKey]);
+    return {
+      key,
+      assetKey,
+      img,
+      cityMap,
+      deepMap,
+      adventureMap,
+      elementRiftMap,
+      purificationMap,
+      mirrorMap,
+      starTrailMap,
+      forgeMap,
+      cityRefitReady,
+      deepRefitReady,
+      adventureRefitReady,
+    };
+  }
+
+  function warmBackgroundFrame(frame) {
+    if (!frame || !frame.assetKey) return;
+    warmAssetImage(frame.assetKey, "high");
+  }
+
+  function switchBackgroundFrame(frame) {
+    state.backgroundPreviousFrame = state.backgroundCurrentFrame;
+    state.backgroundCurrentFrame = frame;
+    state.backgroundFrameKey = frame.key;
+    state.sceneTransitionDuration = isSmoothQuality() ? 0.58 : SCENE_TRANSITION_DURATION;
+    state.sceneTransitionTimer = state.backgroundPreviousFrame ? state.sceneTransitionDuration : 0;
+    state.sceneLoadReliefTimer = Math.max(state.sceneLoadReliefTimer, SCENE_TRANSITION_LOAD_WINDOW);
+  }
+
+  function resolveBackgroundFrame() {
+    const desired = desiredBackgroundFrame();
+    if (!state.backgroundCurrentFrame) {
+      if (imageReady(desired.img)) {
+        switchBackgroundFrame(desired);
+      } else {
+        warmBackgroundFrame(desired);
+        state.backgroundCurrentFrame = desired;
+        state.backgroundFrameKey = desired.key;
+      }
+    } else if (desired.key !== state.backgroundFrameKey) {
+      if (imageReady(desired.img)) {
+        switchBackgroundFrame(desired);
+      } else {
+        warmBackgroundFrame(desired);
+        state.sceneLoadReliefTimer = Math.max(state.sceneLoadReliefTimer, 0.44);
+      }
+    }
+    if (state.sceneTransitionTimer <= 0) state.backgroundPreviousFrame = null;
+    const duration = Math.max(0.1, state.sceneTransitionDuration || SCENE_TRANSITION_DURATION);
+    const rawBlend = state.sceneTransitionTimer > 0 ? 1 - clamp(state.sceneTransitionTimer / duration, 0, 1) : 1;
+    const blend = rawBlend * rawBlend * (3 - rawBlend * 2);
+    return {
+      current: state.backgroundCurrentFrame || desired,
+      previous: state.backgroundPreviousFrame,
+      blend,
+    };
+  }
+
+  function prepareBackgroundTransition() {
+    if (state.mode !== "playing") return;
+    resolveBackgroundFrame();
+  }
+
+  function backgroundPalette(frame) {
+    return {
+      top: frame.forgeMap ? "#17255f" : frame.mirrorMap ? "#d9ffff" : frame.purificationMap ? "#d8fff8" : frame.starTrailMap ? "#12345f" : frame.elementRiftMap ? "#235f8f" : frame.adventureMap ? "#1f5167" : frame.deepMap ? "#114252" : "#5bded4",
+      mid: frame.forgeMap ? "#ffb75a" : frame.mirrorMap ? "#54d0ff" : frame.purificationMap ? "#5bded4" : frame.starTrailMap ? "#7b58d9" : frame.elementRiftMap ? "#f5c84b" : frame.adventureMap ? "#2f8f8c" : frame.deepMap ? "#6e3d87" : "#ffd27c",
+      bottom: frame.forgeMap ? "#103a40" : frame.mirrorMap ? "#1d3d5c" : frame.purificationMap ? "#fff1a6" : frame.starTrailMap ? "#101823" : frame.elementRiftMap ? "#17312f" : frame.adventureMap ? "#17312f" : frame.deepMap ? "#201926" : "#2a211b",
+      veil: frame.forgeMap ? "rgba(255, 183, 90, 0.04)" : frame.mirrorMap ? "rgba(255, 255, 255, 0.04)" : frame.purificationMap ? "rgba(255, 248, 232, 0.05)" : frame.adventureMap && frame.adventureRefitReady ? "rgba(4, 28, 32, 0.05)" : frame.deepMap && frame.deepRefitReady ? "rgba(6, 22, 25, 0.05)" : frame.cityMap ? "rgba(6, 22, 25, 0.08)" : "rgba(6, 22, 25, 0.16)",
+      ground: frame.forgeMap ? "rgba(20, 18, 31, 0.36)" : frame.mirrorMap ? "rgba(8, 24, 42, 0.44)" : frame.purificationMap ? "rgba(255, 248, 232, 0.12)" : frame.starTrailMap ? "rgba(8, 16, 32, 0.5)" : frame.elementRiftMap ? "rgba(15, 24, 28, 0.58)" : frame.adventureMap ? (frame.adventureRefitReady ? "rgba(8, 35, 42, 0.5)" : "rgba(10, 39, 36, 0.68)") : frame.deepMap ? (frame.deepRefitReady ? "rgba(12, 18, 31, 0.46)" : "rgba(20, 18, 31, 0.68)") : frame.cityMap ? "rgba(13, 34, 37, 0.52)" : "rgba(13, 34, 37, 0.72)",
+      lane: frame.forgeMap ? "rgba(255, 183, 90, 0.3)" : frame.mirrorMap ? "rgba(143, 247, 255, 0.28)" : frame.purificationMap ? "rgba(91, 222, 212, 0.22)" : frame.starTrailMap ? "rgba(157, 232, 255, 0.3)" : frame.elementRiftMap ? "rgba(255, 248, 232, 0.28)" : frame.adventureMap ? "rgba(91, 222, 212, 0.24)" : frame.deepMap ? "rgba(196, 93, 255, 0.24)" : frame.cityMap ? "rgba(91, 222, 212, 0.2)" : "rgba(245, 200, 75, 0.22)",
+    };
+  }
+
+  function drawBackgroundGradient(frame) {
+    const palette = backgroundPalette(frame);
+    const grad = ctx.createLinearGradient(0, 0, 0, state.height);
+    grad.addColorStop(0, palette.top);
+    grad.addColorStop(0.52, palette.mid);
+    grad.addColorStop(1, palette.bottom);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, state.width, state.height);
+  }
+
+  function drawBackgroundFrame(frame, alpha = 1) {
+    if (!frame) return;
+    const img = ensureImage(frame.img);
+    const palette = backgroundPalette(frame);
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    if (!imageReady(img)) {
+      drawBackgroundGradient(frame);
+      ctx.restore();
       return;
     }
-
     const scale = Math.max(state.height / img.naturalHeight, state.width / img.naturalWidth);
     const dw = img.naturalWidth * scale;
     const dh = img.naturalHeight * scale;
@@ -9319,14 +9495,44 @@
       ctx.drawImage(img, x, y, dw, dh);
     }
 
-    ctx.fillStyle = forgeMap ? "rgba(255, 183, 90, 0.04)" : mirrorMap ? "rgba(255, 255, 255, 0.04)" : purificationMap ? "rgba(255, 248, 232, 0.05)" : adventureMap && adventureRefitReady ? "rgba(4, 28, 32, 0.05)" : deepMap && deepRefitReady ? "rgba(6, 22, 25, 0.05)" : cityMap ? "rgba(6, 22, 25, 0.08)" : "rgba(6, 22, 25, 0.16)";
+    ctx.fillStyle = palette.veil;
     ctx.fillRect(0, 0, state.width, state.height);
-    ctx.fillStyle = forgeMap ? "rgba(20, 18, 31, 0.36)" : mirrorMap ? "rgba(8, 24, 42, 0.44)" : purificationMap ? "rgba(255, 248, 232, 0.12)" : starTrailMap ? "rgba(8, 16, 32, 0.5)" : elementRiftMap ? "rgba(15, 24, 28, 0.58)" : adventureMap ? (adventureRefitReady ? "rgba(8, 35, 42, 0.5)" : "rgba(10, 39, 36, 0.68)") : deepMap ? (deepRefitReady ? "rgba(12, 18, 31, 0.46)" : "rgba(20, 18, 31, 0.68)") : cityMap ? "rgba(13, 34, 37, 0.52)" : "rgba(13, 34, 37, 0.72)";
+    ctx.fillStyle = palette.ground;
     ctx.fillRect(0, state.height - 48, state.width, 48);
-    ctx.fillStyle = forgeMap ? "rgba(255, 183, 90, 0.3)" : mirrorMap ? "rgba(143, 247, 255, 0.28)" : purificationMap ? "rgba(91, 222, 212, 0.22)" : starTrailMap ? "rgba(157, 232, 255, 0.3)" : elementRiftMap ? "rgba(255, 248, 232, 0.28)" : adventureMap ? "rgba(91, 222, 212, 0.24)" : deepMap ? "rgba(196, 93, 255, 0.24)" : cityMap ? "rgba(91, 222, 212, 0.2)" : "rgba(245, 200, 75, 0.22)";
+    ctx.fillStyle = palette.lane;
     for (let x = -((state.scroll * 0.9) % 128); x < state.width + 128; x += 128) {
       ctx.fillRect(x, state.height - 39, 56, 5);
     }
+    ctx.restore();
+  }
+
+  function drawSceneTransitionWash(blend) {
+    if (!sceneTransitionActive()) return;
+    const alpha = state.sceneTransitionTimer > 0
+      ? Math.sin(clamp(blend, 0, 1) * Math.PI) * 0.16
+      : Math.min(0.08, state.sceneLoadReliefTimer * 0.05);
+    if (alpha <= 0.01) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const wash = ctx.createLinearGradient(0, playTop(), state.width, playBottom());
+    wash.addColorStop(0, "rgba(255, 248, 232, 0)");
+    wash.addColorStop(0.48, "rgba(255, 248, 232, 0.62)");
+    wash.addColorStop(1, "rgba(84, 208, 255, 0)");
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, state.width, state.height);
+    ctx.restore();
+  }
+
+  function drawBackground() {
+    const frame = resolveBackgroundFrame();
+    if (frame.previous && frame.blend < 1) {
+      drawBackgroundFrame(frame.previous, 1);
+      drawBackgroundFrame(frame.current, frame.blend);
+      drawSceneTransitionWash(frame.blend);
+      return;
+    }
+    drawBackgroundFrame(frame.current, 1);
+    drawSceneTransitionWash(1);
   }
 
   function eventVisualTheme() {
