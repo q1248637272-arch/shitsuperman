@@ -738,6 +738,9 @@
       pickupBonus: 0.06,
       pressureRelief: 0.015,
       eventGap: 0.94,
+      districtTarget: 58,
+      districtReward: { coins: 0.035, materials: 0.012 },
+      districtColor: "#5bded4",
       eventBias: [
         { kind: "cleanWind", label: "清风补给" },
         { kind: "paperRain", label: "纸卷雨" },
@@ -758,6 +761,9 @@
       pickupBonus: 0.16,
       pressureRelief: 0.025,
       eventGap: 0.9,
+      districtTarget: 66,
+      districtReward: { coins: 0.025, materials: 0.04 },
+      districtColor: "#9de8ff",
       eventBias: [
         { kind: "supplyDrop", label: "补给空投", minStage: 2 },
         { kind: "cleanWind", label: "清风补给" },
@@ -778,6 +784,9 @@
       pickupBonus: 0.04,
       pressureRelief: 0.005,
       eventGap: 0.96,
+      districtTarget: 72,
+      districtReward: { coins: 0.045, materials: 0.016 },
+      districtColor: "#dfff7a",
       eventBias: [
         { kind: "comboShrine", label: "连击祭坛", minStage: 4 },
         { kind: "draftGate", label: "顺风门阵", minStage: 3 },
@@ -798,6 +807,9 @@
       pickupBonus: 0.08,
       pressureRelief: 0,
       eventGap: 1.06,
+      districtTarget: 76,
+      districtReward: { coins: 0.032, materials: 0.035 },
+      districtColor: "#ff8d54",
       eventBias: [
         { kind: "counterTrial", label: "闪反试炼", minStage: 5 },
         { kind: "supplyDrop", label: "补给空投", minStage: 3 },
@@ -818,6 +830,9 @@
       pickupBonus: 0.1,
       pressureRelief: 0.02,
       eventGap: 0.92,
+      districtTarget: 70,
+      districtReward: { coins: 0.03, materials: 0.03 },
+      districtColor: "#f5c84b",
       eventBias: [
         { kind: "supplyDrop", label: "补给空投" },
         { kind: "cleanWind", label: "清风补给" },
@@ -844,6 +859,86 @@
       coins: Math.round(stage.coinReward * (profile.coinBonus || 0) * repeatScale),
       materials: Math.round(stage.materialReward * (profile.materialBonus || 0) * repeatScale),
     };
+  }
+
+  function classicDistrictTarget(stage = activeStage()) {
+    const profile = classicStageProfile(stage);
+    return Math.max(42, Math.round((profile.districtTarget || 64) + Math.min(28, (stage.number || 1) * 0.55) + (stage.bossStage ? 10 : 0)));
+  }
+
+  function classicDistrictReward(stage, firstClear, districtComplete) {
+    if (!stage || state.gameMode !== "stage" || !districtComplete) return { coins: 0, materials: 0 };
+    const profile = classicStageProfile(stage);
+    const repeatScale = firstClear ? 1 : 0.32;
+    return {
+      coins: Math.round(stage.coinReward * ((profile.districtReward && profile.districtReward.coins) || 0) * repeatScale),
+      materials: Math.round(stage.materialReward * ((profile.districtReward && profile.districtReward.materials) || 0) * repeatScale),
+    };
+  }
+
+  function classicDistrictReady() {
+    return state.gameMode === "stage" && state.classicDistrictTarget > 0 && state.classicDistrictProgress >= state.classicDistrictTarget;
+  }
+
+  function classicDistrictShortText(stage = activeStage()) {
+    const profile = classicStageProfile(stage);
+    const target = state.classicDistrictTarget || classicDistrictTarget(stage);
+    const progress = clamp(state.classicDistrictProgress || 0, 0, target);
+    return `${profile.short}稳定 ${Math.floor(progress)}/${target}`;
+  }
+
+  function triggerClassicDistrictStabilized(profile = classicStageProfile()) {
+    if (state.classicDistrictClaimed) return;
+    state.classicDistrictClaimed = true;
+    state.classicDistrictPulse = 1;
+    state.classicDistrictBoostTimer = Math.max(state.classicDistrictBoostTimer, 7.2);
+    state.recoveryTimer = Math.max(state.recoveryTimer, 1.15);
+    state.health = clamp(state.health + state.maxHealth * 0.12, 0, state.maxHealth);
+    state.energy = clamp(state.energy + state.maxEnergy * 0.18, 0, state.maxEnergy);
+    state.eventName = `${profile.short}城区稳定`;
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.5);
+    showRewardToast([{ type: "medal", label: `${profile.short}稳定`, amount: 1 }], { duration: 1500 });
+    pop(hero.x, hero.y, profile.districtColor || "#5bded4", 18);
+    beep(960, 0.07, "triangle", 0.04);
+  }
+
+  function addClassicDistrictProgress(amount, reason = "") {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || state.classicDistrictClaimed) return;
+    const stage = activeStage();
+    const target = state.classicDistrictTarget || classicDistrictTarget(stage);
+    if (target <= 0 || amount <= 0) return;
+    const profile = classicStageProfile(stage);
+    const before = state.classicDistrictProgress || 0;
+    state.classicDistrictProgress = clamp(before + amount, 0, target);
+    if (state.classicDistrictProgress > before) {
+      state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, reason === "major" ? 0.62 : 0.28);
+    }
+    if (state.classicDistrictProgress >= target) triggerClassicDistrictStabilized(profile);
+  }
+
+  function classicDistrictPickupValue(type) {
+    return {
+      paper: 1,
+      bonusPaper: 3,
+      energy: 2,
+      shield: 3,
+      magnet: 3,
+      draftGate: 8,
+      focusOrb: 8,
+      supplyCrate: 11,
+      mysteryCapsule: 9,
+      comboSigil: 10,
+      counterSeal: 10,
+      mountCore: 8,
+      elementCore: 8,
+      purificationCore: 10,
+      mirrorShard: 8,
+      forgeSigil: 8,
+      currentShell: 8,
+      breakCore: 10,
+      relicShard: 9,
+      goldPoop: 12,
+    }[type] || 1;
   }
 
   const adventureBossKeys = ["cloudClogCyclops", "slimeDuchess", "skySewerLeviathan"];
@@ -1117,6 +1212,11 @@
     adventurePulse: 0,
     adventureBoostTimer: 0,
     classicLanePhase: 0,
+    classicDistrictProgress: 0,
+    classicDistrictTarget: 0,
+    classicDistrictClaimed: false,
+    classicDistrictPulse: 0,
+    classicDistrictBoostTimer: 0,
     goldRushCharge: 0,
     draftLaneCharge: 0,
     mysteryLaneCharge: 0,
@@ -6726,6 +6826,11 @@
     state.adventurePulse = 0;
     state.adventureBoostTimer = 0;
     state.classicLanePhase = random(0, Math.PI * 2);
+    state.classicDistrictProgress = 0;
+    state.classicDistrictTarget = state.gameMode === "stage" ? classicDistrictTarget(stage) : 0;
+    state.classicDistrictClaimed = state.gameMode !== "stage";
+    state.classicDistrictPulse = 0;
+    state.classicDistrictBoostTimer = 0;
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -7056,8 +7161,9 @@
     const contractBoost = state.adventureContractBoostTimer > 0 ? 1.07 : 1;
     const adventureSupportBoost = state.adventureSupportTimer > 0 ? 1.08 : 1;
     const classicScoreBoost = classicProfile ? (classicProfile.scoreBoost || 1) : 1;
-    addScore((dt * 12 + state.combo * dt * 1.8) * movementScoreBoost * feverBoost * draftBoost * comboSurgeBoost * forgeTempoBoost * adventureBoost * contractBoost * adventureSupportBoost * classicScoreBoost * styleMultiplier() * (modifier.score || 1));
-    state.energy = clamp(state.energy + dt * (7.8 + state.level * 0.08 + (state.feverTimer > 0 ? 3.5 : 0) + (state.draftTimer > 0 ? 2.6 : 0) + (state.comboSurgeTimer > 0 ? 1.7 : 0) + (state.forgeTempoTimer > 0 ? 1.45 : 0) + (state.adventureBoostTimer > 0 ? 1.35 : 0) + (state.adventureContractBoostTimer > 0 ? 1.25 : 0) + (state.adventureSupportTimer > 0 ? 1.35 : 0)) * (modifier.energy || 1), 0, state.maxEnergy);
+    const districtBoost = state.classicDistrictBoostTimer > 0 ? 1.05 : 1;
+    addScore((dt * 12 + state.combo * dt * 1.8) * movementScoreBoost * feverBoost * draftBoost * comboSurgeBoost * forgeTempoBoost * adventureBoost * contractBoost * adventureSupportBoost * classicScoreBoost * districtBoost * styleMultiplier() * (modifier.score || 1));
+    state.energy = clamp(state.energy + dt * (7.8 + state.level * 0.08 + (state.feverTimer > 0 ? 3.5 : 0) + (state.draftTimer > 0 ? 2.6 : 0) + (state.comboSurgeTimer > 0 ? 1.7 : 0) + (state.forgeTempoTimer > 0 ? 1.45 : 0) + (state.adventureBoostTimer > 0 ? 1.35 : 0) + (state.adventureContractBoostTimer > 0 ? 1.25 : 0) + (state.adventureSupportTimer > 0 ? 1.35 : 0) + (state.classicDistrictBoostTimer > 0 ? 1.2 : 0)) * (modifier.energy || 1), 0, state.maxEnergy);
     const runStats = runCombatStats();
     if (runStats.regen > 0 && state.health > 0 && state.health < state.maxHealth) {
       state.health = clamp(state.health + dt * (runStats.regen * 0.18 + state.maxHealth * Math.min(0.0025, runStats.regen * 0.00005)), 0, state.maxHealth);
@@ -7086,6 +7192,8 @@
     state.adventureSupportPulse = Math.max(0, (state.adventureSupportPulse || 0) - dt * 0.82);
     state.elementSurgeTimer = Math.max(0, (state.elementSurgeTimer || 0) - dt);
     state.elementSurgePulse = Math.max(0, (state.elementSurgePulse || 0) - dt * 0.85);
+    state.classicDistrictPulse = Math.max(0, (state.classicDistrictPulse || 0) - dt * 0.9);
+    state.classicDistrictBoostTimer = Math.max(0, (state.classicDistrictBoostTimer || 0) - dt);
     state.purificationPulse = Math.max(0, (state.purificationPulse || 0) - dt * 0.88);
     if (state.counterTimer > 0) {
       state.counterTimer = Math.max(0, state.counterTimer - dt);
@@ -7961,6 +8069,11 @@
     state.eventLabelTimer = 2.4;
     const classicEventGap = state.gameMode === "stage" && stage ? (classicStageProfile(stage).eventGap || 1) : 1;
     state.nextEventScore = Math.floor(state.score + (620 + state.level * 96 + state.dangerLevel * 180) * classicEventGap);
+    if (state.gameMode === "stage" && stage) {
+      const profile = classicStageProfile(stage);
+      const biased = (profile.eventBias || []).some((entry) => entry.kind === pick[0]);
+      addClassicDistrictProgress(biased ? 12 : 6, biased ? "major" : "event");
+    }
     if (state.gameMode === "adventure") {
       const eventIntel = pick[0] === "relicRoute" || pick[0] === "mysteryRoute" ? 1 : 0;
       const eventCargo = pick[0] === "supplyDrop" || pick[0] === "treasureRun" ? 1 : 0;
@@ -9489,8 +9602,11 @@
     const classicRawBonus = classicStageBonus(stage, firstClear);
     const classicBonusCoins = classicRawBonus.coins > 0 ? runCoinReward(classicRawBonus.coins) : 0;
     const classicBonusMaterials = classicRawBonus.materials > 0 ? runMaterialReward(classicRawBonus.materials) : 0;
-    const totalCoinReward = coinReward + cleanBonus + routeBonusCoins + classicBonusCoins;
-    const totalMaterialReward = matReward + routeBonusMaterials + classicBonusMaterials;
+    const districtRawBonus = classicDistrictReward(stage, firstClear, state.classicDistrictClaimed);
+    const districtBonusCoins = districtRawBonus.coins > 0 ? runCoinReward(districtRawBonus.coins) : 0;
+    const districtBonusMaterials = districtRawBonus.materials > 0 ? runMaterialReward(districtRawBonus.materials) : 0;
+    const totalCoinReward = coinReward + cleanBonus + routeBonusCoins + classicBonusCoins + districtBonusCoins;
+    const totalMaterialReward = matReward + routeBonusMaterials + classicBonusMaterials + districtBonusMaterials;
     meta.coins += totalCoinReward;
     meta.materials += totalMaterialReward;
     if (firstClear) {
@@ -9515,11 +9631,12 @@
     const cleanText = cleanBonus > 0 ? `，无伤奖励 ${cleanBonus} 金币` : "";
     const routeText = routeBonusCoins > 0 || routeBonusMaterials > 0 ? `（含航图奖励 ${routeBonusCoins} 金币 / ${routeBonusMaterials} 材料）` : "";
     const classicText = classicProfile && (classicBonusCoins > 0 || classicBonusMaterials > 0) ? `（含${classicProfile.short}航线奖励 ${classicBonusCoins} 金币 / ${classicBonusMaterials} 材料）` : "";
+    const districtText = districtBonusCoins > 0 || districtBonusMaterials > 0 ? `（城区稳定 ${districtBonusCoins} 金币 / ${districtBonusMaterials} 材料）` : "";
     const clearReason = state.gameMode === "adventure"
       ? fromBoss ? "航图和契约完成后击败 BOSS" : `航图 + 契约完成，分数达到 ${state.stageTarget}`
       : fromBoss ? "击败 BOSS" : `${classicProfile ? `${classicProfile.name}完成，` : ""}分数达到 ${state.stageTarget}`;
     const modeName = state.gameMode === "adventure" ? "冒险" : "";
-    showMenu(`${modeName}第 ${stage.number} 关通关！${clearReason}，获得 ${totalCoinReward} 金币、${totalMaterialReward} 材料${routeText}${classicText}${itemText}${cleanText}。`, stage.number >= stageList.length ? "再玩一次" : "下一关", true);
+    showMenu(`${modeName}第 ${stage.number} 关通关！${clearReason}，获得 ${totalCoinReward} 金币、${totalMaterialReward} 材料${routeText}${classicText}${districtText}${itemText}${cleanText}。`, stage.number >= stageList.length ? "再玩一次" : "下一关", true);
   }
 
   function updatePickups(dt) {
@@ -9549,6 +9666,8 @@
       if (ellipseDistance(hero.x, hero.y, hero.radiusX, hero.radiusY, p.x, p.y, pickupRadius)) {
         pickups.splice(i, 1);
         addMountCharge(p.type === "goldPoop" || p.type === "relicShard" || p.type === "supplyCrate" || p.type === "mysteryCapsule" || p.type === "mountCore" || p.type === "comboSigil" || p.type === "counterSeal" || p.type === "elementCore" || p.type === "purificationCore" || p.type === "mirrorShard" || p.type === "forgeSigil" || p.type === "currentShell" || p.type === "breakCore" ? 18 : 10);
+        const districtValue = classicDistrictPickupValue(p.type);
+        addClassicDistrictProgress(districtValue, districtValue >= 8 ? "major" : "pickup");
         if (p.type === "draftGate") {
           recordRunStat("draftGates", 1);
           state.draftTimer = Math.max(state.draftTimer, 5.4 + runPerkLevel("windrider") * 1.5);
@@ -9777,6 +9896,7 @@
     drawFeverAura();
     drawParticles();
     drawEventBanner();
+    drawClassicDistrictHud();
     drawAdventureRouteHud();
     drawAdventureContractHud();
     drawCombo();
@@ -9917,6 +10037,45 @@
     ctx.fillRect(0, 0, state.width, state.height);
   }
 
+  function drawMapReadabilityLayer(frame, palette) {
+    const top = playTop();
+    const bottom = playBottom();
+    const laneY = clamp(hero.y || (top + bottom) * 0.5, top + 42 * playScale(), bottom - 42 * playScale());
+    const profile = state.gameMode === "stage" ? classicStageProfile(activeStage()) : null;
+    const color = profile ? profile.districtColor : frame.deepMap ? "#c45dff" : "#5bded4";
+    ctx.save();
+    const lowerShade = ctx.createLinearGradient(0, top, 0, state.height);
+    lowerShade.addColorStop(0, "rgba(6, 18, 24, 0)");
+    lowerShade.addColorStop(0.62, frame.deepMap ? "rgba(8, 10, 18, 0.1)" : "rgba(8, 18, 20, 0.08)");
+    lowerShade.addColorStop(1, frame.deepMap ? "rgba(8, 10, 18, 0.32)" : "rgba(8, 18, 20, 0.24)");
+    ctx.fillStyle = lowerShade;
+    ctx.fillRect(0, top, state.width, state.height - top);
+    ctx.globalAlpha = frame.cityMap || frame.deepMap ? 0.52 : 0.28;
+    ctx.fillStyle = frame.deepMap ? "rgba(10, 15, 26, 0.22)" : "rgba(255, 248, 232, 0.08)";
+    roundRect(10, top + 20, state.width - 20, bottom - top - 40, 18);
+    ctx.fill();
+    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18;
+    const railY = laneY + 34 * playScale();
+    const rail = ctx.createLinearGradient(0, railY, state.width, railY);
+    rail.addColorStop(0, canvasRgba(color, 0));
+    rail.addColorStop(0.18, canvasRgba(color, 0.22));
+    rail.addColorStop(0.5, canvasRgba(color, 0.1));
+    rail.addColorStop(0.82, canvasRgba(color, 0.22));
+    rail.addColorStop(1, canvasRgba(color, 0));
+    ctx.fillStyle = rail;
+    roundRect(16, railY - 8 * playScale(), state.width - 32, 16 * playScale(), 9 * playScale());
+    ctx.fill();
+    ctx.strokeStyle = canvasRgba(color, 0.24);
+    ctx.lineWidth = Math.max(1, 1.4 * playScale());
+    ctx.setLineDash([18 * playScale(), 16 * playScale()]);
+    ctx.lineDashOffset = -state.scroll * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(22, railY);
+    ctx.lineTo(state.width - 22, railY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawBackgroundFrame(frame, alpha = 1) {
     if (!frame) return;
     const img = ensureImage(frame.img);
@@ -9945,6 +10104,7 @@
     for (let x = -((state.scroll * 0.9) % 128); x < state.width + 128; x += 128) {
       ctx.fillRect(x, state.height - 39, 56, 5);
     }
+    drawMapReadabilityLayer(frame, palette);
     ctx.restore();
   }
 
@@ -13762,6 +13922,58 @@
     ctx.restore();
   }
 
+  function drawClassicDistrictHud() {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || state.classicDistrictTarget <= 0) return;
+    const stage = activeStage();
+    const profile = classicStageProfile(stage);
+    const compact = isLandscapePlay();
+    const target = state.classicDistrictTarget || classicDistrictTarget(stage);
+    const progress = clamp(state.classicDistrictProgress || 0, 0, target);
+    const percent = clamp(progress / Math.max(1, target), 0, 1);
+    const ready = state.classicDistrictClaimed || percent >= 1;
+    const pulse = state.classicDistrictPulse || 0;
+    const color = profile.districtColor || "#5bded4";
+    const w = compact ? clamp(state.width * 0.24, 136, 170) : 230;
+    const h = compact ? 38 : 58;
+    const x = compact ? 12 : 18;
+    const y = playTop() + (compact ? 62 : 70);
+    const barX = x + 12;
+    const barW = w - 24;
+    const barH = compact ? 6 : 9;
+    const barY = y + h - (compact ? 11 : 17);
+    ctx.save();
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = `rgba(13, 25, 34, ${0.64 + pulse * 0.16})`;
+    roundRect(x, y, w, h, 8);
+    ctx.fill();
+    ctx.strokeStyle = ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
+    ctx.lineWidth = 1.4 + pulse * 1.1;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = ready ? "#dfff7a" : "#fff8e8";
+    ctx.font = `800 ${compact ? 10 : 14}px Microsoft YaHei, Arial`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(ready ? `${profile.short}城区稳定` : `${profile.short}稳定 ${Math.floor(percent * 100)}%`, barX, y + (compact ? 5 : 8));
+    ctx.fillStyle = "rgba(255, 248, 232, 0.78)";
+    ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
+    const hint = ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : `${Math.floor(progress)}/${target} · 事件/拾取推进`;
+    ctx.fillText(hint, barX, y + (compact ? 18 : 27));
+    ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
+    roundRect(barX, barY, barW, barH, barH * 0.5);
+    ctx.fill();
+    const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    grad.addColorStop(0, color);
+    grad.addColorStop(0.72, "#fff8e8");
+    grad.addColorStop(1, ready ? "#dfff7a" : "#f5c84b");
+    ctx.fillStyle = grad;
+    if (barW * percent > 0.5) {
+      roundRect(barX, barY, barW * percent, barH, barH * 0.5);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function drawAdventureRouteHud() {
     if (state.gameMode !== "adventure" || state.mode !== "playing") return;
     const route = adventureRouteProgress();
@@ -15327,10 +15539,14 @@
       powerText.textContent = adventureStageObjectivesReady() ? "航图契约完成" : adventureRouteReady() ? adventureContractShortText() : adventureRouteShortText();
     } else if (isStageMode() && state.stageHitLimit > 0) {
       const profile = classicStageProfile(activeStage());
-      powerText.textContent = `${profile.short} · 受击 ${state.hitsTaken}/${state.stageHitLimit}`;
+      powerText.textContent = classicDistrictReady()
+        ? `${profile.short}稳定 · 受击 ${state.hitsTaken}/${state.stageHitLimit}`
+        : classicDistrictShortText();
     } else if (isStageMode() && !activeStage().bossStage) {
       const profile = classicStageProfile(activeStage());
-      powerText.textContent = `${profile.hud} · ${Math.floor(state.score)}/${stageTarget}`;
+      powerText.textContent = classicDistrictReady()
+        ? `${profile.hud}稳定 · ${Math.floor(state.score)}/${stageTarget}`
+        : classicDistrictShortText();
     } else {
       powerText.textContent = attackName();
     }
@@ -15994,12 +16210,14 @@
         if (classicProfile) {
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("备战", classicProfile.tip, ["wide", "alert"]);
+          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 完成后补血回能`, "reward");
         }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
       } else {
         if (classicProfile) {
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("建议", classicProfile.tip, ["wide"]);
+          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 事件和拾取推进`, "reward");
           addChip("倾向", classicStageRewardText(classicProfile), "reward");
         }
         addChip("通关", "达到目标分");
