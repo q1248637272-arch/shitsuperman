@@ -651,6 +651,28 @@
     return info.effect;
   }
 
+  function shopUseText(key) {
+    return {
+      shield: "受击保护",
+      magnet: "集中拾取",
+      energy: "能量续航",
+      luckyBox: "随机补给",
+      material: "养成材料",
+      battle: "Boss 备战",
+      gear: "装备成长",
+      reroll: "天赋刷新",
+      revive: "容错复活",
+      storm: "清障破防",
+      wing: "开局顺风",
+    }[key] || "常规补给";
+  }
+
+  function shopCarryText(key) {
+    if (RUN_CARRIED_ITEM_TYPES.includes(key)) return "入场携带";
+    if (key === "gear" || key === "luckyBox") return "开箱即用";
+    return "立即生效";
+  }
+
   function shopAffordable(key) {
     return shopBalanceFor(key) >= shopCostFor(key);
   }
@@ -700,6 +722,129 @@
       itemReward: bossStage ? "goldPoop" : number % 3 === 0 ? "shield" : number % 4 === 0 ? "magnet" : "energy",
     };
   });
+
+  const classicStageProfiles = [
+    {
+      key: "clean",
+      name: "清洁巡航",
+      short: "清洁",
+      desc: "旧城市主线里的稳定航线，靠纸卷、清风补给和少量顺风保持节奏。",
+      tip: "适合磁铁和羽翼，优先保持移动路线干净。",
+      hud: "清洁巡航",
+      rewardLabel: "金币倾向",
+      coinBonus: 0.08,
+      materialBonus: 0.02,
+      scoreBoost: 1.02,
+      pickupBonus: 0.06,
+      pressureRelief: 0.015,
+      eventGap: 0.94,
+      eventBias: [
+        { kind: "cleanWind", label: "清风补给" },
+        { kind: "paperRain", label: "纸卷雨" },
+        { kind: "draftGate", label: "顺风门阵", minStage: 3 },
+      ],
+    },
+    {
+      key: "supply",
+      name: "补给穿行",
+      short: "补给",
+      desc: "补给密度更高的旧航线，鼓励玩家用护盾、能量和磁铁规划连续拾取。",
+      tip: "适合护盾和能量瓶，低血量时更容易稳住。",
+      hud: "补给穿行",
+      rewardLabel: "材料倾向",
+      coinBonus: 0.05,
+      materialBonus: 0.08,
+      scoreBoost: 1.01,
+      pickupBonus: 0.16,
+      pressureRelief: 0.025,
+      eventGap: 0.9,
+      eventBias: [
+        { kind: "supplyDrop", label: "补给空投", minStage: 2 },
+        { kind: "cleanWind", label: "清风补给" },
+        { kind: "mysteryRoute", label: "奇遇航线", minStage: 5 },
+      ],
+    },
+    {
+      key: "combo",
+      name: "连击街区",
+      short: "连击",
+      desc: "节奏更快的旧街区航线，顺风、纸卷雨和连击祭坛会更常出现。",
+      tip: "适合羽翼和重骰，优先选择连击、暴击与能量天赋。",
+      hud: "连击街区",
+      rewardLabel: "金币倾向",
+      coinBonus: 0.11,
+      materialBonus: 0.03,
+      scoreBoost: 1.035,
+      pickupBonus: 0.04,
+      pressureRelief: 0.005,
+      eventGap: 0.96,
+      eventBias: [
+        { kind: "comboShrine", label: "连击祭坛", minStage: 4 },
+        { kind: "draftGate", label: "顺风门阵", minStage: 3 },
+        { kind: "paperRain", label: "纸卷雨" },
+      ],
+    },
+    {
+      key: "threat",
+      name: "压制街巷",
+      short: "压制",
+      desc: "更偏战斗的旧街巷，闪反、精英和车队事件会提前形成小高潮。",
+      tip: "适合臭弹炸弹和护盾，优先处理障碍密集段。",
+      hud: "压制街巷",
+      rewardLabel: "材料倾向",
+      coinBonus: 0.07,
+      materialBonus: 0.07,
+      scoreBoost: 1.015,
+      pickupBonus: 0.08,
+      pressureRelief: 0,
+      eventGap: 1.06,
+      eventBias: [
+        { kind: "counterTrial", label: "闪反试炼", minStage: 5 },
+        { kind: "supplyDrop", label: "补给空投", minStage: 3 },
+        { kind: "treasureRun", label: "黄金马桶车队", minStage: 8 },
+      ],
+    },
+    {
+      key: "bossPrep",
+      name: "Boss 备战",
+      short: "备战",
+      desc: "Boss 关前的补给与压制路线，更强调护盾、臭弹和破防窗口。",
+      tip: "适合护盾、臭弹和复活心核，进场前检查携带位。",
+      hud: "Boss 备战",
+      rewardLabel: "综合倾向",
+      coinBonus: 0.06,
+      materialBonus: 0.06,
+      scoreBoost: 1.01,
+      pickupBonus: 0.1,
+      pressureRelief: 0.02,
+      eventGap: 0.92,
+      eventBias: [
+        { kind: "supplyDrop", label: "补给空投" },
+        { kind: "cleanWind", label: "清风补给" },
+        { kind: "counterTrial", label: "闪反试炼", minStage: 5 },
+      ],
+    },
+  ];
+
+  function classicStageProfile(stage = activeStage()) {
+    if (!stage) return classicStageProfiles[0];
+    if (stage.bossStage) return classicStageProfiles[classicStageProfiles.length - 1];
+    return classicStageProfiles[(Math.max(1, stage.number || 1) - 1) % (classicStageProfiles.length - 1)];
+  }
+
+  function classicStageRewardText(profile = classicStageProfile()) {
+    return `${profile.rewardLabel} · 金币 +${Math.round((profile.coinBonus || 0) * 100)}% / 材料 +${Math.round((profile.materialBonus || 0) * 100)}%`;
+  }
+
+  function classicStageBonus(stage, firstClear) {
+    if (!stage || state.gameMode !== "stage") return { coins: 0, materials: 0 };
+    const profile = classicStageProfile(stage);
+    const repeatScale = firstClear ? 1 : 0.34;
+    return {
+      coins: Math.round(stage.coinReward * (profile.coinBonus || 0) * repeatScale),
+      materials: Math.round(stage.materialReward * (profile.materialBonus || 0) * repeatScale),
+    };
+  }
 
   const adventureBossKeys = ["cloudClogCyclops", "slimeDuchess", "skySewerLeviathan"];
   const adventureContractProfiles = [
@@ -6089,7 +6234,8 @@
     const draftRelief = state.draftTimer > 0 ? 0.08 : 0;
     const contractRelief = state.adventureContractBoostTimer > 0 ? 0.055 : 0;
     const adventureSupportRelief = state.adventureSupportTimer > 0 ? 0.075 : 0;
-    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief, 0, 0.78);
+    const classicRelief = state.gameMode === "stage" ? (classicStageProfile(activeStage()).pressureRelief || 0) : 0;
+    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief, 0, 0.78);
   }
 
   function pickupGenerosity() {
@@ -6115,6 +6261,7 @@
     if (state.eventKind === "comboShrine") value += 0.18;
     if (state.eventKind === "counterTrial") value += 0.18;
     if (state.feverTimer > 0) value += 0.12;
+    if (state.gameMode === "stage") value += classicStageProfile(activeStage()).pickupBonus || 0;
     value *= runModifier().pickup || 1;
     return value;
   }
@@ -6594,7 +6741,11 @@
     state.hurtFlashTimer = 0;
     state.recoveryTimer = 0;
     state.dangerLevel = 0;
-    state.nextEventScore = state.gameMode === "adventure" ? 260 : 360;
+    state.nextEventScore = state.gameMode === "adventure"
+      ? 260
+      : state.gameMode === "stage"
+        ? Math.floor(clamp(stage.target * 0.22, 230, 360))
+        : 360;
     state.eventKind = "";
     state.eventName = runModifier().name;
     state.styleScore = 0;
@@ -6887,7 +7038,9 @@
     state.recoveryTimer = Math.max(0, state.recoveryTimer - dt);
     const modifier = runModifier();
     state.dangerLevel = directorPressure();
-    const stageNo = isStageMode() ? activeStage().number : 0;
+    const activeRunStage = isStageMode() ? activeStage() : null;
+    const stageNo = activeRunStage ? activeRunStage.number : 0;
+    const classicProfile = state.gameMode === "stage" && activeRunStage ? classicStageProfile(activeRunStage) : null;
     const stageBoost = isStageMode() ? stageNo * (state.gameMode === "adventure" ? (stageNo <= 10 ? 2.45 : 3.05) : 2.8) : 0;
     const recoverySlow = state.recoveryTimer > 0 ? 14 : 0;
     const landscapeSpeedEase = isLandscapePlay() ? 0.92 : 1;
@@ -6902,7 +7055,8 @@
     const adventureBoost = state.adventureBoostTimer > 0 ? 1.08 : 1;
     const contractBoost = state.adventureContractBoostTimer > 0 ? 1.07 : 1;
     const adventureSupportBoost = state.adventureSupportTimer > 0 ? 1.08 : 1;
-    addScore((dt * 12 + state.combo * dt * 1.8) * movementScoreBoost * feverBoost * draftBoost * comboSurgeBoost * forgeTempoBoost * adventureBoost * contractBoost * adventureSupportBoost * styleMultiplier() * (modifier.score || 1));
+    const classicScoreBoost = classicProfile ? (classicProfile.scoreBoost || 1) : 1;
+    addScore((dt * 12 + state.combo * dt * 1.8) * movementScoreBoost * feverBoost * draftBoost * comboSurgeBoost * forgeTempoBoost * adventureBoost * contractBoost * adventureSupportBoost * classicScoreBoost * styleMultiplier() * (modifier.score || 1));
     state.energy = clamp(state.energy + dt * (7.8 + state.level * 0.08 + (state.feverTimer > 0 ? 3.5 : 0) + (state.draftTimer > 0 ? 2.6 : 0) + (state.comboSurgeTimer > 0 ? 1.7 : 0) + (state.forgeTempoTimer > 0 ? 1.45 : 0) + (state.adventureBoostTimer > 0 ? 1.35 : 0) + (state.adventureContractBoostTimer > 0 ? 1.25 : 0) + (state.adventureSupportTimer > 0 ? 1.35 : 0)) * (modifier.energy || 1), 0, state.maxEnergy);
     const runStats = runCombatStats();
     if (runStats.regen > 0 && state.health > 0 && state.health < state.maxHealth) {
@@ -7787,12 +7941,26 @@
       if (contract && contract.key === "hunt") events.push(["eliteWave", "精英马桶潮"], ["treasureRun", "黄金马桶车队"], ["counterTrial", "闪反试炼"]);
       if (contract && contract.key === "relic") events.push(["relicRoute", "云海遗迹"], ["mysteryRoute", "奇遇航线"], ["elementRift", "五行裂隙"]);
     }
+    if (state.gameMode === "stage" && stage) {
+      const profile = classicStageProfile(stage);
+      const progressRatio = stage.target > 0 ? state.score / stage.target : 0;
+      for (const bias of profile.eventBias || []) {
+        if (stageNo >= (bias.minStage || 1) || state.score >= (bias.minScore || 0)) {
+          events.push([bias.kind, bias.label]);
+        }
+      }
+      if (!stage.bossStage && progressRatio > 0.5 && profile.eventBias && profile.eventBias[0]) {
+        const bias = profile.eventBias[0];
+        events.push([bias.kind, bias.label]);
+      }
+    }
     const pick = events[Math.floor(Math.random() * events.length)];
     state.eventKind = pick[0];
     state.eventName = pick[1];
     state.eventTimer = (pick[0] === "eliteWave" ? 7.2 : pick[0] === "cleanWind" ? 7.8 : pick[0] === "treasureRun" ? 7.4 : pick[0] === "draftGate" ? 7.8 : pick[0] === "mysteryRoute" ? 8.2 : pick[0] === "supplyDrop" ? 7.4 : pick[0] === "relicRoute" ? 8.6 : pick[0] === "elementRift" ? 8.8 : pick[0] === "purificationTide" ? 8.6 : pick[0] === "starTrail" ? 9.4 : pick[0] === "mirrorCurrent" ? 9.2 : pick[0] === "auroraForge" ? 9.0 : pick[0] === "mountTrial" ? 7.8 : pick[0] === "comboShrine" ? 7.6 : pick[0] === "counterTrial" ? 7.8 : pick[0] === "adventureCurrent" ? 7.6 : 8.5) + Math.min(4, state.level * 0.45);
     state.eventLabelTimer = 2.4;
-    state.nextEventScore = Math.floor(state.score + 620 + state.level * 96 + state.dangerLevel * 180);
+    const classicEventGap = state.gameMode === "stage" && stage ? (classicStageProfile(stage).eventGap || 1) : 1;
+    state.nextEventScore = Math.floor(state.score + (620 + state.level * 96 + state.dangerLevel * 180) * classicEventGap);
     if (state.gameMode === "adventure") {
       const eventIntel = pick[0] === "relicRoute" || pick[0] === "mysteryRoute" ? 1 : 0;
       const eventCargo = pick[0] === "supplyDrop" || pick[0] === "treasureRun" ? 1 : 0;
@@ -9317,8 +9485,14 @@
     const cleanBonus = !fromBoss && state.hitsTaken === 0 ? runCoinReward(Math.round(stage.coinReward * (firstClear ? 0.14 : 0.06))) : 0;
     const routeBonusCoins = state.gameMode === "adventure" ? runCoinReward(Math.round(stage.coinReward * (firstClear ? 0.22 : 0.08))) : 0;
     const routeBonusMaterials = state.gameMode === "adventure" ? runMaterialReward(Math.max(1, Math.round(stage.materialReward * (firstClear ? 0.18 : 0.07)))) : 0;
-    meta.coins += coinReward + cleanBonus + routeBonusCoins;
-    meta.materials += matReward + routeBonusMaterials;
+    const classicProfile = state.gameMode === "stage" ? classicStageProfile(stage) : null;
+    const classicRawBonus = classicStageBonus(stage, firstClear);
+    const classicBonusCoins = classicRawBonus.coins > 0 ? runCoinReward(classicRawBonus.coins) : 0;
+    const classicBonusMaterials = classicRawBonus.materials > 0 ? runMaterialReward(classicRawBonus.materials) : 0;
+    const totalCoinReward = coinReward + cleanBonus + routeBonusCoins + classicBonusCoins;
+    const totalMaterialReward = matReward + routeBonusMaterials + classicBonusMaterials;
+    meta.coins += totalCoinReward;
+    meta.materials += totalMaterialReward;
     if (firstClear) {
       cleared[stage.number] = true;
       if (state.gameMode === "adventure") {
@@ -9332,20 +9506,20 @@
     }
     saveMeta();
     showRewardToast([
-      { type: "coin", amount: coinReward + cleanBonus + routeBonusCoins },
-      { type: "material", amount: matReward + routeBonusMaterials },
+      { type: "coin", amount: totalCoinReward },
+      { type: "material", amount: totalMaterialReward },
       { type: stage.itemReward || "energy", amount: firstClear && stage.itemReward && meta.inventory[stage.itemReward] !== undefined ? 1 : 0 },
     ]);
     finalizeRunStats("stageclear");
     const itemText = firstClear && stage.itemReward && meta.inventory[stage.itemReward] !== undefined ? `，奖励道具 +1` : "";
     const cleanText = cleanBonus > 0 ? `，无伤奖励 ${cleanBonus} 金币` : "";
     const routeText = routeBonusCoins > 0 || routeBonusMaterials > 0 ? `（含航图奖励 ${routeBonusCoins} 金币 / ${routeBonusMaterials} 材料）` : "";
-    if (fromBoss) state.shake = Math.max(state.shake, 8);
+    const classicText = classicProfile && (classicBonusCoins > 0 || classicBonusMaterials > 0) ? `（含${classicProfile.short}航线奖励 ${classicBonusCoins} 金币 / ${classicBonusMaterials} 材料）` : "";
     const clearReason = state.gameMode === "adventure"
       ? fromBoss ? "航图和契约完成后击败 BOSS" : `航图 + 契约完成，分数达到 ${state.stageTarget}`
-      : fromBoss ? "击败 BOSS" : `分数达到 ${state.stageTarget}`;
+      : fromBoss ? "击败 BOSS" : `${classicProfile ? `${classicProfile.name}完成，` : ""}分数达到 ${state.stageTarget}`;
     const modeName = state.gameMode === "adventure" ? "冒险" : "";
-    showMenu(`${modeName}第 ${stage.number} 关通关！${clearReason}，获得 ${coinReward + routeBonusCoins} 金币、${matReward + routeBonusMaterials} 材料${routeText}${itemText}${cleanText}。`, stage.number >= stageList.length ? "再玩一次" : "下一关", true);
+    showMenu(`${modeName}第 ${stage.number} 关通关！${clearReason}，获得 ${totalCoinReward} 金币、${totalMaterialReward} 材料${routeText}${classicText}${itemText}${cleanText}。`, stage.number >= stageList.length ? "再玩一次" : "下一关", true);
   }
 
   function updatePickups(dt) {
@@ -15152,9 +15326,11 @@
     } else if (state.gameMode === "adventure") {
       powerText.textContent = adventureStageObjectivesReady() ? "航图契约完成" : adventureRouteReady() ? adventureContractShortText() : adventureRouteShortText();
     } else if (isStageMode() && state.stageHitLimit > 0) {
-      powerText.textContent = `受击 ${state.hitsTaken}/${state.stageHitLimit}`;
+      const profile = classicStageProfile(activeStage());
+      powerText.textContent = `${profile.short} · 受击 ${state.hitsTaken}/${state.stageHitLimit}`;
     } else if (isStageMode() && !activeStage().bossStage) {
-      powerText.textContent = "目标分数";
+      const profile = classicStageProfile(activeStage());
+      powerText.textContent = `${profile.hud} · ${Math.floor(state.score)}/${stageTarget}`;
     } else {
       powerText.textContent = attackName();
     }
@@ -15744,8 +15920,10 @@
       btn.disabled = stage.number > maxStage;
       const contract = mode === "adventure" ? adventureContractForStage(stage) : null;
       const contractText = contract ? ` · ${contract.short}契约` : "";
-      btn.title = `推荐战力 ${formatCombatPower(readiness.recommended)} · ${readiness.label}${contractText}`;
-      btn.setAttribute("aria-label", `${mode === "adventure" ? "冒险" : "闯关"}第 ${stage.number} 关，推荐战力 ${formatCombatPower(readiness.recommended)}，${readiness.label}${contractText}`);
+      const classicProfile = mode === "stage" ? classicStageProfile(stage) : null;
+      const profileText = classicProfile ? ` · ${classicProfile.short}航线` : "";
+      btn.title = `推荐战力 ${formatCombatPower(readiness.recommended)} · ${readiness.label}${contractText}${profileText}`;
+      btn.setAttribute("aria-label", `${mode === "adventure" ? "冒险" : "闯关"}第 ${stage.number} 关，推荐战力 ${formatCombatPower(readiness.recommended)}，${readiness.label}${contractText}${profileText}`);
       btn.addEventListener("click", () => {
         state.gameMode = mode;
         setActiveStageNumber(stage.number);
@@ -15765,10 +15943,12 @@
     const locked = stage.number > maxStage;
     const readiness = stageReadiness(stage);
     const modeName = state.gameMode === "adventure" ? "冒险" : "闯关";
+    const classicProfile = state.gameMode === "stage" ? classicStageProfile(stage) : null;
     const clearText = cleared[stage.number] ? "已通关" : stage.number === maxStage ? "当前进度" : "可挑战";
     stageSummary.textContent = "";
     stageSummary.classList.toggle("is-structured", !locked);
     stageSummary.classList.toggle("is-adventure-summary", !locked && state.gameMode === "adventure");
+    stageSummary.classList.toggle("is-classic-summary", !locked && state.gameMode === "stage");
     if (locked) {
       stageSummary.textContent = `${modeName}第 ${stage.number} 关尚未解锁，先通关前面的关卡。`;
     } else {
@@ -15777,8 +15957,8 @@
       const title = document.createElement("div");
       title.className = "stage-summary-title";
       title.textContent = stage.bossStage
-        ? `${modeName}第 ${stage.number} 关 · BOSS ${bossProfileForStage(stage).name}`
-        : `${modeName}第 ${stage.number} 关 · 普通航线`;
+        ? `${modeName}第 ${stage.number} 关 · BOSS ${bossProfileForStage(stage).name}${classicProfile ? ` · ${classicProfile.short}` : ""}`
+        : `${modeName}第 ${stage.number} 关 · ${classicProfile ? classicProfile.name : "普通航线"}`;
       const status = document.createElement("div");
       status.className = "stage-summary-status";
       status.textContent = clearText;
@@ -15811,14 +15991,30 @@
         addChip("支援", "航图/契约里程碑触发补给", ["wide"]);
         addChip(stage.bossStage ? "现身" : "通关", stage.bossStage ? "三目标完成后出 Boss" : "分数 + 航图 + 契约", stage.bossStage ? "boss" : "");
       } else if (stage.bossStage) {
+        if (classicProfile) {
+          addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
+          addChip("备战", classicProfile.tip, ["wide", "alert"]);
+        }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
       } else {
+        if (classicProfile) {
+          addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
+          addChip("建议", classicProfile.tip, ["wide"]);
+          addChip("倾向", classicStageRewardText(classicProfile), "reward");
+        }
         addChip("通关", "达到目标分");
         addChip("无伤", "额外金币");
       }
       if (stage.hitLimit > 0) addChip("受击", `${stage.hitLimit} 次失败`, "alert");
       addChip("战力", `${formatCombatPower(readiness.recommended)} · ${readiness.label}`, ["danger", "critical"].includes(readiness.key) ? "alert" : "");
-      addChip("奖励", `${runCoinReward(stage.coinReward)} 金币 / ${runMaterialReward(stage.materialReward)} 材料`);
+      if (classicProfile) {
+        const preview = classicStageBonus(stage, !cleared[stage.number]);
+        const previewCoins = preview.coins > 0 ? runCoinReward(preview.coins) : 0;
+        const previewMaterials = preview.materials > 0 ? runMaterialReward(preview.materials) : 0;
+        addChip("奖励", `${runCoinReward(stage.coinReward)} 金币 / ${runMaterialReward(stage.materialReward)} 材料 · 航线 +${previewCoins}/${previewMaterials}`, "reward");
+      } else {
+        addChip("奖励", `${runCoinReward(stage.coinReward)} 金币 / ${runMaterialReward(stage.materialReward)} 材料`);
+      }
       stageSummary.append(main, goals);
     }
     if (stageStartButton) {
@@ -16009,9 +16205,33 @@
     const status = document.createElement("p");
     status.className = `shop-status${affordable ? "" : " is-short"}`;
     status.textContent = `${currency} ${balance}${stockText ? ` · ${stockText}` : ""}${affordable ? " · 可购买" : ` · 还差 ${cost - balance} ${currency}`}`;
+    const metaGrid = document.createElement("div");
+    metaGrid.className = "shop-detail-grid";
+    const addMeta = (label, value, kind = "") => {
+      const item = document.createElement("span");
+      item.className = `shop-detail-meta${kind ? ` is-${kind}` : ""}`;
+      const labelNode = document.createElement("span");
+      labelNode.className = "shop-detail-label";
+      labelNode.textContent = label;
+      const valueNode = document.createElement("span");
+      valueNode.className = "shop-detail-value";
+      valueNode.textContent = value;
+      item.append(labelNode, valueNode);
+      metaGrid.appendChild(item);
+    };
+    addMeta("用途", shopUseText(key));
+    addMeta("方式", shopCarryText(key));
+    addMeta("库存", stockText || "立即生效");
+    addMeta("余额", `${balance} ${currency}`, affordable ? "" : "short");
+    if (key === "gear") {
+      addMeta("彩装", `${(shopGearBoxRainbowChance() * 100).toFixed(1)}%`, "highlight");
+    } else if (RUN_CARRIED_ITEM_TYPES.includes(key)) {
+      addMeta("携带", `${RUN_ITEM_SLOT_LIMIT} 种上限`);
+    }
     const effect = document.createElement("p");
+    effect.className = "shop-effect";
     effect.textContent = shopEffectText(key);
-    shopDetail.append(title, price, status, effect);
+    shopDetail.append(title, price, metaGrid, status, effect);
     shopCards.forEach((card) => {
       card.classList.toggle("is-selected", card.dataset.shopKey === key);
     });
