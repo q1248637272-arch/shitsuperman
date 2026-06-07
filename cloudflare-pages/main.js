@@ -3635,9 +3635,41 @@
     return pool;
   }
 
+  function classicRouteMission(stage = activeStage()) {
+    if (state.gameMode !== "stage" || !stage) return null;
+    const profile = classicStageProfile(stage);
+    const stageNo = Math.max(1, stage.number || 1);
+    const base = {
+      classicRoute: true,
+      routeKey: profile.key,
+      coins: 150 + stageNo * 7,
+      materials: 8 + Math.floor(stageNo / 8),
+    };
+    if (profile.key === "clean") {
+      return { ...base, key: "classicCleanRoute", label: "路线清理", stat: "papers", target: 9 + Math.floor(stageNo / 7) };
+    }
+    if (profile.key === "supply") {
+      return { ...base, key: "classicSupplyRoute", label: "路线补给", stat: "supplies", target: 1 };
+    }
+    if (profile.key === "combo") {
+      return { ...base, key: "classicComboRoute", label: "路线连击", stat: "maxCombo", target: 12 + Math.floor(stageNo / 7) };
+    }
+    if (profile.key === "threat") {
+      return { ...base, key: "classicThreatRoute", label: "路线压制", stat: "kills", target: 4 + Math.floor(stageNo / 11) };
+    }
+    return { ...base, key: "classicBossPrepRoute", label: "路线备战", stat: "manualShots", target: 7 + Math.floor(stageNo / 10) };
+  }
+
   function createRunMissions() {
     const pool = missionCandidates();
     const picked = [];
+    const routeMission = classicRouteMission(activeStage());
+    if (routeMission) {
+      picked.push({ ...routeMission, done: false });
+      for (let i = pool.length - 1; i >= 0; i -= 1) {
+        if (pool[i].key === routeMission.key || pool[i].stat === routeMission.stat) pool.splice(i, 1);
+      }
+    }
     while (picked.length < 3 && pool.length > 0) {
       const index = Math.floor(Math.random() * pool.length);
       picked.push({ ...pool.splice(index, 1)[0], done: false });
@@ -3683,10 +3715,52 @@
       state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.2);
       pop(hero.x + 38 * playScale(), hero.y - 10 * playScale(), "#f5c84b", 18);
       beep(1040, 0.08, "triangle", 0.045);
+      if (mission.classicRoute) triggerClassicRouteMissionReward(mission);
     }
     if (!state.missionBonusClaimed && state.runMissions.length > 0 && state.runMissions.every((mission) => mission.done)) {
       grantMissionClearBonus();
     }
+  }
+
+  function triggerClassicRouteMissionReward(mission) {
+    if (!mission || state.gameMode !== "stage" || state.mode !== "playing") return;
+    const profile = classicStageProfile(activeStage());
+    const color = profile.districtColor || "#5bded4";
+    const s = playScale();
+    addClassicDistrictProgress(14 + Math.min(8, Math.floor((state.classicDistrictTarget || 60) * 0.08)), "major");
+    state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.82);
+    if (profile.key === "clean") {
+      state.recoveryTimer = Math.max(state.recoveryTimer, 1.8);
+      state.health = clamp(state.health + state.maxHealth * 0.08, 0, state.maxHealth);
+      spawnClassicDistrictPickup("focusOrb", 0, 1, 1.08);
+    } else if (profile.key === "supply") {
+      state.energy = clamp(state.energy + state.maxEnergy * 0.14, 0, state.maxEnergy);
+      spawnClassicDistrictPickup("supplyCrate", 0, 1, 1.12);
+      spawnClassicDistrictPickup("energy", 1, 2, 1.08);
+    } else if (profile.key === "combo") {
+      state.combo += 3;
+      state.comboTimer = Math.max(state.comboTimer, 3.6);
+      state.comboSurgeTimer = Math.max(state.comboSurgeTimer || 0, 3.2);
+      if (state.runStats) state.runStats.maxCombo = Math.max(state.runStats.maxCombo || 0, state.combo);
+      spawnClassicDistrictPickup("comboSigil", 0, 1, 1.1);
+    } else if (profile.key === "threat") {
+      state.counterTimer = Math.max(state.counterTimer || 0, 3.4);
+      state.shieldTimer = Math.max(state.shieldTimer, 1.45);
+      for (const h of hazards) {
+        if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+        if ((h.x || 0) < state.width + 120 * s) h.slow = Math.max(h.slow || 0, 0.68);
+      }
+      spawnClassicDistrictPickup("counterSeal", 0, 1, 1.1);
+    } else {
+      state.shieldTimer = Math.max(state.shieldTimer, 1.8);
+      state.specialTimer = Math.max(state.specialTimer, 2.2);
+      state.energy = clamp(state.energy + state.maxEnergy * 0.1, 0, state.maxEnergy);
+      spawnClassicDistrictPickup("breakCore", 0, 1, 1.1);
+    }
+    state.eventName = `${profile.short}路线委托完成`;
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.35);
+    gainStyle(16, `${profile.short}路线`, color);
+    pop(hero.x + 46 * s, hero.y, color, 20);
   }
 
   function grantMissionClearBonus() {
@@ -16445,6 +16519,8 @@
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("备战", classicProfile.tip, ["wide", "alert"]);
           addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
+          const routeMission = classicRouteMission(stage);
+          if (routeMission) addChip("委托", `${routeMission.label} ${routeMission.target} · 完成推进稳定`, "reward");
           milestonePlan = buildMilestonePlan();
         }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
@@ -16453,6 +16529,8 @@
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("建议", classicProfile.tip, ["wide"]);
           addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
+          const routeMission = classicRouteMission(stage);
+          if (routeMission) addChip("委托", `${routeMission.label} ${routeMission.target} · 完成推进稳定`, "reward");
           addChip("倾向", classicStageRewardText(classicProfile), "reward");
           milestonePlan = buildMilestonePlan();
         }
