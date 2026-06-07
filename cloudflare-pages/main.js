@@ -3684,13 +3684,44 @@
 
   function recordRunStat(stat, amount = 1) {
     if (!state.runStats) state.runStats = emptyRunStats();
+    const beforeValue = state.runStats[stat] || 0;
     if (stat === "maxCombo") {
       state.runStats.maxCombo = Math.max(state.runStats.maxCombo || 0, amount);
     } else {
       state.runStats[stat] = (state.runStats[stat] || 0) + amount;
     }
+    advanceClassicRouteCommissionProgress(stat, beforeValue, state.runStats[stat] || 0);
     advanceAdventureContractForStat(stat, amount);
     checkRunMissions();
+  }
+
+  function advanceClassicRouteCommissionProgress(stat, beforeValue, afterValue) {
+    if (state.gameMode !== "stage" || state.mode !== "playing") return;
+    const mission = (state.runMissions || []).find((item) => item.classicRoute && !item.done && item.stat === stat);
+    if (!mission || mission.target <= 0) return;
+    const before = clamp(Math.floor(beforeValue || 0), 0, mission.target);
+    const after = clamp(Math.floor(afterValue || 0), 0, mission.target);
+    const delta = after - before;
+    if (delta <= 0) return;
+    const profile = classicStageProfile(activeStage());
+    const unit = profile.key === "supply"
+      ? 5.5
+      : profile.key === "threat"
+        ? 2.1
+        : profile.key === "bossPrep"
+          ? 1.75
+          : profile.key === "combo"
+            ? 1.35
+            : 1.45;
+    addClassicDistrictProgress(Math.min(8, Math.max(1, delta * unit)), "route");
+    state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.36);
+    const tier = Math.floor((after / mission.target) * 4);
+    if (tier > (mission.routeHintTier || 0) && after < mission.target) {
+      mission.routeHintTier = tier;
+      state.eventName = `${profile.short}委托 ${after}/${mission.target}`;
+      state.eventLabelTimer = Math.max(state.eventLabelTimer, 0.65);
+      pop(hero.x + 30 * playScale(), hero.y - 14 * playScale(), profile.districtColor || "#5bded4", 8 + tier * 2);
+    }
   }
 
   function checkRunMissions() {
