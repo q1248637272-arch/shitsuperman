@@ -196,7 +196,7 @@
     stageContractBadge: loadImage("assets/stage-contract-badge.png", true),
   };
 
-  const MAP_WARMUP_ASSET_KEYS = ["backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
+  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityRefit", "background", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
   const BOSS_WARMUP_ASSET_KEYS = [
     "bossToiletKing",
     "bossPlungerGeneral",
@@ -529,8 +529,8 @@
   const BOSS_ATTACK_RATE_SCALE = 0.75;
   const PICKUP_SIZE_SCALE = 1.3;
   const SCREEN_SHAKE_ENABLED = false;
-  const SCENE_TRANSITION_DURATION = 0.82;
-  const SCENE_TRANSITION_LOAD_WINDOW = 1.08;
+  const SCENE_TRANSITION_DURATION = 0.92;
+  const SCENE_TRANSITION_LOAD_WINDOW = 1.18;
   const MAX_ACTIVE_PICKUPS = 6;
   const HERO_ATTACK_SPEED_SCALE = 0.5;
   const HERO_PROJECTILE_SIZE_SCALE = 0.75;
@@ -907,6 +907,16 @@
     return labels.length ? `常见 ${labels.join("/")}` : "常规路况";
   }
 
+  function classicRouteFocusLabel(profile = classicStageProfile()) {
+    return {
+      clean: "清路",
+      supply: "补能",
+      combo: "续连",
+      threat: "压制",
+      bossPrep: "备战",
+    }[profile.key] || "专注";
+  }
+
   function classicRouteHudText() {
     if (state.gameMode !== "stage" || !isStageMode() || !["playing", "paused"].includes(state.mode)) return "";
     const stage = activeStage();
@@ -914,16 +924,54 @@
     const profile = classicStageProfile(stage);
     const target = state.classicDistrictTarget || classicDistrictTarget(stage);
     const progress = clamp(state.classicDistrictProgress || 0, 0, target);
+    const focus = state.classicRouteFocusTimer > 0 ? ` · ${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s` : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}航线稳定${boost} · ${classicRouteBiasText(profile)}`;
+      return `${profile.short}航线稳定${boost}${focus} · ${classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}航线 · ${state.eventName} ${Math.ceil(state.eventTimer)}s · 稳定 ${Math.floor(progress)}/${target}`;
+      return `${profile.short}航线${focus} · ${state.eventName} ${Math.ceil(state.eventTimer)}s · 稳定 ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}航线 · ${nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}航线${focus} · ${nextText} · ${classicRouteBiasText(profile)}`;
+  }
+
+  function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
+    if (state.gameMode !== "stage" || state.mode !== "playing") return;
+    state.classicRouteFocusKey = profile.key;
+    state.classicRouteFocusTimer = Math.max(state.classicRouteFocusTimer || 0, duration);
+    state.classicRouteFocusPulse = Math.max(state.classicRouteFocusPulse || 0, 0.55);
+    state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.38);
+  }
+
+  function updateClassicRouteFocus(dt, profile = classicStageProfile()) {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || state.classicRouteFocusTimer <= 0) return;
+    const focusKey = state.classicRouteFocusKey || profile.key;
+    if (focusKey !== profile.key) return;
+    if (focusKey === "clean") {
+      state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.22);
+      state.health = clamp(state.health + dt * (state.maxHealth * 0.006 + 0.45), 0, state.maxHealth);
+    } else if (focusKey === "supply") {
+      state.energy = clamp(state.energy + dt * 1.75, 0, state.maxEnergy);
+      state.magnetTimer = Math.max(state.magnetTimer || 0, 0.18);
+    } else if (focusKey === "combo") {
+      state.comboTimer = Math.max(state.comboTimer || 0, 1.35);
+      state.styleTimer = Math.max(state.styleTimer || 0, 0.28);
+    } else if (focusKey === "threat") {
+      state.counterTimer = Math.max(state.counterTimer || 0, 0.52);
+      state.counterPulse = Math.max(state.counterPulse || 0, 0.16);
+      for (const h of hazards) {
+        if (!h || h.type === "pipeTop" || h.type === "pipeBottom" || (h.x || 0) < hero.x - 20 * playScale()) continue;
+        if ((h.x || 0) < state.width + 80 * playScale()) h.slow = Math.max(h.slow || 0, 0.16);
+      }
+    } else if (focusKey === "bossPrep") {
+      state.energy = clamp(state.energy + dt * 1.15, 0, state.maxEnergy);
+      if (state.health < state.maxHealth * 0.35) state.shieldTimer = Math.max(state.shieldTimer || 0, 0.12);
+      if (boss) {
+        boss.breakMeter = clamp((boss.breakMeter || 0) + bossBreakGain("glance") * dt * 0.035, 0, bossBreakThreshold());
+      }
+    }
   }
 
   function classicDistrictMilestoneCount(progress, target) {
@@ -1353,6 +1401,9 @@
     classicDistrictMilestone: 0,
     classicDistrictPulse: 0,
     classicDistrictBoostTimer: 0,
+    classicRouteFocusKey: "",
+    classicRouteFocusTimer: 0,
+    classicRouteFocusPulse: 0,
     goldRushCharge: 0,
     draftLaneCharge: 0,
     mysteryLaneCharge: 0,
@@ -3714,6 +3765,7 @@
             ? 1.35
             : 1.45;
     addClassicDistrictProgress(Math.min(8, Math.max(1, delta * unit)), "route");
+    activateClassicRouteFocus(profile, Math.min(4.2, 2.6 + delta * 0.18));
     state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.36);
     const tier = Math.floor((after / mission.target) * 4);
     if (tier > (mission.routeHintTier || 0) && after < mission.target) {
@@ -3759,6 +3811,7 @@
     const color = profile.districtColor || "#5bded4";
     const s = playScale();
     addClassicDistrictProgress(14 + Math.min(8, Math.floor((state.classicDistrictTarget || 60) * 0.08)), "major");
+    activateClassicRouteFocus(profile, 4.2);
     state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.82);
     if (profile.key === "clean") {
       state.recoveryTimer = Math.max(state.recoveryTimer, 1.8);
@@ -6618,7 +6671,7 @@
 
   function effectBudget() {
     const base = EFFECT_BUDGETS[state.effectiveQuality === "smooth" ? "smooth" : "normal"];
-    const sceneScale = sceneTransitionActive() ? (state.effectiveQuality === "smooth" ? 0.78 : 0.68) : 1;
+    const sceneScale = sceneTransitionActive() ? (state.effectiveQuality === "smooth" ? 0.7 : 0.6) : 1;
     if (!isLandscapePlay()) {
       if (sceneScale >= 1) return base;
       return {
@@ -7082,6 +7135,9 @@
     state.classicDistrictMilestone = 0;
     state.classicDistrictPulse = 0;
     state.classicDistrictBoostTimer = 0;
+    state.classicRouteFocusKey = "";
+    state.classicRouteFocusTimer = 0;
+    state.classicRouteFocusPulse = 0;
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -7415,6 +7471,7 @@
     const districtBoost = state.classicDistrictBoostTimer > 0 ? 1.05 : 1;
     addScore((dt * 12 + state.combo * dt * 1.8) * movementScoreBoost * feverBoost * draftBoost * comboSurgeBoost * forgeTempoBoost * adventureBoost * contractBoost * adventureSupportBoost * classicScoreBoost * districtBoost * styleMultiplier() * (modifier.score || 1));
     state.energy = clamp(state.energy + dt * (7.8 + state.level * 0.08 + (state.feverTimer > 0 ? 3.5 : 0) + (state.draftTimer > 0 ? 2.6 : 0) + (state.comboSurgeTimer > 0 ? 1.7 : 0) + (state.forgeTempoTimer > 0 ? 1.45 : 0) + (state.adventureBoostTimer > 0 ? 1.35 : 0) + (state.adventureContractBoostTimer > 0 ? 1.25 : 0) + (state.adventureSupportTimer > 0 ? 1.35 : 0) + (state.classicDistrictBoostTimer > 0 ? 1.2 : 0)) * (modifier.energy || 1), 0, state.maxEnergy);
+    if (classicProfile) updateClassicRouteFocus(dt, classicProfile);
     const runStats = runCombatStats();
     if (runStats.regen > 0 && state.health > 0 && state.health < state.maxHealth) {
       state.health = clamp(state.health + dt * (runStats.regen * 0.18 + state.maxHealth * Math.min(0.0025, runStats.regen * 0.00005)), 0, state.maxHealth);
@@ -7445,6 +7502,9 @@
     state.elementSurgePulse = Math.max(0, (state.elementSurgePulse || 0) - dt * 0.85);
     state.classicDistrictPulse = Math.max(0, (state.classicDistrictPulse || 0) - dt * 0.9);
     state.classicDistrictBoostTimer = Math.max(0, (state.classicDistrictBoostTimer || 0) - dt);
+    state.classicRouteFocusTimer = Math.max(0, (state.classicRouteFocusTimer || 0) - dt);
+    state.classicRouteFocusPulse = Math.max(0, (state.classicRouteFocusPulse || 0) - dt * 0.92);
+    if (state.classicRouteFocusTimer <= 0) state.classicRouteFocusKey = "";
     state.purificationPulse = Math.max(0, (state.purificationPulse || 0) - dt * 0.88);
     if (state.counterTimer > 0) {
       state.counterTimer = Math.max(0, state.counterTimer - dt);
@@ -10228,7 +10288,7 @@
     state.backgroundPreviousFrame = state.backgroundCurrentFrame;
     state.backgroundCurrentFrame = frame;
     state.backgroundFrameKey = frame.key;
-    state.sceneTransitionDuration = isSmoothQuality() ? 0.58 : SCENE_TRANSITION_DURATION;
+    state.sceneTransitionDuration = isSmoothQuality() ? 0.72 : SCENE_TRANSITION_DURATION;
     state.sceneTransitionTimer = state.backgroundPreviousFrame ? state.sceneTransitionDuration : 0;
     state.sceneLoadReliefTimer = Math.max(state.sceneLoadReliefTimer, SCENE_TRANSITION_LOAD_WINDOW);
   }
@@ -10294,6 +10354,7 @@
     const laneY = clamp(hero.y || (top + bottom) * 0.5, top + 42 * playScale(), bottom - 42 * playScale());
     const profile = state.gameMode === "stage" ? classicStageProfile(activeStage()) : null;
     const color = profile ? profile.districtColor : frame.deepMap ? "#c45dff" : "#5bded4";
+    const routePulse = profile && state.classicRouteFocusTimer > 0 && state.classicRouteFocusKey === profile.key ? (state.classicRouteFocusPulse || 0) : 0;
     ctx.save();
     const lowerShade = ctx.createLinearGradient(0, top, 0, state.height);
     lowerShade.addColorStop(0, "rgba(6, 18, 24, 0)");
@@ -10305,40 +10366,58 @@
     ctx.fillStyle = frame.deepMap ? "rgba(10, 15, 26, 0.22)" : "rgba(255, 248, 232, 0.08)";
     roundRect(10, top + 20, state.width - 20, bottom - top - 40, 18);
     ctx.fill();
-    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18;
+    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18 + routePulse * 0.14;
     const railY = laneY + 34 * playScale();
     const rail = ctx.createLinearGradient(0, railY, state.width, railY);
     rail.addColorStop(0, canvasRgba(color, 0));
-    rail.addColorStop(0.18, canvasRgba(color, 0.22));
-    rail.addColorStop(0.5, canvasRgba(color, 0.1));
-    rail.addColorStop(0.82, canvasRgba(color, 0.22));
+    rail.addColorStop(0.18, canvasRgba(color, 0.22 + routePulse * 0.14));
+    rail.addColorStop(0.5, canvasRgba(color, 0.1 + routePulse * 0.18));
+    rail.addColorStop(0.82, canvasRgba(color, 0.22 + routePulse * 0.14));
     rail.addColorStop(1, canvasRgba(color, 0));
     ctx.fillStyle = rail;
     roundRect(16, railY - 8 * playScale(), state.width - 32, 16 * playScale(), 9 * playScale());
     ctx.fill();
-    ctx.strokeStyle = canvasRgba(color, 0.24);
-    ctx.lineWidth = Math.max(1, 1.4 * playScale());
+    if (routePulse > 0.01) {
+      const focusBand = ctx.createLinearGradient(0, railY - 18 * playScale(), state.width, railY + 18 * playScale());
+      focusBand.addColorStop(0, canvasRgba(color, 0));
+      focusBand.addColorStop(0.5, canvasRgba(color, 0.16 * routePulse));
+      focusBand.addColorStop(1, canvasRgba(color, 0));
+      ctx.fillStyle = focusBand;
+      roundRect(20, railY - 20 * playScale(), state.width - 40, 40 * playScale(), 14 * playScale());
+      ctx.fill();
+    }
+    ctx.strokeStyle = canvasRgba(color, 0.24 + routePulse * 0.18);
+    ctx.lineWidth = Math.max(1, (1.4 + routePulse * 0.7) * playScale());
     ctx.setLineDash([18 * playScale(), 16 * playScale()]);
     ctx.lineDashOffset = -state.scroll * 0.18;
     ctx.beginPath();
     ctx.moveTo(22, railY);
     ctx.lineTo(state.width - 22, railY);
     ctx.stroke();
-    if (profile) drawClassicRouteMapMarks(profile, color, railY);
+    if (profile) drawClassicRouteMapMarks(profile, color, railY, routePulse);
     ctx.restore();
   }
 
-  function drawClassicRouteMapMarks(profile, color, railY) {
+  function drawClassicRouteMapMarks(profile, color, railY, routePulse = 0) {
     const s = playScale();
     const spacing = Math.max(88 * s, state.width / 5.2);
     const offset = ((state.scroll * 0.42) % spacing);
     ctx.save();
-    ctx.globalAlpha = 0.34 + (state.classicDistrictPulse || 0) * 0.12;
-    ctx.strokeStyle = canvasRgba(color, 0.72);
-    ctx.fillStyle = canvasRgba(color, 0.2);
-    ctx.lineWidth = Math.max(1, 1.6 * s);
+    ctx.globalAlpha = 0.34 + (state.classicDistrictPulse || 0) * 0.12 + routePulse * 0.22;
+    ctx.strokeStyle = canvasRgba(color, 0.72 + routePulse * 0.2);
+    ctx.fillStyle = canvasRgba(color, 0.2 + routePulse * 0.16);
+    ctx.lineWidth = Math.max(1, (1.6 + routePulse * 0.8) * s);
     for (let x = -offset + 24 * s; x < state.width + spacing; x += spacing) {
       const y = railY + Math.sin((state.time || 0) * 0.9 + x * 0.018) * 3 * s;
+      if (routePulse > 0.01) {
+        ctx.save();
+        ctx.globalAlpha *= 0.45 + routePulse * 0.18;
+        ctx.fillStyle = canvasRgba(color, 0.18 + routePulse * 0.1);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 22 * s, 12 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
       if (profile.key === "clean") {
         ctx.beginPath();
         ctx.arc(x, y, 8 * s, Math.PI * 0.15, Math.PI * 1.15);
@@ -10382,7 +10461,7 @@
     ctx.restore();
   }
 
-  function drawBackgroundFrame(frame, alpha = 1) {
+  function drawBackgroundFrame(frame, alpha = 1, options = {}) {
     if (!frame) return;
     const img = ensureImage(frame.img);
     const palette = backgroundPalette(frame);
@@ -10410,22 +10489,27 @@
     for (let x = -((state.scroll * 0.9) % 128); x < state.width + 128; x += 128) {
       ctx.fillRect(x, state.height - 39, 56, 5);
     }
-    drawMapReadabilityLayer(frame, palette);
+    if (options.readability !== false) drawMapReadabilityLayer(frame, palette);
     ctx.restore();
   }
 
   function drawSceneTransitionWash(blend) {
     if (!sceneTransitionActive()) return;
+    const wave = Math.sin(clamp(blend, 0, 1) * Math.PI);
     const alpha = state.sceneTransitionTimer > 0
-      ? Math.sin(clamp(blend, 0, 1) * Math.PI) * 0.16
-      : Math.min(0.08, state.sceneLoadReliefTimer * 0.05);
+      ? wave * (isSmoothQuality() ? 0.07 : 0.1)
+      : Math.min(0.045, state.sceneLoadReliefTimer * 0.032);
     if (alpha <= 0.01) return;
     ctx.save();
+    if (state.sceneTransitionTimer > 0) {
+      ctx.fillStyle = `rgba(6, 13, 18, ${wave * 0.035})`;
+      ctx.fillRect(0, 0, state.width, state.height);
+    }
     ctx.globalAlpha = alpha;
     const wash = ctx.createLinearGradient(0, playTop(), state.width, playBottom());
-    wash.addColorStop(0, "rgba(255, 248, 232, 0)");
-    wash.addColorStop(0.48, "rgba(255, 248, 232, 0.62)");
-    wash.addColorStop(1, "rgba(84, 208, 255, 0)");
+    wash.addColorStop(0, "rgba(6, 24, 34, 0)");
+    wash.addColorStop(0.48, "rgba(91, 222, 212, 0.46)");
+    wash.addColorStop(1, "rgba(245, 200, 75, 0)");
     ctx.fillStyle = wash;
     ctx.fillRect(0, 0, state.width, state.height);
     ctx.restore();
@@ -10434,7 +10518,7 @@
   function drawBackground() {
     const frame = resolveBackgroundFrame();
     if (frame.previous && frame.blend < 1) {
-      drawBackgroundFrame(frame.previous, 1);
+      drawBackgroundFrame(frame.previous, 1, { readability: false });
       drawBackgroundFrame(frame.current, frame.blend);
       drawSceneTransitionWash(frame.blend);
       return;
@@ -14238,8 +14322,10 @@
     const percent = clamp(progress / Math.max(1, target), 0, 1);
     const ready = state.classicDistrictClaimed || percent >= 1;
     const pulse = state.classicDistrictPulse || 0;
+    const focusActive = state.classicRouteFocusTimer > 0 && state.classicRouteFocusKey === profile.key;
+    const focusPulse = focusActive ? (state.classicRouteFocusPulse || 0) : 0;
     const color = profile.districtColor || "#5bded4";
-    const w = compact ? clamp(state.width * 0.24, 136, 170) : 230;
+    const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
     const x = compact ? 12 : 18;
     const y = playTop() + (compact ? 62 : 70);
@@ -14249,11 +14335,11 @@
     const barY = y + h - (compact ? 11 : 17);
     ctx.save();
     ctx.globalAlpha = 0.88;
-    ctx.fillStyle = `rgba(13, 25, 34, ${0.64 + pulse * 0.16})`;
+    ctx.fillStyle = `rgba(13, 25, 34, ${0.64 + pulse * 0.16 + focusPulse * 0.1})`;
     roundRect(x, y, w, h, 8);
     ctx.fill();
-    ctx.strokeStyle = ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
-    ctx.lineWidth = 1.4 + pulse * 1.1;
+    ctx.strokeStyle = focusActive ? canvasRgba(color, 0.68 + focusPulse * 0.22) : ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
+    ctx.lineWidth = 1.4 + pulse * 1.1 + focusPulse * 0.8;
     ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.fillStyle = ready ? "#dfff7a" : "#fff8e8";
@@ -14263,7 +14349,9 @@
     ctx.fillText(ready ? `${profile.short}城区稳定` : `${profile.short}稳定 ${Math.floor(percent * 100)}%`, barX, y + (compact ? 5 : 8));
     ctx.fillStyle = "rgba(255, 248, 232, 0.78)";
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
-    const hint = ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : `${Math.floor(progress)}/${target} · 事件/拾取推进`;
+    const hint = focusActive
+      ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : `${Math.floor(progress)}/${target} · 事件/拾取推进`;
     ctx.fillText(hint, barX, y + (compact ? 18 : 27));
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
     roundRect(barX, barY, barW, barH, barH * 0.5);
@@ -14275,6 +14363,12 @@
     ctx.fillStyle = grad;
     if (barW * percent > 0.5) {
       roundRect(barX, barY, barW * percent, barH, barH * 0.5);
+      ctx.fill();
+    }
+    if (focusActive) {
+      const focusW = barW * clamp(state.classicRouteFocusTimer / 4.2, 0, 1);
+      ctx.fillStyle = canvasRgba(color, 0.18 + focusPulse * 0.18);
+      roundRect(barX, barY - (compact ? 5 : 7), focusW, compact ? 2 : 3, compact ? 1 : 1.5);
       ctx.fill();
     }
     const pips = classicDistrictMilestonePlan(stage);
