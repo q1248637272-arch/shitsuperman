@@ -163,6 +163,8 @@
     laneForgeHeat: loadImage("assets/lane-forge-heat.png", true),
     iconMountCore: loadImage("assets/icon-mount-core.png", true),
     iconComboSigil: loadImage("assets/icon-combo-sigil.png", true),
+    iconPurificationCore: loadImage("assets/icon-purification-core.png", true),
+    iconBreakCore: loadImage("assets/icon-break-core.png", true),
     iconStarTrail: loadImage("assets/icon-star-trail.png", true),
     iconMirrorShard: loadImage("assets/icon-mirror-shard.png", true),
     iconMirrorBurst: loadImage("assets/icon-mirror-burst.png", true),
@@ -194,7 +196,7 @@
     stageContractBadge: loadImage("assets/stage-contract-badge.png", true),
   };
 
-  const MAP_WARMUP_ASSET_KEYS = ["backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
+  const MAP_WARMUP_ASSET_KEYS = ["backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
   const BOSS_WARMUP_ASSET_KEYS = [
     "bossToiletKing",
     "bossPlungerGeneral",
@@ -524,6 +526,7 @@
   const DAILY_BOSS_POWER_MULTIPLIER = 20;
   const BOSS_SIZE_SCALE = 0.68;
   const BOSS_ATTACK_SPEED_SCALE = 0.72;
+  const BOSS_ATTACK_RATE_SCALE = 0.75;
   const PICKUP_SIZE_SCALE = 1.3;
   const SCREEN_SHAKE_ENABLED = false;
   const SCENE_TRANSITION_DURATION = 0.82;
@@ -5715,6 +5718,10 @@
     }[attackKey] || 1.1;
   }
 
+  function bossAttackInterval(seconds) {
+    return Math.max(0.01, seconds) / BOSS_ATTACK_RATE_SCALE;
+  }
+
   function bossCombatPower(bossData) {
     const profile = bossData.profile || bossProfiles[0];
     const level = Math.max(1, Number(bossData.level) || 1);
@@ -5723,7 +5730,7 @@
     const cadenceScale = bossData.cadenceScale || 1;
     const speedScale = bossData.speedScale || 1;
     const cadence = Math.max(0.52, (profile.cadence + 0.34 - level * 0.018) * cadenceScale);
-    const attackRate = 1 / cadence;
+    const attackRate = BOSS_ATTACK_RATE_SCALE / cadence;
     const pattern = bossAttackPatternFactor(profile.attack) * (profile.percentDamage ? 1.18 : 1);
     const baseHit = (18 + level * 4.2) * profile.damage * damageScale;
     const percentHit = (profile.percentDamage || 0) * Math.max(100, state.maxHealth || 100) * 2.8;
@@ -8636,7 +8643,7 @@
       power: 0,
       daily: state.gameMode === "daily",
       phase: 0,
-      attackTimer: 0.95,
+      attackTimer: bossAttackInterval(0.95),
       weakTimer: state.gameMode === "daily" ? 3.2 : random(7.5, 10.5),
       weakDuration: 0,
       weakOffset: 0,
@@ -8898,7 +8905,7 @@
       const dailyCadenceRelief = boss.daily ? (isLandscapePlay() ? 0.58 : 0.46) : 0;
       const levelCadencePressure = boss.level * (boss.daily ? 0.006 : 0.018);
       const minCadence = boss.daily ? (isLandscapePlay() ? 1.28 : 1.12) : (isLandscapePlay() ? 0.78 : 0.64);
-      boss.attackTimer = Math.max(minCadence, (profile.cadence + 0.34 + landscapeCadenceRelief + dailyCadenceRelief - levelCadencePressure) * (boss.cadenceScale || 1));
+      boss.attackTimer = bossAttackInterval(Math.max(minCadence, (profile.cadence + 0.34 + landscapeCadenceRelief + dailyCadenceRelief - levelCadencePressure) * (boss.cadenceScale || 1)));
       boss.currentSafeLane = boss.previewSafeLane || bossSafeLane();
       fireBossAttack(profile, bossAttackScale(), boss.nextAttack);
       boss.currentSafeLane = null;
@@ -13348,6 +13355,7 @@
   }
 
   function drawPurificationCore(r, phase) {
+    if (drawGeneratedPickupIcon(assets.iconPurificationCore, r, phase, "#5bded4")) return;
     const pulse = Math.sin(phase * 3.2) * 0.5 + 0.5;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
@@ -13394,6 +13402,7 @@
   }
 
   function drawBreakCore(r, phase) {
+    if (drawGeneratedPickupIcon(assets.iconBreakCore, r, phase, "#ff8d54")) return;
     const pulse = Math.sin(phase * 3.1) * 0.5 + 0.5;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
