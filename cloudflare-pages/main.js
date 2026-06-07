@@ -741,6 +741,7 @@
       districtTarget: 58,
       districtReward: { coins: 0.035, materials: 0.012 },
       districtColor: "#5bded4",
+      districtMilestones: ["清理近路", "清风回补", "城区稳定"],
       eventBias: [
         { kind: "cleanWind", label: "清风补给" },
         { kind: "paperRain", label: "纸卷雨" },
@@ -764,6 +765,7 @@
       districtTarget: 66,
       districtReward: { coins: 0.025, materials: 0.04 },
       districtColor: "#9de8ff",
+      districtMilestones: ["投放补给", "护航补能", "城区稳定"],
       eventBias: [
         { kind: "supplyDrop", label: "补给空投", minStage: 2 },
         { kind: "cleanWind", label: "清风补给" },
@@ -787,6 +789,7 @@
       districtTarget: 72,
       districtReward: { coins: 0.045, materials: 0.016 },
       districtColor: "#dfff7a",
+      districtMilestones: ["连击续航", "祭印预热", "城区稳定"],
       eventBias: [
         { kind: "comboShrine", label: "连击祭坛", minStage: 4 },
         { kind: "draftGate", label: "顺风门阵", minStage: 3 },
@@ -810,6 +813,7 @@
       districtTarget: 76,
       districtReward: { coins: 0.032, materials: 0.035 },
       districtColor: "#ff8d54",
+      districtMilestones: ["压制减速", "闪反护航", "城区稳定"],
       eventBias: [
         { kind: "counterTrial", label: "闪反试炼", minStage: 5 },
         { kind: "supplyDrop", label: "补给空投", minStage: 3 },
@@ -833,6 +837,7 @@
       districtTarget: 70,
       districtReward: { coins: 0.03, materials: 0.03 },
       districtColor: "#f5c84b",
+      districtMilestones: ["备战护盾", "破防补给", "城区稳定"],
       eventBias: [
         { kind: "supplyDrop", label: "补给空投" },
         { kind: "cleanWind", label: "清风补给" },
@@ -887,6 +892,95 @@
     return `${profile.short}稳定 ${Math.floor(progress)}/${target}`;
   }
 
+  function classicDistrictMilestoneCount(progress, target) {
+    if (target <= 0) return 0;
+    if (progress >= target * 0.7) return 2;
+    if (progress >= target * 0.35) return 1;
+    return 0;
+  }
+
+  function classicDistrictMilestonePlan(stage = activeStage()) {
+    const profile = classicStageProfile(stage);
+    const labels = profile.districtMilestones || ["路况支援", "航线补给", "城区稳定"];
+    return [
+      { ratio: 0.35, label: labels[0] || "路况支援" },
+      { ratio: 0.7, label: labels[1] || "航线补给" },
+      { ratio: 1, label: labels[2] || "城区稳定" },
+    ];
+  }
+
+  function spawnClassicDistrictPickup(type, index = 0, total = 1, strength = 1.08) {
+    const s = playScale();
+    const top = playTop() + 42 * s;
+    const bottom = playBottom() - 42 * s;
+    const y = clamp(hero.y + (index - (total - 1) * 0.5) * 34 * s, top, bottom);
+    addPickup({
+      type,
+      x: clamp(hero.x + (168 + index * 32) * s, hero.x + 98 * s, state.width - 54 * s),
+      y,
+      r: pickupRadius(type, s, strength),
+      strength,
+      phase: random(0, Math.PI * 2),
+    }, true);
+  }
+
+  function triggerClassicDistrictMilestone(profile = classicStageProfile(), milestone = 1) {
+    if (state.mode !== "playing") return;
+    const s = playScale();
+    const level = Math.max(1, milestone);
+    const labels = profile.districtMilestones || [];
+    const label = labels[level - 1] || `${profile.short}支援`;
+    const color = profile.districtColor || "#5bded4";
+    state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.72);
+    state.eventName = `${profile.short}：${label}`;
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.25);
+    gainStyle(10 + level * 3, label, color);
+    if (profile.key === "clean") {
+      state.recoveryTimer = Math.max(state.recoveryTimer, 1.15 + level * 0.35);
+      state.health = clamp(state.health + state.maxHealth * (0.035 + level * 0.025), 0, state.maxHealth);
+      for (const h of hazards) {
+        if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+        if ((h.x || 0) < state.width * 0.72 && Math.abs((h.y || hero.y) - hero.y) < 120 * s) {
+          h.slow = Math.max(h.slow || 0, 0.42 + level * 0.16);
+          h.hit = Math.max(h.hit || 0, 0.1);
+        }
+      }
+      spawnClassicDistrictPickup(level >= 2 ? "focusOrb" : "energy", 0, 1, 1.05 + level * 0.08);
+    } else if (profile.key === "supply") {
+      state.energy = clamp(state.energy + state.maxEnergy * (0.08 + level * 0.04), 0, state.maxEnergy);
+      if (level >= 2) state.shieldTimer = Math.max(state.shieldTimer, 1.6);
+      const drops = level >= 2 ? ["supplyCrate", "energy"] : ["shield", "energy"];
+      drops.forEach((type, index) => spawnClassicDistrictPickup(type, index, drops.length, 1.1 + level * 0.08));
+    } else if (profile.key === "combo") {
+      state.combo += 2 + level * 2;
+      state.comboTimer = Math.max(state.comboTimer, 3.4 + level * 0.45);
+      state.comboSurgeTimer = Math.max(state.comboSurgeTimer || 0, 2.4 + level * 0.85);
+      recordRunStat("maxCombo", state.combo);
+      spawnClassicDistrictPickup(level >= 2 ? "comboSigil" : "bonusPaper", 0, 1, 1.06 + level * 0.08);
+    } else if (profile.key === "threat") {
+      state.counterTimer = Math.max(state.counterTimer || 0, 2.8 + level * 0.8);
+      state.counterPulse = Math.max(state.counterPulse || 0, 0.38);
+      state.shieldTimer = Math.max(state.shieldTimer, 0.9 + level * 0.28);
+      for (const h of hazards) {
+        if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+        if ((h.x || 0) < state.width + 160 * s) h.slow = Math.max(h.slow || 0, 0.5 + level * 0.12);
+      }
+      spawnClassicDistrictPickup(level >= 2 ? "counterSeal" : "focusOrb", 0, 1, 1.08 + level * 0.08);
+    } else {
+      state.shieldTimer = Math.max(state.shieldTimer, 1.15 + level * 0.38);
+      state.energy = clamp(state.energy + state.maxEnergy * (0.06 + level * 0.035), 0, state.maxEnergy);
+      state.specialTimer = Math.max(state.specialTimer, 1.6 + level * 0.4);
+      if (boss) {
+        boss.breakMeter = clamp((boss.breakMeter || 0) + bossBreakGain("glance") * (0.2 + level * 0.06), 0, bossBreakThreshold());
+        boss.hit = Math.max(boss.hit || 0, 0.14);
+      }
+      spawnClassicDistrictPickup(level >= 2 ? "breakCore" : "shield", 0, 1, 1.08 + level * 0.08);
+    }
+    showRewardToast([{ type: "medal", label, amount: 1 }], { duration: 1350 });
+    pop(hero.x + 32 * s, hero.y, color, 14 + level * 4);
+    beep(720 + level * 120, 0.06, "triangle", 0.035);
+  }
+
   function triggerClassicDistrictStabilized(profile = classicStageProfile()) {
     if (state.classicDistrictClaimed) return;
     state.classicDistrictClaimed = true;
@@ -898,6 +992,8 @@
     state.eventName = `${profile.short}城区稳定`;
     state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.5);
     showRewardToast([{ type: "medal", label: `${profile.short}稳定`, amount: 1 }], { duration: 1500 });
+    const finalType = profile.key === "combo" ? "comboSigil" : profile.key === "threat" ? "counterSeal" : profile.key === "bossPrep" ? "breakCore" : profile.key === "supply" ? "supplyCrate" : "focusOrb";
+    spawnClassicDistrictPickup(finalType, 0, 1, 1.18);
     pop(hero.x, hero.y, profile.districtColor || "#5bded4", 18);
     beep(960, 0.07, "triangle", 0.04);
   }
@@ -912,6 +1008,11 @@
     state.classicDistrictProgress = clamp(before + amount, 0, target);
     if (state.classicDistrictProgress > before) {
       state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, reason === "major" ? 0.62 : 0.28);
+    }
+    const milestoneCount = classicDistrictMilestoneCount(state.classicDistrictProgress, target);
+    while ((state.classicDistrictMilestone || 0) < milestoneCount) {
+      state.classicDistrictMilestone += 1;
+      triggerClassicDistrictMilestone(profile, state.classicDistrictMilestone);
     }
     if (state.classicDistrictProgress >= target) triggerClassicDistrictStabilized(profile);
   }
@@ -1215,6 +1316,7 @@
     classicDistrictProgress: 0,
     classicDistrictTarget: 0,
     classicDistrictClaimed: false,
+    classicDistrictMilestone: 0,
     classicDistrictPulse: 0,
     classicDistrictBoostTimer: 0,
     goldRushCharge: 0,
@@ -6829,6 +6931,7 @@
     state.classicDistrictProgress = 0;
     state.classicDistrictTarget = state.gameMode === "stage" ? classicDistrictTarget(stage) : 0;
     state.classicDistrictClaimed = state.gameMode !== "stage";
+    state.classicDistrictMilestone = 0;
     state.classicDistrictPulse = 0;
     state.classicDistrictBoostTimer = 0;
     state.goldRushCharge = 0;
@@ -13971,6 +14074,18 @@
       roundRect(barX, barY, barW * percent, barH, barH * 0.5);
       ctx.fill();
     }
+    const pips = classicDistrictMilestonePlan(stage);
+    for (const step of pips) {
+      const px = barX + barW * step.ratio;
+      const claimed = percent >= step.ratio;
+      ctx.beginPath();
+      ctx.arc(px, barY + barH * 0.5, compact ? 3.6 : 5, 0, Math.PI * 2);
+      ctx.fillStyle = claimed ? (step.ratio >= 1 ? "#dfff7a" : color) : "rgba(255, 248, 232, 0.28)";
+      ctx.fill();
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = claimed ? "rgba(255, 248, 232, 0.82)" : "rgba(13, 25, 34, 0.72)";
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -16138,6 +16253,10 @@
       const contractText = contract ? ` · ${contract.short}契约` : "";
       const classicProfile = mode === "stage" ? classicStageProfile(stage) : null;
       const profileText = classicProfile ? ` · ${classicProfile.short}航线` : "";
+      if (classicProfile) {
+        btn.classList.add(`route-${classicProfile.key}`);
+        btn.dataset.routeLabel = classicProfile.short;
+      }
       btn.title = `推荐战力 ${formatCombatPower(readiness.recommended)} · ${readiness.label}${contractText}${profileText}`;
       btn.setAttribute("aria-label", `${mode === "adventure" ? "冒险" : "闯关"}第 ${stage.number} 关，推荐战力 ${formatCombatPower(readiness.recommended)}，${readiness.label}${contractText}${profileText}`);
       btn.addEventListener("click", () => {
@@ -16182,6 +16301,7 @@
 
       const goals = document.createElement("div");
       goals.className = "stage-summary-goals";
+      let milestonePlan = null;
       const addChip = (label, value, kinds = "") => {
         const kindList = Array.isArray(kinds) ? kinds : kinds ? [kinds] : [];
         const chip = document.createElement("span");
@@ -16194,6 +16314,22 @@
         valueNode.textContent = value;
         chip.append(labelNode, valueNode);
         goals.appendChild(chip);
+      };
+      const buildMilestonePlan = () => {
+        if (!classicProfile) return null;
+        const plan = document.createElement("div");
+        plan.className = `stage-milestone-plan route-${classicProfile.key}`;
+        const caption = document.createElement("span");
+        caption.className = "stage-milestone-caption";
+        caption.textContent = "稳定节奏";
+        plan.appendChild(caption);
+        for (const step of classicDistrictMilestonePlan(stage)) {
+          const node = document.createElement("span");
+          node.className = "stage-milestone-node";
+          node.textContent = `${Math.round(step.ratio * 100)}% ${step.label}`;
+          plan.appendChild(node);
+        }
+        return plan;
       };
 
       addChip("目标", `${formatScore(stage.target)} 分`);
@@ -16210,15 +16346,17 @@
         if (classicProfile) {
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("备战", classicProfile.tip, ["wide", "alert"]);
-          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 完成后补血回能`, "reward");
+          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
+          milestonePlan = buildMilestonePlan();
         }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
       } else {
         if (classicProfile) {
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("建议", classicProfile.tip, ["wide"]);
-          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 事件和拾取推进`, "reward");
+          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
           addChip("倾向", classicStageRewardText(classicProfile), "reward");
+          milestonePlan = buildMilestonePlan();
         }
         addChip("通关", "达到目标分");
         addChip("无伤", "额外金币");
@@ -16233,7 +16371,8 @@
       } else {
         addChip("奖励", `${runCoinReward(stage.coinReward)} 金币 / ${runMaterialReward(stage.materialReward)} 材料`);
       }
-      stageSummary.append(main, goals);
+      if (milestonePlan) stageSummary.append(main, milestonePlan, goals);
+      else stageSummary.append(main, goals);
     }
     if (stageStartButton) {
       stageStartButton.disabled = locked;
