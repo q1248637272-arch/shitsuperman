@@ -392,6 +392,31 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.mission-hud.route-clean {
+  border-color: rgba(91, 222, 212, 0.42);
+  background: linear-gradient(90deg, rgba(91, 222, 212, 0.16), rgba(17, 27, 34, 0.72));
+}
+
+.mission-hud.route-supply {
+  border-color: rgba(157, 232, 255, 0.42);
+  background: linear-gradient(90deg, rgba(84, 208, 255, 0.15), rgba(17, 27, 34, 0.72));
+}
+
+.mission-hud.route-combo {
+  border-color: rgba(223, 255, 122, 0.42);
+  background: linear-gradient(90deg, rgba(223, 255, 122, 0.13), rgba(17, 27, 34, 0.72));
+}
+
+.mission-hud.route-threat {
+  border-color: rgba(255, 141, 84, 0.44);
+  background: linear-gradient(90deg, rgba(255, 141, 84, 0.14), rgba(17, 27, 34, 0.72));
+}
+
+.mission-hud.route-bossPrep {
+  border-color: rgba(245, 200, 75, 0.44);
+  background: linear-gradient(90deg, rgba(245, 200, 75, 0.14), rgba(17, 27, 34, 0.72));
+}
+
 .menu-panel {
   position: absolute;
   inset: 0;

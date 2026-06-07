@@ -892,6 +892,40 @@
     return `${profile.short}稳定 ${Math.floor(progress)}/${target}`;
   }
 
+  function classicDistrictNextMilestone(stage = activeStage()) {
+    const target = state.classicDistrictTarget || classicDistrictTarget(stage);
+    const progress = clamp(state.classicDistrictProgress || 0, 0, target);
+    const percent = target > 0 ? progress / target : 0;
+    return classicDistrictMilestonePlan(stage).find((step) => percent < step.ratio) || null;
+  }
+
+  function classicRouteBiasText(profile = classicStageProfile()) {
+    const labels = (profile.eventBias || [])
+      .slice(0, 2)
+      .map((entry) => entry.label)
+      .filter(Boolean);
+    return labels.length ? `常见 ${labels.join("/")}` : "常规路况";
+  }
+
+  function classicRouteHudText() {
+    if (state.gameMode !== "stage" || !isStageMode() || !["playing", "paused"].includes(state.mode)) return "";
+    const stage = activeStage();
+    if (!stage) return "";
+    const profile = classicStageProfile(stage);
+    const target = state.classicDistrictTarget || classicDistrictTarget(stage);
+    const progress = clamp(state.classicDistrictProgress || 0, 0, target);
+    if (state.classicDistrictClaimed) {
+      const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
+      return `${profile.short}航线稳定${boost} · ${classicRouteBiasText(profile)}`;
+    }
+    if (state.eventTimer > 0 && state.eventName) {
+      return `${profile.short}航线 · ${state.eventName} ${Math.ceil(state.eventTimer)}s · 稳定 ${Math.floor(progress)}/${target}`;
+    }
+    const next = classicDistrictNextMilestone(stage);
+    const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
+    return `${profile.short}航线 · ${nextText} · ${classicRouteBiasText(profile)}`;
+  }
+
   function classicDistrictMilestoneCount(progress, target) {
     if (target <= 0) return 0;
     if (progress >= target * 0.7) return 2;
@@ -3696,10 +3730,19 @@
   function updateMissionHud() {
     if (!missionHud || !missionText) return;
     const missions = state.runMissions || [];
-    const visible = (state.mode === "playing" || state.mode === "paused") && missions.length > 0;
+    const classicText = classicRouteHudText();
+    const visible = (state.mode === "playing" || state.mode === "paused") && (missions.length > 0 || classicText);
     missionHud.hidden = !visible;
     if (!visible) return;
-    missionText.textContent = `${runModifier().name}：${missions.map((mission) => `${mission.done ? "✓" : ""}${mission.label} ${missionValue(mission)}/${mission.target}`).join(" · ")}`;
+    missionHud.classList.remove("route-clean", "route-supply", "route-combo", "route-threat", "route-bossPrep");
+    if (classicText && state.gameMode === "stage") {
+      missionHud.classList.add(`route-${classicStageProfile(activeStage()).key}`);
+    }
+    const missionTextParts = missions.length > 0
+      ? [`${runModifier().name}：${missions.map((mission) => `${mission.done ? "✓" : ""}${mission.label} ${missionValue(mission)}/${mission.target}`).join(" · ")}`]
+      : [];
+    if (classicText) missionTextParts.push(classicText);
+    missionText.textContent = missionTextParts.join(" · ");
   }
 
   function maybeGrantRunPerk() {
@@ -10176,6 +10219,61 @@
     ctx.moveTo(22, railY);
     ctx.lineTo(state.width - 22, railY);
     ctx.stroke();
+    if (profile) drawClassicRouteMapMarks(profile, color, railY);
+    ctx.restore();
+  }
+
+  function drawClassicRouteMapMarks(profile, color, railY) {
+    const s = playScale();
+    const spacing = Math.max(88 * s, state.width / 5.2);
+    const offset = ((state.scroll * 0.42) % spacing);
+    ctx.save();
+    ctx.globalAlpha = 0.34 + (state.classicDistrictPulse || 0) * 0.12;
+    ctx.strokeStyle = canvasRgba(color, 0.72);
+    ctx.fillStyle = canvasRgba(color, 0.2);
+    ctx.lineWidth = Math.max(1, 1.6 * s);
+    for (let x = -offset + 24 * s; x < state.width + spacing; x += spacing) {
+      const y = railY + Math.sin((state.time || 0) * 0.9 + x * 0.018) * 3 * s;
+      if (profile.key === "clean") {
+        ctx.beginPath();
+        ctx.arc(x, y, 8 * s, Math.PI * 0.15, Math.PI * 1.15);
+        ctx.arc(x + 12 * s, y, 8 * s, Math.PI * 1.15, Math.PI * 0.15, true);
+        ctx.stroke();
+      } else if (profile.key === "supply") {
+        roundRect(x - 10 * s, y - 8 * s, 20 * s, 16 * s, 3 * s);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 10 * s, y - 1 * s);
+        ctx.lineTo(x + 10 * s, y - 1 * s);
+        ctx.moveTo(x, y - 8 * s);
+        ctx.lineTo(x, y + 8 * s);
+        ctx.stroke();
+      } else if (profile.key === "combo") {
+        ctx.beginPath();
+        ctx.arc(x - 5 * s, y, 7 * s, 0, Math.PI * 2);
+        ctx.arc(x + 8 * s, y, 7 * s, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (profile.key === "threat") {
+        ctx.beginPath();
+        ctx.moveTo(x - 12 * s, y + 8 * s);
+        ctx.lineTo(x - 3 * s, y - 8 * s);
+        ctx.moveTo(x + 1 * s, y + 8 * s);
+        ctx.lineTo(x + 10 * s, y - 8 * s);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 11 * s);
+        ctx.lineTo(x + 11 * s, y - 3 * s);
+        ctx.lineTo(x + 7 * s, y + 10 * s);
+        ctx.lineTo(x, y + 13 * s);
+        ctx.lineTo(x - 7 * s, y + 10 * s);
+        ctx.lineTo(x - 11 * s, y - 3 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
     ctx.restore();
   }
 
