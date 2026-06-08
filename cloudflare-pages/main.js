@@ -871,6 +871,25 @@
     return `${profile.rewardLabel} · 金币 +${Math.round((profile.coinBonus || 0) * 100)}% / 材料 +${Math.round((profile.materialBonus || 0) * 100)}%`;
   }
 
+  function classicRouteMapLabel(stage = activeStage()) {
+    return stage && stage.map === "deep" ? "深层废都" : "旧城主线";
+  }
+
+  function classicRouteOpeningRewardText(profile = classicStageProfile()) {
+    return {
+      clean: "开局跟线可获得清路回复和专注球",
+      supply: "开局跟线可获得补能、磁吸和补给箱",
+      combo: "开局跟线可获得连击续航和祭印",
+      threat: "开局跟线可获得闪反窗口和短护盾",
+      bossPrep: "开局跟线可获得破防核心和护盾",
+    }[profile.key] || "开局跟线可获得航线支援";
+  }
+
+  function classicRouteBriefingText(stage = activeStage(), profile = classicStageProfile(stage)) {
+    const mechanicText = stage && stage.map === "deep" ? "深阀" : "绿波";
+    return `入场 8 秒跟随情报航线，提前熟悉${mechanicText}节奏。`;
+  }
+
   function classicStageBonus(stage, firstClear) {
     if (!stage || state.gameMode !== "stage") return { coins: 0, materials: 0 };
     const profile = classicStageProfile(stage);
@@ -1021,18 +1040,19 @@
     const focus = state.classicRouteFocusTimer > 0 ? ` · ${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s` : "";
     const forecastInfo = classicRouteForecastInfo();
     const forecast = classicRouteForecastText(forecastInfo);
+    const briefing = classicRouteBriefingActive() && !forecast ? ` · 情报 ${Math.floor(clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1) * 100)}%` : "";
     const greenWave = classicGreenWaveActive() && !forecast ? ` · 绿波 ${Math.floor(clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) * 100)}%` : "";
     const deepValve = deepPurgeValveActive() && !forecast ? ` · 深阀 ${Math.floor(clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) * 100)}%` : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}航线稳定${boost}${focus}${greenWave}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
+      return `${profile.short}航线稳定${boost}${focus}${briefing}${greenWave}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}航线${focus}${greenWave}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
+      return `${profile.short}航线${focus}${briefing}${greenWave}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}航线${focus}${greenWave}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}航线${focus}${briefing}${greenWave}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
   }
 
   function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
@@ -1316,6 +1336,95 @@
       state.deepPurgeValveCharge = Math.max(0, (state.deepPurgeValveCharge || 0) - dt * (near ? 4 : 9));
     }
     if ((state.deepPurgeValveCharge || 0) >= 100) triggerDeepPurgeValveReward(lane, profile);
+  }
+
+  function classicRouteBriefingActive() {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || !isStageMode()) return false;
+    return !state.classicRouteBriefClaimed && (state.classicRouteBriefTimer || 0) > 0;
+  }
+
+  function classicRouteBriefingLaneInfo(profile = classicStageProfile()) {
+    const stage = activeStage();
+    const lane = stage && stage.map === "deep" ? deepPurgeValveLaneInfo(profile) : classicGreenWaveLaneInfo(profile);
+    return {
+      ...lane,
+      half: lane.half * 0.82,
+      progress: clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1),
+    };
+  }
+
+  function triggerClassicRouteBriefingReward(lane, profile = classicStageProfile()) {
+    if (!classicRouteBriefingActive()) return;
+    const s = playScale();
+    const color = profile.districtColor || "#5bded4";
+    state.classicRouteBriefClaimed = true;
+    state.classicRouteBriefTimer = 0;
+    state.classicRouteBriefCharge = 100;
+    state.classicRouteBriefPulse = 1;
+    state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.82);
+    state.spawnTimer = Math.max(state.spawnTimer || 0, 0.38);
+    state.energy = clamp(state.energy + 8 + state.level * 0.14, 0, state.maxEnergy);
+    addClassicDistrictProgress(6 + Math.min(5, Math.floor((state.classicDistrictTarget || 60) * 0.035)), "route");
+    activateClassicRouteFocus(profile, 3.4);
+    if (profile.key === "clean") {
+      state.recoveryTimer = Math.max(state.recoveryTimer, 1.45);
+      state.health = clamp(state.health + state.maxHealth * 0.045, 0, state.maxHealth);
+      spawnClassicDistrictPickup("focusOrb", 0, 1, 1.06);
+    } else if (profile.key === "supply") {
+      state.magnetTimer = Math.max(state.magnetTimer || 0, 1.15);
+      state.energy = clamp(state.energy + state.maxEnergy * 0.08, 0, state.maxEnergy);
+      spawnClassicDistrictPickup("supplyCrate", 0, 1, 1.08);
+    } else if (profile.key === "combo") {
+      state.combo += 2;
+      state.comboTimer = Math.max(state.comboTimer, 3.1);
+      state.comboSurgeTimer = Math.max(state.comboSurgeTimer || 0, 2.2);
+      recordRunStat("maxCombo", state.combo);
+      spawnClassicDistrictPickup("comboSigil", 0, 1, 1.06);
+    } else if (profile.key === "threat") {
+      state.counterTimer = Math.max(state.counterTimer || 0, 2.4);
+      state.counterPulse = Math.max(state.counterPulse || 0, 0.34);
+      state.shieldTimer = Math.max(state.shieldTimer || 0, 0.9);
+      spawnClassicDistrictPickup("counterSeal", 0, 1, 1.06);
+    } else {
+      state.shieldTimer = Math.max(state.shieldTimer || 0, 1.05);
+      state.specialTimer = Math.max(state.specialTimer || 0, 1.6);
+      spawnClassicDistrictPickup("breakCore", 0, 1, 1.06);
+    }
+    addRoundedScore((150 + state.level * 7) * state.scoreBonus * styleMultiplier());
+    gainXp(30, false);
+    gainStyle(16, "航线情报", color);
+    spawnClassicEventParticles(hero.x + 44 * s, lane.center, color, 16);
+    pop(hero.x + 50 * s, lane.center, color, 18);
+    state.eventName = `${profile.short}航线情报`;
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.15);
+    beep(840, 0.055, "triangle", 0.038);
+  }
+
+  function updateClassicRouteBriefing(dt, profile = classicStageProfile()) {
+    state.classicRouteBriefPulse = Math.max(0, (state.classicRouteBriefPulse || 0) - dt * 0.92);
+    if (!classicRouteBriefingActive()) {
+      if (state.classicRouteBriefClaimed) {
+        state.classicRouteBriefCharge = Math.max(0, (state.classicRouteBriefCharge || 0) - dt * 42);
+      }
+      return;
+    }
+    state.classicRouteBriefTimer = Math.max(0, (state.classicRouteBriefTimer || 0) - dt);
+    const s = playScale();
+    const lane = classicRouteBriefingLaneInfo(profile);
+    const distance = Math.abs(hero.y - lane.center);
+    const inside = distance <= lane.half + hero.radiusY * 0.3;
+    const near = distance <= lane.half + hero.radiusY * 0.92;
+    if (inside) {
+      const gain = 35 + Math.min(10, state.level * 0.42);
+      state.classicRouteBriefCharge = clamp((state.classicRouteBriefCharge || 0) + dt * gain, 0, 100);
+      state.energy = clamp(state.energy + dt * 0.72, 0, state.maxEnergy);
+      state.styleTimer = Math.max(state.styleTimer, 0.32);
+      state.classicRouteBriefPulse = Math.max(state.classicRouteBriefPulse || 0, 0.14);
+      if (Math.random() < dt * (isSmoothQuality() ? 2.2 : 3.8)) spawnClassicEventParticles(hero.x - 8 * s, hero.y, profile.districtColor || "#5bded4", 1);
+    } else {
+      state.classicRouteBriefCharge = Math.max(0, (state.classicRouteBriefCharge || 0) - dt * (near ? 3 : 7));
+    }
+    if ((state.classicRouteBriefCharge || 0) >= 100) triggerClassicRouteBriefingReward(lane, profile);
   }
 
   function classicDistrictMilestoneCount(progress, target) {
@@ -1752,6 +1861,10 @@
     classicRouteClearPulse: 0,
     classicRouteClearStreak: 0,
     classicRouteLastClearGroup: "",
+    classicRouteBriefTimer: 0,
+    classicRouteBriefCharge: 0,
+    classicRouteBriefPulse: 0,
+    classicRouteBriefClaimed: false,
     classicGreenWaveCharge: 0,
     classicGreenWavePulse: 0,
     classicGreenWaveReliefTimer: 0,
@@ -5136,6 +5249,7 @@
   }
 
   function updateClassicEvents(dt) {
+    updateClassicRouteBriefing(dt);
     updateClassicGreenWave(dt);
     updateDeepPurgeValve(dt);
     state.classicEventPulse = Math.max(0, (state.classicEventPulse || 0) - dt * 0.9);
@@ -7580,6 +7694,10 @@
     state.classicRouteClearPulse = 0;
     state.classicRouteClearStreak = 0;
     state.classicRouteLastClearGroup = "";
+    state.classicRouteBriefTimer = state.gameMode === "stage" ? 8.2 : 0;
+    state.classicRouteBriefCharge = 0;
+    state.classicRouteBriefPulse = 0;
+    state.classicRouteBriefClaimed = state.gameMode !== "stage";
     state.classicGreenWaveCharge = 0;
     state.classicGreenWavePulse = 0;
     state.classicGreenWaveReliefTimer = 0;
@@ -10760,6 +10878,7 @@
     if ((!isSmoothQuality() || state.feverTimer > 0) && !transitioningScene) drawAtmosphere();
     if (!isSmoothQuality() && !transitioningScene) drawParallaxRibbons();
     if (!isSmoothQuality() && !transitioningScene) drawFloaters();
+    drawClassicRouteBriefingLane();
     drawClassicGreenWaveLane();
     drawDeepPurgeValveLane();
     drawClassicEventLane();
@@ -11441,6 +11560,85 @@
           ctx.fill();
         }
       }
+    }
+    ctx.restore();
+  }
+
+  function drawClassicRouteBriefingLane() {
+    if (!classicRouteBriefingActive()) return;
+    const stage = activeStage();
+    if (!stage) return;
+    const s = playScale();
+    const profile = classicStageProfile(stage);
+    const lane = classicRouteBriefingLaneInfo(profile);
+    const progress = clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1);
+    const pulse = state.classicRouteBriefPulse || 0;
+    const color = profile.districtColor || "#5bded4";
+    const secondary = stage.map === "deep" ? "#8ff7ff" : "#fff8e8";
+    const inLane = Math.abs(hero.y - lane.center) <= lane.half + hero.radiusY * 0.3;
+    const alpha = 0.08 + progress * 0.1 + pulse * 0.08 + (inLane ? 0.05 : 0);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const band = ctx.createLinearGradient(0, lane.center - lane.half, state.width, lane.center + lane.half);
+    band.addColorStop(0, canvasRgba(color, alpha * 0.42));
+    band.addColorStop(0.46, canvasRgba(secondary, alpha * 0.24));
+    band.addColorStop(1, canvasRgba(color, alpha * 0.32));
+    ctx.fillStyle = band;
+    ctx.fillRect(0, lane.center - lane.half, state.width, lane.half * 2);
+
+    ctx.strokeStyle = inLane ? "rgba(255, 248, 232, 0.62)" : canvasRgba(color, 0.34 + progress * 0.18);
+    ctx.lineWidth = Math.max(1, (1.4 + pulse * 0.55) * s);
+    ctx.setLineDash([22 * s, 10 * s, 7 * s, 10 * s]);
+    ctx.lineDashOffset = -state.scroll * 0.06;
+    ctx.beginPath();
+    ctx.moveTo(0, lane.center - lane.half);
+    ctx.lineTo(state.width, lane.center - lane.half);
+    ctx.moveTo(0, lane.center + lane.half);
+    ctx.lineTo(state.width, lane.center + lane.half);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const glyphCount = isSmoothQuality() ? 4 : 6;
+    ctx.globalAlpha = 0.42 + progress * 0.22 + pulse * 0.12;
+    for (let i = 0; i < glyphCount; i += 1) {
+      const x = state.width - ((state.scroll * 0.52 + i * 136 * s) % (state.width + 150 * s));
+      const y = lane.center + Math.sin(state.time * 1.8 + i * 1.24) * lane.half * 0.36;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.sin(state.time * 1.1 + i) * 0.18);
+      ctx.strokeStyle = i % 2 ? "rgba(255, 248, 232, 0.72)" : canvasRgba(color, 0.78);
+      ctx.fillStyle = canvasRgba(color, 0.18);
+      ctx.lineWidth = Math.max(1, 1.45 * s);
+      ctx.beginPath();
+      ctx.moveTo(-14 * s, -8 * s);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(-14 * s, 8 * s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(8 * s, 0, (5 + progress * 2.4) * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const barW = Math.min(150 * s, state.width * 0.26);
+    const barH = Math.max(5 * s, 4);
+    const bx = clamp(hero.x - barW * 0.36, 16 * s, state.width - barW - 16 * s);
+    const by = clamp(lane.center + lane.half + 8 * s, playTop() + 12 * s, playBottom() - 18 * s);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.72;
+    ctx.fillStyle = "rgba(8, 18, 26, 0.54)";
+    roundRect(bx, by, barW, barH, barH * 0.5);
+    ctx.fill();
+    const fill = barW * progress;
+    if (fill > 1) {
+      const grad = ctx.createLinearGradient(bx, by, bx + barW, by);
+      grad.addColorStop(0, color);
+      grad.addColorStop(0.7, secondary);
+      grad.addColorStop(1, "#f5c84b");
+      ctx.fillStyle = grad;
+      roundRect(bx, by, fill, barH, barH * 0.5);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -15218,6 +15416,8 @@
     const greenProgress = clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1);
     const deepActive = deepPurgeValveActive();
     const deepProgress = clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1);
+    const briefActive = classicRouteBriefingActive();
+    const briefProgress = clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1);
     const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
     const x = compact ? 12 : 18;
@@ -15248,7 +15448,7 @@
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
       ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
-      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : briefActive ? `情报 ${Math.floor(briefProgress * 100)}% · 入航` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
     ctx.fillText(hint, barX, y + (compact ? 18 : 27), textMaxW);
     drawClassicRouteRadar(x + w - (compact ? 14 : 18), y + (compact ? 14 : 20), compact ? 8 : 11, forecast, color);
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
@@ -17438,6 +17638,8 @@
         setActiveStageNumber(stage.number);
         updateMetaUi();
         renderStageSummary();
+        if (stagePage) stagePage.scrollTop = 0;
+        btn.blur();
         beep(620, 0.04, "sine", 0.025);
       });
       stageGrid.appendChild(btn);
@@ -17476,6 +17678,7 @@
       const goals = document.createElement("div");
       goals.className = "stage-summary-goals";
       let milestonePlan = null;
+      let routeIntel = null;
       const addChip = (label, value, kinds = "") => {
         const kindList = Array.isArray(kinds) ? kinds : kinds ? [kinds] : [];
         const chip = document.createElement("span");
@@ -17505,6 +17708,28 @@
         }
         return plan;
       };
+      const buildClassicRouteIntel = () => {
+        if (!classicProfile) return null;
+        const panel = document.createElement("div");
+        panel.className = `stage-route-intel route-${classicProfile.key} map-${stage.map || "city"}`;
+        const visual = document.createElement("span");
+        visual.className = "stage-route-map";
+        const marker = document.createElement("span");
+        marker.className = "stage-route-marker";
+        visual.appendChild(marker);
+        const copy = document.createElement("div");
+        copy.className = "stage-route-copy";
+        const heading = document.createElement("strong");
+        heading.textContent = `${classicProfile.name} · ${classicRouteMapLabel(stage)}`;
+        const desc = document.createElement("span");
+        desc.textContent = classicRouteBriefingText(stage, classicProfile);
+        const reward = document.createElement("span");
+        reward.className = "stage-route-reward";
+        reward.textContent = classicRouteOpeningRewardText(classicProfile);
+        copy.append(heading, desc, reward);
+        panel.append(visual, copy);
+        return panel;
+      };
 
       addChip("目标", `${formatScore(stage.target)} 分`);
       if (state.gameMode === "adventure") {
@@ -17518,6 +17743,7 @@
         addChip(stage.bossStage ? "现身" : "通关", stage.bossStage ? "三目标完成后出 Boss" : "分数 + 航图 + 契约", stage.bossStage ? "boss" : "");
       } else if (stage.bossStage) {
         if (classicProfile) {
+          routeIntel = buildClassicRouteIntel();
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("备战", classicProfile.tip, ["wide", "alert"]);
           addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
@@ -17528,6 +17754,7 @@
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
       } else {
         if (classicProfile) {
+          routeIntel = buildClassicRouteIntel();
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("建议", classicProfile.tip, ["wide"]);
           addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
@@ -17549,8 +17776,11 @@
       } else {
         addChip("奖励", `${runCoinReward(stage.coinReward)} 金币 / ${runMaterialReward(stage.materialReward)} 材料`);
       }
-      if (milestonePlan) stageSummary.append(main, milestonePlan, goals);
-      else stageSummary.append(main, goals);
+      const nodes = [main];
+      if (routeIntel) nodes.push(routeIntel);
+      if (milestonePlan) nodes.push(milestonePlan);
+      nodes.push(goals);
+      stageSummary.append(...nodes);
     }
     if (stageStartButton) {
       stageStartButton.disabled = locked;
