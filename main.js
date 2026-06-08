@@ -135,6 +135,7 @@
     backgroundCityPatrol: loadImage("assets/background-city-patrol.png"),
     backgroundCityRefit: loadImage("assets/background-city-refit.png"),
     backgroundDeep: loadImage("assets/background-deep.png", true),
+    backgroundDeepValve: loadImage("assets/background-deep-valve.png"),
     backgroundDeepRefit: loadImage("assets/background-deep-refit.png"),
     backgroundAdventure: loadImage("assets/background-adventure.png", true),
     backgroundAdventureRefit: loadImage("assets/background-adventure-refit.png"),
@@ -203,7 +204,7 @@
     stageContractBadge: loadImage("assets/stage-contract-badge.png", true),
   };
 
-  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityPatrol", "backgroundCityRefit", "background", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
+  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityPatrol", "backgroundCityRefit", "background", "backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
   const BOSS_WARMUP_ASSET_KEYS = [
     "bossToiletKing",
     "bossPlungerGeneral",
@@ -891,11 +892,12 @@
   function classicRouteBriefingText(stage = activeStage(), profile = classicStageProfile(stage)) {
     const mechanicText = stage && stage.map === "deep" ? "深阀" : "绿波";
     const patrolText = stage && stage.map === "city" ? "；旧城可继续跟住巡航灯塔，校准后提前读出下一波障碍" : "";
-    return `入场 8 秒跟随情报航线，提前熟悉${mechanicText}节奏${patrolText}。`;
+    const deepText = stage && stage.map === "deep" ? "；深层关满阀后会排压清障，短时扩大预警窗口" : "";
+    return `入场 8 秒跟随情报航线，提前熟悉${mechanicText}节奏${patrolText}${deepText}。`;
   }
 
   function classicRouteMechanicText(stage = activeStage()) {
-    return stage && stage.map === "deep" ? "深阀净化" : "绿波巡航";
+    return stage && stage.map === "deep" ? "深阀排压" : "绿波巡航";
   }
 
   function classicRouteRiskText(profile = classicStageProfile(), stage = activeStage()) {
@@ -1095,7 +1097,13 @@
     const patrol = classicPatrolBeaconActive() && !forecast ? (state.classicPatrolReadTimer > 0 ? ` · 巡航读线 ${Math.ceil(state.classicPatrolReadTimer)}s` : ` · 巡航 ${Math.floor(clamp((state.classicPatrolCharge || 0) / 100, 0, 1) * 100)}%`) : "";
     const briefing = classicRouteBriefingActive() && !forecast ? ` · 情报 ${Math.floor(clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1) * 100)}%` : "";
     const greenWave = classicGreenWaveActive() && !forecast ? ` · 绿波 ${Math.floor(clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) * 100)}%` : "";
-    const deepValve = deepPurgeValveActive() && !forecast ? ` · 深阀 ${Math.floor(clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) * 100)}%` : "";
+    const deepValve = deepPurgeValveActive() && !forecast
+      ? state.deepValvePressureTimer > 0
+        ? ` · 排压 ${Math.ceil(state.deepValvePressureTimer)}s`
+        : state.deepValveReadTimer > 0
+          ? ` · 深阀预警 ${Math.ceil(state.deepValveReadTimer)}s`
+          : ` · 深阀 ${Math.floor(clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) * 100)}%`
+      : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
       return `${profile.short}${stability}${boost}${focus}${briefing}${greenWave}${patrol}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
@@ -1410,18 +1418,24 @@
     const s = playScale();
     let softened = 0;
     let purged = 0;
+    let marked = 0;
     for (const h of hazards) {
       if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
       const hx = (h.x || 0) + (h.w || 0) * 0.5;
-      if (hx < hero.x - 72 * s || hx > state.width + 150 * s) continue;
+      if (hx < hero.x - 72 * s || hx > state.width + 230 * s) continue;
       const hy = Number.isFinite(h.y) ? h.y : lane.center;
       const maxDim = Math.max(h.w || 0, h.h || 0, 44 * s);
       const nearValve = Math.abs(hy - lane.center) <= lane.half + maxDim * 0.54 + 22 * s;
       const corrosive = h.type === "acidGeyser" || h.type === "stinkCloud" || h.type === "sludgeBarrel" || h.type === "soapBubble";
-      if (!nearValve && !corrosive) continue;
+      const aheadRead = hx > hero.x + 18 * s && hx < state.width + 230 * s;
+      if (!nearValve && !corrosive && !aheadRead) continue;
       const strength = corrosive ? 1.18 : 0.86;
       h.slow = Math.max(h.slow || 0, strength);
       h.hit = Math.max(h.hit || 0, corrosive ? 0.2 : 0.13);
+      if (aheadRead || nearValve || corrosive) {
+        h.routeReadMarked = Math.max(h.routeReadMarked || 0, corrosive ? 5.8 : 4.6);
+        marked += 1;
+      }
       if (corrosive) purged += 1;
       if (!h.deepValveTouched) {
         h.deepValveTouched = true;
@@ -1436,6 +1450,9 @@
     state.deepPurgeValveCharge = 18;
     state.deepPurgeValvePulse = 1;
     state.deepPurgeValveReliefTimer = Math.max(state.deepPurgeValveReliefTimer || 0, 5.2);
+    state.deepValvePressureTimer = Math.max(state.deepValvePressureTimer || 0, 6.4);
+    state.deepValveReadTimer = Math.max(state.deepValveReadTimer || 0, 7.2);
+    state.spawnTimer = Math.max(state.spawnTimer || 0, 0.64);
     state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.42);
     state.shieldTimer = Math.max(state.shieldTimer || 0, state.health < state.maxHealth * 0.52 ? 1.1 : 0.42);
     state.energy = clamp(state.energy + 13 + state.level * 0.24, 0, state.maxEnergy);
@@ -1444,15 +1461,15 @@
     state.comboTimer = Math.max(state.comboTimer, 2.9);
     recordRunStat("maxCombo", state.combo);
     addClassicDistrictProgress(5 + Math.min(4, Math.floor((state.classicDistrictTarget || 70) * 0.028)), "deepValve");
-    addRoundedScore((190 + softened * 30 + purged * 22 + state.combo * 10) * state.scoreBonus * styleMultiplier());
-    gainXp(34 + softened * 4 + purged * 3, false);
-    gainStyle(18 + Math.min(14, softened * 1.7 + purged), "深层净化阀", "#8ff7ff");
-    if (Math.random() < 0.5 || purged >= 2 || state.health < state.maxHealth * 0.5) {
+    addRoundedScore((190 + softened * 30 + purged * 22 + marked * 10 + state.combo * 10) * state.scoreBonus * styleMultiplier());
+    gainXp(34 + softened * 4 + purged * 3 + Math.min(9, marked), false);
+    gainStyle(18 + Math.min(16, softened * 1.7 + purged + marked * 0.75), "深阀排压", "#8ff7ff");
+    if (Math.random() < 0.5 || purged >= 2 || marked >= 4 || state.health < state.maxHealth * 0.5) {
       spawnClassicDistrictPickup(state.health < state.maxHealth * 0.5 ? "shield" : "focusOrb", 0, 1, 1.12);
     }
     spawnClassicEventParticles(hero.x + 64 * s, lane.center, "#8ff7ff", 16);
-    pop(hero.x + 64 * s, lane.center, "#8ff7ff", 20 + Math.min(12, softened + purged));
-    state.eventName = purged > 0 ? `深层净化 x${purged}` : softened > 0 ? `深层阀门 x${softened}` : "深层净化阀";
+    pop(hero.x + 64 * s, lane.center, "#8ff7ff", 20 + Math.min(12, softened + purged + marked));
+    state.eventName = purged > 0 ? `深阀排压 x${purged}` : marked > 0 ? `深阀读线 x${marked}` : softened > 0 ? `深层阀门 x${softened}` : "深阀排压";
     state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.12);
     beep(760, 0.055, "triangle", 0.038);
     setTimeout(() => beep(1160, 0.055, "sine", 0.03), 70);
@@ -1461,6 +1478,8 @@
   function updateDeepPurgeValve(dt, profile = classicStageProfile()) {
     state.deepPurgeValvePulse = Math.max(0, (state.deepPurgeValvePulse || 0) - dt * 0.82);
     state.deepPurgeValveReliefTimer = Math.max(0, (state.deepPurgeValveReliefTimer || 0) - dt);
+    state.deepValvePressureTimer = Math.max(0, (state.deepValvePressureTimer || 0) - dt);
+    state.deepValveReadTimer = Math.max(0, (state.deepValveReadTimer || 0) - dt);
     if (!deepPurgeValveActive()) {
       state.deepPurgeValveCharge = Math.max(0, (state.deepPurgeValveCharge || 0) - dt * 13);
       return;
@@ -2022,6 +2041,8 @@
     deepPurgeValveCharge: 0,
     deepPurgeValvePulse: 0,
     deepPurgeValveReliefTimer: 0,
+    deepValvePressureTimer: 0,
+    deepValveReadTimer: 0,
     goldRushCharge: 0,
     draftLaneCharge: 0,
     mysteryLaneCharge: 0,
@@ -7346,7 +7367,7 @@
     const keys = map === "adventure"
       ? ["backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge"]
       : map === "deep"
-        ? ["backgroundDeepRefit", "backgroundDeep"]
+        ? ["backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep"]
         : ["backgroundCityPatrol", "backgroundCityRefit", "background"];
     warmAssetQueue(keys, { priority, delay: priority === "high" ? 20 : 90 });
   }
@@ -7456,7 +7477,7 @@
     const adventureSupportRelief = state.adventureSupportTimer > 0 ? 0.075 : 0;
     const classicRelief = state.gameMode === "stage" ? (classicStageProfile(activeStage()).pressureRelief || 0) : 0;
     const classicGreenRelief = state.classicGreenWaveReliefTimer > 0 ? 0.045 : 0;
-    const deepValveRelief = state.deepPurgeValveReliefTimer > 0 ? 0.055 : 0;
+    const deepValveRelief = state.deepValvePressureTimer > 0 ? 0.085 : state.deepPurgeValveReliefTimer > 0 ? 0.055 : state.deepValveReadTimer > 0 ? 0.025 : 0;
     const patrolRelief = state.classicPatrolReliefTimer > 0 ? 0.05 : state.classicPatrolReadTimer > 0 ? 0.025 : 0;
     return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief - classicGreenRelief - deepValveRelief - patrolRelief, 0, 0.78);
   }
@@ -7470,6 +7491,7 @@
     if (state.classicGreenWaveReliefTimer > 0) value += 0.08;
     if (state.classicPatrolReliefTimer > 0) value += 0.07;
     if (state.deepPurgeValveReliefTimer > 0) value += 0.1;
+    if (state.deepValvePressureTimer > 0) value += 0.08;
     if (state.eventKind === "goldRush") value += 0.36;
     if (state.eventKind === "draftGate") value += 0.14;
     if (state.eventKind === "paperRain") value += 0.22;
@@ -7978,6 +8000,8 @@
     state.deepPurgeValveCharge = 0;
     state.deepPurgeValvePulse = 0;
     state.deepPurgeValveReliefTimer = 0;
+    state.deepValvePressureTimer = 0;
+    state.deepValveReadTimer = 0;
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -11296,7 +11320,7 @@
 
   function mapBackgroundAssetKey(map) {
     if (map === "adventure") return imageReady(assets.backgroundAdventureRefit) ? "backgroundAdventureRefit" : "backgroundAdventure";
-    if (map === "deep") return imageReady(assets.backgroundDeepRefit) ? "backgroundDeepRefit" : "backgroundDeep";
+    if (map === "deep") return imageReady(assets.backgroundDeepValve) ? "backgroundDeepValve" : imageReady(assets.backgroundDeepRefit) ? "backgroundDeepRefit" : "backgroundDeep";
     return imageReady(assets.backgroundCityPatrol) ? "backgroundCityPatrol" : imageReady(assets.backgroundCityRefit) ? "backgroundCityRefit" : "background";
   }
 
@@ -11311,7 +11335,7 @@
     const forgeMap = (state.eventKind === "auroraForge" || state.forgePulse > 0) && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap;
     const cityMap = !deepMap && !adventureMap && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap && !forgeMap;
     const cityRefitReady = imageReady(assets.backgroundCityPatrol) || imageReady(assets.backgroundCityRefit);
-    const deepRefitReady = imageReady(assets.backgroundDeepRefit);
+    const deepRefitReady = imageReady(assets.backgroundDeepValve) || imageReady(assets.backgroundDeepRefit);
     const adventureRefitReady = imageReady(assets.backgroundAdventureRefit);
     let assetKey = mapBackgroundAssetKey(map);
     let key = `map:${map}:${assetKey}`;
@@ -11431,7 +11455,7 @@
     const patrolProgress = profile && frame.cityMap && state.mode === "playing" ? clamp((state.classicPatrolCharge || 0) / 100, 0, 1) : 0;
     const patrolPulse = profile && frame.cityMap ? Math.max(state.classicPatrolPulse || 0, state.classicPatrolReadTimer > 0 ? 0.38 : 0) : 0;
     const deepValve = profile && frame.deepMap && state.mode === "playing" ? clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) : 0;
-    const deepPulse = profile && frame.deepMap ? (state.deepPurgeValvePulse || 0) : 0;
+    const deepPulse = profile && frame.deepMap ? Math.max(state.deepPurgeValvePulse || 0, state.deepValvePressureTimer > 0 ? 0.42 : state.deepValveReadTimer > 0 ? 0.28 : 0) : 0;
     ctx.save();
     const lowerShade = ctx.createLinearGradient(0, top, 0, state.height);
     lowerShade.addColorStop(0, "rgba(6, 18, 24, 0)");
@@ -11503,6 +11527,21 @@
       ctx.fillStyle = valveBand;
       roundRect(22, valveY - 5 * playScale(), state.width - 44, 10 * playScale(), 6 * playScale());
       ctx.fill();
+      if (state.deepValvePressureTimer > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = `rgba(143, 247, 255, ${0.18 + deepPulse * 0.24})`;
+        ctx.lineWidth = Math.max(1, 1.35 * playScale());
+        ctx.setLineDash([8 * playScale(), 10 * playScale()]);
+        ctx.lineDashOffset = -state.scroll * 0.24;
+        ctx.beginPath();
+        ctx.moveTo(28 * playScale(), valveY - 12 * playScale());
+        ctx.lineTo(state.width - 28 * playScale(), valveY - 12 * playScale());
+        ctx.moveTo(28 * playScale(), valveY + 12 * playScale());
+        ctx.lineTo(state.width - 28 * playScale(), valveY + 12 * playScale());
+        ctx.stroke();
+        ctx.restore();
+      }
     }
     if (routePulse > 0.01) {
       const focusBand = ctx.createLinearGradient(0, railY - 18 * playScale(), state.width, railY + 18 * playScale());
@@ -12211,7 +12250,7 @@
     const profile = classicStageProfile(stage);
     const lane = deepPurgeValveLaneInfo(profile);
     const progress = clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1);
-    const pulse = state.deepPurgeValvePulse || 0;
+    const pulse = Math.max(state.deepPurgeValvePulse || 0, state.deepValvePressureTimer > 0 ? 0.46 : state.deepValveReadTimer > 0 ? 0.24 : 0);
     const inLane = Math.abs(hero.y - lane.center) <= lane.half + hero.radiusY * 0.25;
     const eventOverlap = classicEventActive("cleanWind") || classicEventActive("goldRush") || classicEventActive("draftGate") || mysteryLaneActive();
     const alphaBase = (inLane ? 0.22 : 0.14) + progress * 0.11 + pulse * 0.1;
@@ -12225,7 +12264,7 @@
     ctx.fillStyle = band;
     ctx.fillRect(0, lane.center - lane.half, state.width, lane.half * 2);
 
-    ctx.strokeStyle = inLane ? "rgba(255, 248, 232, 0.7)" : "rgba(143, 247, 255, 0.42)";
+    ctx.strokeStyle = state.deepValvePressureTimer > 0 ? "rgba(223, 255, 122, 0.74)" : inLane ? "rgba(255, 248, 232, 0.7)" : "rgba(143, 247, 255, 0.42)";
     ctx.lineWidth = Math.max(1, (1.6 + progress * 0.8 + pulse * 0.5) * s);
     ctx.setLineDash([10 * s, 8 * s, 20 * s, 8 * s]);
     ctx.lineDashOffset = state.scroll * 0.07;
@@ -12284,6 +12323,12 @@
       grad.addColorStop(1, "#fff8e8");
       ctx.fillStyle = grad;
       roundRect(bx, by, fill, barH, barH * 0.5);
+      ctx.fill();
+    }
+    if (state.deepValvePressureTimer > 0) {
+      const pressureW = barW * clamp(state.deepValvePressureTimer / 6.4, 0, 1);
+      ctx.fillStyle = "rgba(223, 255, 122, 0.62)";
+      roundRect(bx, by + barH + 3 * s, pressureW, Math.max(2, 2.4 * s), 2 * s);
       ctx.fill();
     }
     ctx.restore();
@@ -12914,7 +12959,7 @@
     if (state.mode !== "playing" || hazards.length === 0) return;
     const s = playScale();
     const windowStart = state.width + 12 * s;
-    const readAssist = state.classicPatrolReadTimer > 0;
+    const readAssist = state.classicPatrolReadTimer > 0 || state.deepValveReadTimer > 0;
     const windowEnd = state.width + (isLandscapePlay() ? (readAssist ? 270 : 190) : (readAssist ? 225 : 150)) * s;
     const visible = groupedThreatWarnings(windowStart, windowEnd, s);
     if (visible.length === 0) return;
@@ -15983,7 +16028,7 @@
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
       ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
-      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : state.classicPatrolReadTimer > 0 ? `巡航读线 ${Math.ceil(state.classicPatrolReadTimer)}s · 早预警` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : briefActive ? `情报 ${Math.floor(briefProgress * 100)}% · 入航` : patrolActive ? `巡航 ${Math.floor(patrolProgress * 100)}% · 校准` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : state.deepValvePressureTimer > 0 ? `排压 ${Math.ceil(state.deepValvePressureTimer)}s · 低压` : state.deepValveReadTimer > 0 ? `深阀预警 ${Math.ceil(state.deepValveReadTimer)}s` : state.classicPatrolReadTimer > 0 ? `巡航读线 ${Math.ceil(state.classicPatrolReadTimer)}s · 早预警` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : briefActive ? `情报 ${Math.floor(briefProgress * 100)}% · 入航` : patrolActive ? `巡航 ${Math.floor(patrolProgress * 100)}% · 校准` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
     ctx.fillText(hint, barX, y + (compact ? 18 : 27), textMaxW);
     drawClassicRouteRadar(x + w - (compact ? 14 : 18), y + (compact ? 14 : 20), compact ? 8 : 11, forecast, color);
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";

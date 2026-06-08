@@ -2478,7 +2478,17 @@ button:focus-visible {
 }
 
 .stage-route-intel.map-deep .stage-route-map {
-  background-position: 66% 58%;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(143, 247, 255, 0.24), transparent 44%),
+    linear-gradient(180deg, rgba(255, 248, 232, 0.08), rgba(7, 12, 22, 0.18)),
+    url("assets/background-deep-valve.png") center / cover;
+  background-position: center;
+}
+
+.stage-route-intel.map-deep .stage-route-map::before {
+  background: linear-gradient(90deg, transparent, rgba(143, 247, 255, 0.92), rgba(196, 93, 255, 0.68), rgba(223, 255, 122, 0.72), transparent);
+  box-shadow: 0 0 15px rgba(143, 247, 255, 0.54);
+  transform: rotate(-10deg);
 }
 
 .stage-route-map::before {
