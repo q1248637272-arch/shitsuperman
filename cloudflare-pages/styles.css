@@ -1539,6 +1539,9 @@ button:focus-visible {
 .drone-medicHalo { background-image: url("assets/drone-medic-halo.png"); }
 .drone-voidCauldron { background-image: url("assets/drone-void-cauldron.png"); }
 .drone-tigerSpark { background-image: url("assets/drone-tiger-spark.png"); }
+.drone-clockworkStar { background-image: url("assets/drone-clockwork-star.png"); }
+.drone-rocketBuddy { background-image: url("assets/drone-rocket-buddy.png"); }
+.drone-mirrorWisp { background-image: url("assets/drone-mirror-wisp.png"); }
 
 .hero-portrait {
   position: relative;
@@ -1667,8 +1670,46 @@ button:focus-visible {
   display: none;
 }
 
+.hero-chronoPlumber,
+.hero-rocketBao,
+.hero-mirrorFox {
+  width: min(124px, 100%);
+  aspect-ratio: 1.74;
+  border-radius: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.hero-chronoPlumber {
+  background:
+    url("assets/hero-chrono-plumber.png") center / contain no-repeat,
+    radial-gradient(ellipse at 48% 58%, rgba(110, 231, 255, 0.2), transparent 62%),
+    radial-gradient(circle at 72% 18%, rgba(255, 248, 232, 0.16), transparent 48%);
+  box-shadow: 0 0 22px rgba(110, 231, 255, 0.3);
+}
+
+.hero-rocketBao {
+  background:
+    url("assets/hero-rocket-bao.png") center / contain no-repeat,
+    radial-gradient(ellipse at 52% 58%, rgba(255, 141, 84, 0.22), transparent 62%),
+    radial-gradient(circle at 78% 20%, rgba(255, 241, 166, 0.18), transparent 48%);
+  box-shadow: 0 0 22px rgba(255, 141, 84, 0.3);
+}
+
+.hero-mirrorFox {
+  background:
+    url("assets/hero-mirror-fox.png") center / contain no-repeat,
+    radial-gradient(ellipse at 48% 58%, rgba(196, 93, 255, 0.2), transparent 62%),
+    radial-gradient(circle at 72% 18%, rgba(157, 232, 255, 0.18), transparent 48%);
+  box-shadow: 0 0 22px rgba(196, 93, 255, 0.3);
+}
+
 .hero-card-dragonWood,
-.hero-card-tigerMetal {
+.hero-card-tigerMetal,
+.hero-card-chronoPlumber,
+.hero-card-rocketBao,
+.hero-card-mirrorFox {
   border-color: rgba(245, 200, 75, 0.34);
   background:
     linear-gradient(180deg, rgba(245, 200, 75, 0.13), rgba(255, 248, 232, 0.035)),
@@ -4576,7 +4617,10 @@ button:focus-visible {
   body.menu-open .menu-panel.module-open .hero-portrait.hero-dragonWood,
   body.menu-open .menu-panel.module-open .hero-portrait.hero-voidChef,
   body.menu-open .menu-panel.module-open .hero-portrait.hero-neonMedic,
-  body.menu-open .menu-panel.module-open .hero-portrait.hero-tigerMetal {
+  body.menu-open .menu-panel.module-open .hero-portrait.hero-tigerMetal,
+  body.menu-open .menu-panel.module-open .hero-portrait.hero-chronoPlumber,
+  body.menu-open .menu-panel.module-open .hero-portrait.hero-rocketBao,
+  body.menu-open .menu-panel.module-open .hero-portrait.hero-mirrorFox {
     width: min(100%, 96px);
   }
 

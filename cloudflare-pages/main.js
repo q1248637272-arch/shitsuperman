@@ -167,6 +167,9 @@
     heroTigerMetal: loadImage("assets/hero-tigerMetal.png", true),
     heroVoidChef: loadImage("assets/hero-void-chef.png", true),
     heroNeonMedic: loadImage("assets/hero-neon-medic.png", true),
+    heroChronoPlumber: loadImage("assets/hero-chrono-plumber.png", true),
+    heroRocketBao: loadImage("assets/hero-rocket-bao.png", true),
+    heroMirrorFox: loadImage("assets/hero-mirror-fox.png", true),
     mountGravityCauldron: loadImage("assets/mount-gravity-cauldron.png", true),
     mountAmbulanceHover: loadImage("assets/mount-ambulance-hover.png", true),
     dronePoopOrb: loadImage("assets/drone-poop-orb.png", true),
@@ -174,6 +177,9 @@
     droneMedicHalo: loadImage("assets/drone-medic-halo.png", true),
     droneVoidCauldron: loadImage("assets/drone-void-cauldron.png", true),
     droneTigerSpark: loadImage("assets/drone-tiger-spark.png", true),
+    droneClockworkStar: loadImage("assets/drone-clockwork-star.png", true),
+    droneRocketBuddy: loadImage("assets/drone-rocket-buddy.png", true),
+    droneMirrorWisp: loadImage("assets/drone-mirror-wisp.png", true),
     equipmentIcons: loadImage("assets/equipment-icons.png", true),
     laneStarTrail: loadImage("assets/lane-star-trail.png", true),
     laneMirrorCurrent: loadImage("assets/lane-mirror-current.png", true),
@@ -240,6 +246,9 @@
     "heroTigerMetal",
     "heroVoidChef",
     "heroNeonMedic",
+    "heroChronoPlumber",
+    "heroRocketBao",
+    "heroMirrorFox",
     "mountGravityCauldron",
     "mountAmbulanceHover",
     "dronePoopOrb",
@@ -247,6 +256,9 @@
     "droneMedicHalo",
     "droneVoidCauldron",
     "droneTigerSpark",
+    "droneClockworkStar",
+    "droneRocketBuddy",
+    "droneMirrorWisp",
     "ikunChickenPeck",
     "mountAtlas",
   ];
@@ -286,6 +298,9 @@
     { key: "voidChef", name: "虚空厨神", stat: "黑洞锅铲 · 虚空锅炉 · 18日签到控制", asset: "heroVoidChef", canvas: true, unlocked: false, unlockDay: 18, power: 1.17, ultimate: "voidChef" },
     { key: "neonMedic", name: "霓虹医师", stat: "急救光针 · 霓虹护幕 · 24日签到守护", asset: "heroNeonMedic", canvas: true, unlocked: false, unlockDay: 24, power: 1.14, ultimate: "neonMedic" },
     { key: "tigerMetal", name: "白虎庚金", stat: "庚金虎魄 · 天裂万斩 · 30日签到神话", asset: "heroTigerMetal", canvas: true, unlocked: false, unlockDay: 30, power: 1.22, ultimate: "tigerMetal" },
+    { key: "chronoPlumber", name: "时钟管道工", stat: "齿轮回旋 · 时间慢域 · 36日签到控场", asset: "heroChronoPlumber", canvas: true, unlocked: false, unlockDay: 36, power: 1.18, ultimate: "chronoPlumber" },
+    { key: "rocketBao", name: "火箭包仔", stat: "燃焰包弹 · 爆裂推进 · 42日签到爆发", asset: "heroRocketBao", canvas: true, unlocked: false, unlockDay: 42, power: 1.2, ultimate: "rocketBao", freeMove: true },
+    { key: "mirrorFox", name: "镜影狐仙", stat: "镜片折光 · 分身回响 · 48日签到幻术", asset: "heroMirrorFox", canvas: true, unlocked: false, unlockDay: 48, power: 1.19, ultimate: "mirrorFox" },
   ];
   const heroProfileMap = heroProfiles.reduce((map, profile) => {
     map[profile.key] = profile;
@@ -517,6 +532,48 @@
       cadence: 1.6,
       minCadence: 1.1,
     },
+    {
+      key: "clockworkStar",
+      name: "发条星僚机",
+      short: "发条星",
+      desc: "节奏控场型，发射时钟齿轮拖慢敌人和 Boss 弹幕节奏。",
+      skill: "时间减速",
+      color: "#6ee7ff",
+      asset: "droneClockworkStar",
+      unlockCoins: 390000,
+      unlockMaterials: 980,
+      unlockStage: 36,
+      cadence: 1.5,
+      minCadence: 1.04,
+    },
+    {
+      key: "rocketBuddy",
+      name: "火箭豆僚机",
+      short: "火箭豆",
+      desc: "爆裂补刀型，发射小火箭并在命中时溅射附近敌人。",
+      skill: "火箭溅射",
+      color: "#ff8d54",
+      asset: "droneRocketBuddy",
+      unlockCoins: 460000,
+      unlockMaterials: 1120,
+      unlockStage: 42,
+      cadence: 1.38,
+      minCadence: 0.96,
+    },
+    {
+      key: "mirrorWisp",
+      name: "镜雾灵僚机",
+      short: "镜雾灵",
+      desc: "折射连击型，发射镜片光刃，适合补充多路线压力。",
+      skill: "镜片折射",
+      color: "#c45dff",
+      asset: "droneMirrorWisp",
+      unlockCoins: 540000,
+      unlockMaterials: 1280,
+      unlockStage: 48,
+      cadence: 1.44,
+      minCadence: 0.98,
+    },
   ];
   const droneProfileMap = droneProfiles.reduce((map, profile) => {
     map[profile.key] = profile;
@@ -577,6 +634,9 @@
     voidChef: 1.04 * HERO_ATTACK_SPEED_SCALE,
     neonMedic: 1.14 * HERO_ATTACK_SPEED_SCALE,
     tigerMetal: 1.22 * HERO_ATTACK_SPEED_SCALE,
+    chronoPlumber: 1.1 * HERO_ATTACK_SPEED_SCALE,
+    rocketBao: 1.24 * HERO_ATTACK_SPEED_SCALE,
+    mirrorFox: 1.16 * HERO_ATTACK_SPEED_SCALE,
   };
   const STRONG_ATTACK_CRIT_BONUS = 4;
   const HARD_TRIAL_UNLOCK_DAY = 15;
@@ -4325,18 +4385,47 @@
     const level = currentHeroLevel();
     const evo = currentEvolution();
     const key = meta.selectedHero;
-    const heroBoost = key === "ikun" ? 1.08 : key === "jet" ? 1.06 : key === "alchemist" ? 0.96 : key === "dragonWood" ? 1.13 : key === "voidChef" ? 1.06 : key === "neonMedic" ? 1.15 : key === "tigerMetal" ? 1.08 : 1;
-    const energyBoost = key === "ikun" ? 1.12 : key === "paper" ? 1.13 : key === "jet" ? 1.06 : key === "dragonWood" ? 1.18 : key === "voidChef" ? 1.14 : key === "neonMedic" ? 1.16 : key === "tigerMetal" ? 1.04 : 1;
+    const heroBoost = {
+      ikun: 1.08,
+      jet: 1.06,
+      alchemist: 0.96,
+      dragonWood: 1.13,
+      voidChef: 1.06,
+      neonMedic: 1.15,
+      tigerMetal: 1.08,
+      chronoPlumber: 1.1,
+      rocketBao: 1.04,
+      mirrorFox: 1.08,
+    }[key] || 1;
+    const energyBoost = {
+      ikun: 1.12,
+      paper: 1.13,
+      jet: 1.06,
+      dragonWood: 1.18,
+      voidChef: 1.14,
+      neonMedic: 1.16,
+      tigerMetal: 1.04,
+      chronoPlumber: 1.14,
+      rocketBao: 1.08,
+      mirrorFox: 1.12,
+    }[key] || 1;
+    const attackBoost = { ikun: 1, alchemist: 1, dragonWood: 2, voidChef: 3, neonMedic: 1, tigerMetal: 5, chronoPlumber: 2, rocketBao: 4, mirrorFox: 3 }[key] || 0;
+    const scoreBoost = { paper: 0.025, dragonWood: 0.045, voidChef: 0.04, neonMedic: 0.035, tigerMetal: 0.05, chronoPlumber: 0.04, rocketBao: 0.045, mirrorFox: 0.05 }[key] || 0;
+    const critBoost = { ikun: 1.2, paper: 0.8, dragonWood: 1.2, voidChef: 1.6, neonMedic: 0.9, tigerMetal: 3.6, chronoPlumber: 1.1, rocketBao: 2.8, mirrorFox: 2.2 }[key] || 0;
+    const dodgeBoost = { jet: 2.2, dragonWood: 1.6, voidChef: 1.1, neonMedic: 1.8, tigerMetal: 2.4, chronoPlumber: 1.7, rocketBao: 2.1, mirrorFox: 3.2 }[key] || 0;
+    const regenBoost = { alchemist: 0.55, dragonWood: 0.95, voidChef: 0.24, neonMedic: 1.15, tigerMetal: 0.12, chronoPlumber: 0.45, rocketBao: 0.18, mirrorFox: 0.35 }[key] || 0;
+    const guardBoost = { jet: 1.2, dragonWood: 2.2, voidChef: 1.5, neonMedic: 2.55, tigerMetal: 1.4, chronoPlumber: 1.85, rocketBao: 1.1, mirrorFox: 1.45 }[key] || 0;
+    const hasteBoost = { jet: 1.6, paper: 0.8, dragonWood: 0.8, voidChef: 1.05, neonMedic: 0.75, tigerMetal: 2.8, chronoPlumber: 1.75, rocketBao: 2.25, mirrorFox: 1.55 }[key] || 0;
     return {
       health: Math.round(((level - 1) * 8 + evo * 80) * heroBoost),
       energy: Math.round(((level - 1) * 5 + evo * 52) * energyBoost),
-      attack: Math.floor((level - 1) / 3) + evo * 3 + (key === "ikun" ? 1 : key === "alchemist" ? 1 : key === "dragonWood" ? 2 : key === "voidChef" ? 3 : key === "neonMedic" ? 1 : key === "tigerMetal" ? 5 : 0),
-      score: 1 + (level - 1) * 0.015 + evo * 0.16 + (key === "paper" ? 0.025 : key === "dragonWood" ? 0.045 : key === "voidChef" ? 0.04 : key === "neonMedic" ? 0.035 : key === "tigerMetal" ? 0.05 : 0),
-      crit: 2 + level * 0.16 + evo * 2.4 + (key === "ikun" ? 1.2 : key === "paper" ? 0.8 : key === "dragonWood" ? 1.2 : key === "voidChef" ? 1.6 : key === "neonMedic" ? 0.9 : key === "tigerMetal" ? 3.6 : 0),
-      dodge: 1.5 + level * 0.1 + evo * 1.7 + (key === "jet" ? 2.2 : key === "dragonWood" ? 1.6 : key === "voidChef" ? 1.1 : key === "neonMedic" ? 1.8 : key === "tigerMetal" ? 2.4 : 0),
-      regen: level * 0.035 + evo * 0.65 + (key === "alchemist" ? 0.55 : key === "dragonWood" ? 0.95 : key === "voidChef" ? 0.24 : key === "neonMedic" ? 1.15 : key === "tigerMetal" ? 0.12 : 0),
-      guard: level * 0.12 + evo * 1.9 + (key === "jet" ? 1.2 : key === "dragonWood" ? 2.2 : key === "voidChef" ? 1.5 : key === "neonMedic" ? 2.55 : key === "tigerMetal" ? 1.4 : 0),
-      haste: level * 0.14 + evo * 2.1 + (key === "jet" ? 1.6 : key === "paper" ? 0.8 : key === "dragonWood" ? 0.8 : key === "voidChef" ? 1.05 : key === "neonMedic" ? 0.75 : key === "tigerMetal" ? 2.8 : 0),
+      attack: Math.floor((level - 1) / 3) + evo * 3 + attackBoost,
+      score: 1 + (level - 1) * 0.015 + evo * 0.16 + scoreBoost,
+      crit: 2 + level * 0.16 + evo * 2.4 + critBoost,
+      dodge: 1.5 + level * 0.1 + evo * 1.7 + dodgeBoost,
+      regen: level * 0.035 + evo * 0.65 + regenBoost,
+      guard: level * 0.12 + evo * 1.9 + guardBoost,
+      haste: level * 0.14 + evo * 2.1 + hasteBoost,
     };
   }
 
@@ -8295,6 +8384,58 @@
         pierce: level >= 3 ? 1 : 0,
       };
     }
+    if (profile.key === "clockworkStar") {
+      return {
+        ...common,
+        vx: 600 + state.level * 6 + level * 14,
+        vy: aimedVy * 0.42,
+        life: 0.92 + level * 0.025,
+        kind: "chronoGear",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.36 + level * 0.05))),
+        critChance: clamp(runCombatStats().crit * 0.44 + level, 0, 34),
+        critMult: 1.46,
+        rx: (13 + level * 0.75) * s,
+        ry: (13 + level * 0.75) * s,
+        pierce: level >= 3 ? 1 : 0,
+        color: "#6ee7ff",
+        core: "#fff8e8",
+      };
+    }
+    if (profile.key === "rocketBuddy") {
+      return {
+        ...common,
+        vx: 720 + state.level * 8 + level * 20,
+        vy: aimedVy * 0.34,
+        life: 0.72 + level * 0.02,
+        kind: "rocketBao",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.5 + level * 0.065))),
+        critChance: clamp(runCombatStats().crit * 0.5 + level * 1.2, 0, 40),
+        critMult: 1.56,
+        rx: (15 + level * 0.85) * s,
+        ry: (9 + level * 0.45) * s,
+        pierce: 0,
+        blastRadius: (82 + level * 8) * s,
+        color: "#ff8d54",
+        core: "#fff1a6",
+      };
+    }
+    if (profile.key === "mirrorWisp") {
+      return {
+        ...common,
+        vx: 680 + state.level * 8 + level * 18,
+        vy: aimedVy * 0.55 + (lane === 0 ? -34 : 34) * s,
+        life: 0.86 + level * 0.025,
+        kind: "mirrorShard",
+        damage: Math.max(1, Math.round(state.attackDamage * (0.42 + level * 0.055))),
+        critChance: clamp(runCombatStats().crit * 0.52 + level * 1.4, 0, 40),
+        critMult: 1.54,
+        rx: (12 + level * 0.75) * s,
+        ry: (11 + level * 0.55) * s,
+        pierce: level >= 2 ? 1 : 0,
+        color: "#c45dff",
+        core: "#9de8ff",
+      };
+    }
     return {
       ...common,
       vx: 640 + state.level * 8 + level * 22,
@@ -9996,6 +10137,18 @@
     } else if (shot.kind === "metalTigerSlash") {
       boss.hit = Math.max(boss.hit || 0, shot.manual ? 0.34 : 0.24);
       addBossBreakPressure(bossBreakGain(shot.manual ? "manual" : "glance") * (shot.manual ? 0.36 : 0.24), shot.x, shot.y);
+    } else if (shot.kind === "chronoGear") {
+      applyBossControl("root", shot.manual ? 0.42 : 0.24, { attackScale: shot.manual ? 0.78 : 0.88 });
+      boss.hit = Math.max(boss.hit || 0, shot.manual ? 0.28 : 0.18);
+      boss.cadenceScale = Math.max(0.82, (boss.cadenceScale || 1) * (shot.manual ? 0.996 : 0.998));
+      addBossBreakPressure(bossBreakGain(shot.manual ? "manual" : "glance") * (shot.manual ? 0.26 : 0.16), shot.x, shot.y);
+    } else if (shot.kind === "rocketBao") {
+      boss.hit = Math.max(boss.hit || 0, shot.manual ? 0.34 : 0.22);
+      addBossBreakPressure(bossBreakGain(shot.manual ? "manual" : "glance") * (shot.manual ? 0.34 : 0.2), shot.x, shot.y);
+    } else if (shot.kind === "mirrorShard") {
+      boss.hit = Math.max(boss.hit || 0, shot.manual ? 0.3 : 0.2);
+      if (shot.manual && boss.weakDuration > 0) registerBossWeakHit("glance", shot.x, shot.y);
+      addBossBreakPressure(bossBreakGain(shot.manual ? "manual" : "glance") * (shot.manual ? 0.3 : 0.18), shot.x, shot.y);
     }
   }
 
@@ -10028,6 +10181,28 @@
     } else if (shot.kind === "metalTigerSlash") {
       hazard.hit = Math.max(hazard.hit || 0, shot.manual ? 0.34 : 0.24);
       hazard.hp -= Math.max(1, Math.round(state.attackDamage * (shot.manual ? 0.52 : 0.32)));
+    } else if (shot.kind === "chronoGear") {
+      hazard.slow = Math.max(hazard.slow || 0, shot.manual ? 1.35 : 0.86);
+      hazard.vy = (hazard.vy || 0) * 0.55;
+      hazard.hit = Math.max(hazard.hit || 0, shot.manual ? 0.28 : 0.18);
+      hazard.hp -= Math.max(1, Math.round(state.attackDamage * (shot.manual ? 0.28 : 0.16)));
+    } else if (shot.kind === "rocketBao") {
+      const radius = shot.blastRadius || (shot.manual ? 132 : 88) * playScale();
+      hazard.hit = Math.max(hazard.hit || 0, 0.28);
+      hazard.slow = Math.max(hazard.slow || 0, 0.24);
+      for (const other of hazards) {
+        if (!other || other === hazard || other.type !== "toilet") continue;
+        const dist = Math.hypot((other.x || 0) - shot.x, (other.y || hero.y) - shot.y);
+        if (dist > radius + (other.w || 0) * 0.4) continue;
+        other.hp -= Math.max(1, Math.round(state.attackDamage * (shot.manual ? 0.56 : 0.28)));
+        other.hit = Math.max(other.hit || 0, 0.22);
+        other.slow = Math.max(other.slow || 0, 0.18);
+      }
+    } else if (shot.kind === "mirrorShard") {
+      hazard.hit = Math.max(hazard.hit || 0, shot.manual ? 0.3 : 0.2);
+      hazard.slow = Math.max(hazard.slow || 0, shot.manual ? 0.62 : 0.32);
+      hazard.vy = (hazard.vy || 0) * 0.66 + (shot.variant === "upper" ? -70 : shot.variant === "lower" ? 70 : 0) * playScale();
+      hazard.hp -= Math.max(1, Math.round(state.attackDamage * (shot.manual ? 0.34 : 0.18)));
     }
   }
 
@@ -10255,6 +10430,9 @@
     if (shot.kind === "voidCleaver") return { color: weak ? "#fff8e8" : shot.manual ? "#33f0df" : "#0dd6c6", count: weak ? 32 : crit ? 24 : shot.manual ? 20 : 13 };
     if (shot.kind === "neonSyringe") return { color: weak ? "#fff8e8" : shot.manual ? "#54d0ff" : "#ff7b7b", count: weak ? 28 : crit ? 20 : shot.manual ? 16 : 10 };
     if (shot.kind === "metalTigerSlash") return { color: weak ? "#fff8e8" : shot.manual ? "#9de8ff" : "#ffe37a", count: weak ? 38 : crit ? 30 : shot.manual ? 24 : 16 };
+    if (shot.kind === "chronoGear") return { color: weak ? "#fff8e8" : shot.manual ? "#6ee7ff" : "#9de8ff", count: weak ? 30 : crit ? 22 : shot.manual ? 18 : 12 };
+    if (shot.kind === "rocketBao") return { color: weak ? "#fff1a6" : shot.manual ? "#ff8d54" : "#f5c84b", count: weak ? 34 : crit ? 26 : shot.manual ? 22 : 14 };
+    if (shot.kind === "mirrorShard") return { color: weak ? "#fff8e8" : shot.manual ? "#c45dff" : "#9de8ff", count: weak ? 32 : crit ? 24 : shot.manual ? 18 : 12 };
     return {
       color: weak ? "#fff8c4" : crit ? "#fff1a6" : shot.manual ? "#ffd15c" : state.specialTimer > 0 ? "#ffd95c" : "#8b5a2b",
       count: weak ? 18 : crit ? 15 : shot.manual ? 11 : 8,
@@ -10350,11 +10528,14 @@
     const voidChef = kind === "voidChef";
     const neonMedic = kind === "neonMedic";
     const tigerMetal = kind === "tigerMetal";
-    const height = dragonWood ? 214 : voidChef ? 188 : neonMedic ? 154 : paper ? 168 : alchemist ? 150 : tigerMetal ? 176 : ikun ? 116 : jet ? 108 : 96;
+    const chronoPlumber = kind === "chronoPlumber";
+    const rocketBao = kind === "rocketBao";
+    const mirrorFox = kind === "mirrorFox";
+    const height = dragonWood ? 214 : voidChef ? 188 : mirrorFox ? 182 : tigerMetal ? 176 : chronoPlumber ? 166 : neonMedic ? 154 : rocketBao ? 148 : paper ? 168 : alchemist ? 150 : ikun ? 116 : jet ? 108 : 96;
     return {
-      x: hero.x + (ikun ? 34 : paper ? 70 : dragonWood ? 42 : voidChef ? 48 : neonMedic ? 46 : tigerMetal ? 38 : 42) * s,
+      x: hero.x + (ikun ? 34 : paper ? 70 : dragonWood ? 42 : voidChef ? 48 : neonMedic ? 46 : tigerMetal ? 38 : chronoPlumber ? 44 : rocketBao ? 52 : mirrorFox ? 50 : 42) * s,
       y: hero.y - height * 0.5 * s,
-      w: Math.max((dragonWood ? 214 : voidChef ? 198 : neonMedic ? 176 : paper ? 160 : tigerMetal ? 218 : ikun ? 138 : jet ? 150 : 120) * s, state.width - hero.x - (ikun ? 54 : paper ? 42 : dragonWood ? 28 : voidChef ? 30 : neonMedic ? 42 : tigerMetal ? 34 : 70) * s),
+      w: Math.max((dragonWood ? 214 : voidChef ? 198 : mirrorFox ? 192 : neonMedic ? 176 : paper ? 160 : tigerMetal ? 218 : chronoPlumber ? 184 : rocketBao ? 206 : ikun ? 138 : jet ? 150 : 120) * s, state.width - hero.x - (ikun ? 54 : paper ? 42 : dragonWood ? 28 : voidChef ? 30 : neonMedic ? 42 : tigerMetal ? 34 : chronoPlumber ? 40 : rocketBao ? 30 : mirrorFox ? 36 : 70) * s),
       h: height * s,
     };
   }
@@ -10369,6 +10550,9 @@
       voidChef: "虚空锅炉",
       neonMedic: "急救霓虹幕",
       tigerMetal: "白虎庚金天裂",
+      chronoPlumber: "时停齿轮域",
+      rocketBao: "火箭包爆燃",
+      mirrorFox: "镜影万华阵",
       poop: "黄金大便能量波",
     }[kind] || "黄金大便能量波";
   }
@@ -10377,11 +10561,11 @@
     const budget = effectBudget();
     const kind = state.ultimateKind;
     const smooth = isSmoothQuality();
-    const rate = kind === "dragonWood" ? 88 : kind === "voidChef" ? 84 : kind === "neonMedic" ? 72 : kind === "tigerMetal" ? 96 : kind === "ikun" ? 54 : kind === "paper" ? 62 : kind === "alchemist" ? 56 : kind === "jet" ? 58 : 48;
+    const rate = kind === "dragonWood" ? 88 : kind === "voidChef" ? 84 : kind === "mirrorFox" ? 82 : kind === "neonMedic" ? 72 : kind === "chronoPlumber" ? 76 : kind === "rocketBao" ? 92 : kind === "tigerMetal" ? 96 : kind === "ikun" ? 54 : kind === "paper" ? 62 : kind === "alchemist" ? 56 : kind === "jet" ? 58 : 48;
     const count = Math.min(smooth ? 6 : 11, Math.floor(dt * rate + Math.random() * 2.4));
     for (let i = 0; i < count && particles.length < budget.particles; i += 1) {
       const t = Math.random();
-      const orbit = kind === "paper" || kind === "alchemist" || kind === "dragonWood" || kind === "voidChef";
+      const orbit = kind === "paper" || kind === "alchemist" || kind === "dragonWood" || kind === "voidChef" || kind === "chronoPlumber" || kind === "mirrorFox";
       const x = kind === "tigerMetal"
         ? beam.x + beam.w * ((state.ultimatePulse * 0.62 + i * 0.17 + t * 0.12) % 1)
         : orbit ? beam.x + beam.w * (0.54 + Math.cos(state.ultimatePulse * 4.2 + i) * 0.22) : random(beam.x, beam.x + beam.w * 0.94);
@@ -10391,9 +10575,9 @@
       particles.push({
         x,
         y,
-        vx: kind === "paper" || kind === "voidChef" ? random(-190, 55) : kind === "jet" || kind === "tigerMetal" || kind === "neonMedic" ? random(40, 280) : random(-90, 170),
-        vy: kind === "paper" || kind === "alchemist" || kind === "dragonWood" || kind === "voidChef" ? random(-150, 150) : random(-75, 75),
-        size: random(3.5, kind === "tigerMetal" ? 17 : kind === "dragonWood" ? 16 : kind === "voidChef" ? 15 : kind === "neonMedic" ? 13 : kind === "ikun" ? 13 : kind === "paper" ? 12 : kind === "jet" ? 11 : 10),
+        vx: kind === "paper" || kind === "voidChef" || kind === "mirrorFox" ? random(-190, 55) : kind === "jet" || kind === "tigerMetal" || kind === "neonMedic" || kind === "rocketBao" ? random(40, 280) : random(-90, 170),
+        vy: kind === "paper" || kind === "alchemist" || kind === "dragonWood" || kind === "voidChef" || kind === "chronoPlumber" || kind === "mirrorFox" ? random(-150, 150) : random(-75, 75),
+        size: random(3.5, kind === "tigerMetal" ? 17 : kind === "dragonWood" ? 16 : kind === "voidChef" ? 15 : kind === "rocketBao" ? 15 : kind === "mirrorFox" ? 14 : kind === "chronoPlumber" ? 13 : kind === "neonMedic" ? 13 : kind === "ikun" ? 13 : kind === "paper" ? 12 : kind === "jet" ? 11 : 10),
         color: kind === "ikun"
           ? (t > 0.44 ? "#fff3c4" : t > 0.22 ? "#ff8d54" : "#f5c84b")
           : kind === "jet"
@@ -10410,7 +10594,13 @@
                       ? (t > 0.5 ? "#fff8e8" : t > 0.22 ? "#54d0ff" : "#ff7b7b")
                       : kind === "tigerMetal"
                         ? (t > 0.5 ? "#fff8e8" : t > 0.22 ? "#ffe37a" : "#9de8ff")
-                        : (t > 0.5 ? "#f5c84b" : t > 0.25 ? "#d8792f" : "#fff8c4"),
+                        : kind === "chronoPlumber"
+                          ? (t > 0.5 ? "#fff8e8" : t > 0.22 ? "#6ee7ff" : "#9de8ff")
+                          : kind === "rocketBao"
+                            ? (t > 0.5 ? "#fff1a6" : t > 0.22 ? "#ff8d54" : "#ff5650")
+                            : kind === "mirrorFox"
+                              ? (t > 0.5 ? "#fff8e8" : t > 0.22 ? "#c45dff" : "#9de8ff")
+                              : (t > 0.5 ? "#f5c84b" : t > 0.25 ? "#d8792f" : "#fff8c4"),
         life: random(0.26, 0.62),
         maxLife: 0.62,
       });
@@ -10430,7 +10620,10 @@
     const voidChef = kind === "voidChef";
     const neonMedic = kind === "neonMedic";
     const tigerMetal = kind === "tigerMetal";
-    let damage = dt * (115 + state.attackDamage * 18 + currentEvolution() * 55) * styleMultiplier() * (ikun ? 1.06 : jet ? 1.12 : alchemist ? 0.88 : paper ? 0.98 : dragonWood ? 1.28 : voidChef ? 1.18 : neonMedic ? 0.92 : tigerMetal ? 1.55 : 1);
+    const chronoPlumber = kind === "chronoPlumber";
+    const rocketBao = kind === "rocketBao";
+    const mirrorFox = kind === "mirrorFox";
+    let damage = dt * (115 + state.attackDamage * 18 + currentEvolution() * 55) * styleMultiplier() * (ikun ? 1.06 : jet ? 1.12 : alchemist ? 0.88 : paper ? 0.98 : dragonWood ? 1.28 : voidChef ? 1.18 : neonMedic ? 0.92 : tigerMetal ? 1.55 : chronoPlumber ? 1.08 : rocketBao ? 1.42 : mirrorFox ? 1.22 : 1);
     if (neonMedic) {
       state.health = clamp(state.health + state.maxHealth * 0.018 * dt, 0, state.maxHealth);
       state.energy = clamp(state.energy + state.maxEnergy * 0.01 * dt, 0, state.maxEnergy);
@@ -10473,7 +10666,20 @@
         addBossBreakPressure(bossBreakGain("ultimate") * dt * 3.05, boss.x, boss.y);
         boss.hp -= damage * 0.18;
       }
-      state.shake = Math.max(state.shake, tigerMetal ? 6.4 : voidChef ? 5.6 : dragonWood ? 5.2 : jet ? 4.2 : neonMedic ? 3.6 : ikun ? 3.2 : 2.5);
+      if (chronoPlumber) {
+        applyBossControl("root", 0.58, { attackScale: 0.74 });
+        addBossBreakPressure(bossBreakGain("ultimate") * dt * 2.1, boss.x, boss.y);
+        boss.cadenceScale = Math.max(0.8, (boss.cadenceScale || 1) * 0.997);
+      }
+      if (rocketBao) {
+        addBossBreakPressure(bossBreakGain("ultimate") * dt * 2.75, boss.x, boss.y);
+        boss.hp -= damage * 0.14;
+      }
+      if (mirrorFox) {
+        boss.weakDuration = Math.max(boss.weakDuration || 0, 0.28);
+        addBossBreakPressure(bossBreakGain("ultimate") * dt * 2.45, boss.x - boss.w * 0.18, boss.y);
+      }
+      state.shake = Math.max(state.shake, tigerMetal ? 6.4 : rocketBao ? 6 : voidChef ? 5.6 : dragonWood ? 5.2 : mirrorFox ? 4.8 : jet ? 4.2 : chronoPlumber ? 4 : neonMedic ? 3.6 : ikun ? 3.2 : 2.5);
       if (boss.hp <= 0) defeatBoss();
     }
     for (let i = hazards.length - 1; i >= 0; i -= 1) {
@@ -10483,8 +10689,8 @@
         : rectVsEllipse(beam.x, beam.y, beam.w, beam.h, h.x, h.y, Math.max(8, h.w * 0.5), Math.max(8, h.h * 0.5));
       if (!hit) continue;
       if (h.type === "toilet") {
-        h.hp -= damage * (tigerMetal ? 0.2 : voidChef ? 0.16 : dragonWood ? 0.15 : neonMedic ? 0.12 : alchemist ? 0.11 : jet ? 0.1 : 0.08);
-        h.slow = Math.max(h.slow || 0, voidChef ? 1.48 : dragonWood ? 1.36 : neonMedic ? 0.72 : paper ? 0.64 : ikun ? 0.42 : alchemist ? 0.5 : tigerMetal ? 0.44 : 0.26);
+        h.hp -= damage * (tigerMetal ? 0.2 : rocketBao ? 0.18 : voidChef ? 0.16 : dragonWood ? 0.15 : mirrorFox ? 0.14 : chronoPlumber ? 0.13 : neonMedic ? 0.12 : alchemist ? 0.11 : jet ? 0.1 : 0.08);
+        h.slow = Math.max(h.slow || 0, voidChef ? 1.48 : dragonWood ? 1.36 : chronoPlumber ? 1.34 : neonMedic ? 0.72 : mirrorFox ? 0.62 : paper ? 0.64 : ikun ? 0.42 : alchemist ? 0.5 : tigerMetal ? 0.44 : rocketBao ? 0.3 : 0.26);
         if (alchemist) h.poison = Math.max(h.poison || 0, 3.2);
         if (paper) {
           h.vy = (h.vy || 0) * 0.55 + (hero.y - h.y) * 0.32;
@@ -10500,10 +10706,16 @@
           if (state.health < state.maxHealth * 0.92) state.health = clamp(state.health + state.maxHealth * 0.0025, 0, state.maxHealth);
         }
         if (tigerMetal) h.hp -= damage * 0.08;
+        if (chronoPlumber) h.vy = (h.vy || 0) * 0.5;
+        if (rocketBao) h.hit = Math.max(h.hit || 0, 0.24);
+        if (mirrorFox) h.vy = (h.vy || 0) * 0.58 + Math.sin(state.ultimatePulse * 5 + i) * 46 * playScale();
         h.hit = 0.12;
         if (h.hp > 0) continue;
+      } else {
+        if (chronoPlumber && h.bossDamage) h.slow = Math.max(h.slow || 0, 1.2);
+        if (mirrorFox && h.bossDamage) h.vy = (h.vy || 0) * 0.56 + Math.sin(state.ultimatePulse * 6 + i) * 42 * playScale();
       }
-      pop(h.x, h.y, tigerMetal ? "#fff8e8" : voidChef ? "#33f0df" : neonMedic ? "#54d0ff" : dragonWood ? "#35d07f" : ikun ? "#fff3c4" : jet ? "#9de8ff" : alchemist ? "#a7f04a" : paper ? "#fff8e8" : "#ffcf5c", tigerMetal ? 16 : voidChef ? 15 : neonMedic ? 13 : dragonWood ? 15 : ikun ? 12 : paper ? 14 : 8);
+      pop(h.x, h.y, tigerMetal ? "#fff8e8" : rocketBao ? "#ff8d54" : voidChef ? "#33f0df" : mirrorFox ? "#c45dff" : chronoPlumber ? "#6ee7ff" : neonMedic ? "#54d0ff" : dragonWood ? "#35d07f" : ikun ? "#fff3c4" : jet ? "#9de8ff" : alchemist ? "#a7f04a" : paper ? "#fff8e8" : "#ffcf5c", tigerMetal ? 16 : rocketBao ? 16 : voidChef ? 15 : mirrorFox ? 14 : chronoPlumber ? 13 : neonMedic ? 13 : dragonWood ? 15 : ikun ? 12 : paper ? 14 : 8);
       hazards.splice(i, 1);
       state.combo += 1;
       state.comboTimer = 1.6;
@@ -10812,6 +11024,11 @@
       aimTargetY: null,
       previewSafeLane: null,
       attackControlDelayCooldown: 0,
+      lastAttackAt: state.time,
+      lastThreatAt: state.time,
+      emptyFlowTimer: 0,
+      blockedThreatTimer: 0,
+      fallbackCooldown: 1.2,
     };
     const tuning = bossDifficultyTuning(boss);
     boss.maxHp = Math.max(1, Math.round(boss.maxHp * tuning.hp));
@@ -10863,6 +11080,90 @@
       hazards.splice(i, 1);
       i -= 1;
       count -= 1;
+    }
+  }
+
+  function trimStaleBossThreats(strict = false) {
+    if (!boss) return;
+    const s = playScale();
+    const minX = strict ? hero.x - 140 * s : -220 * s;
+    const top = playTop() - (strict ? 190 : 280) * s;
+    const bottom = playBottom() + (strict ? 190 : 280) * s;
+    for (let i = hazards.length - 1; i >= 0; i -= 1) {
+      const hazard = hazards[i];
+      if (!hazard || !(hazard.bossDamage || hazard.type === "bossPoop")) continue;
+      const x = Number(hazard.x);
+      const y = Number(hazard.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < minX || y < top || y > bottom) {
+        hazards.splice(i, 1);
+      }
+    }
+  }
+
+  function forceBossFallbackAttack(profile) {
+    if (!boss) return false;
+    trimStaleBossThreats(true);
+    trimBossThreatOverflow();
+    if (bossThreatCount() >= bossThreatBudget()) return false;
+    const before = bossThreatCount();
+    const s = bossAttackScale();
+    const level = bossAttackLevel();
+    const color = (profile && profile.color) || (boss.profile && boss.profile.color) || "#f5c84b";
+    const targetX = clamp(hero.x, heroXBounds().left, heroXBounds().right);
+    const targetY = clamp(hero.y, playTop() + hero.radiusY, playBottom() - hero.radiusY);
+    boss.currentSafeLane = boss.previewSafeLane || bossSafeLane();
+    pushBossPoop(-12 * s, clamp(targetY - boss.y, -66 * s, 66 * s), -(190 + level * 18) * s, 0, color, 0.86, {
+      arc: true,
+      targetX,
+      targetY,
+      ignoreSafeLane: true,
+    });
+    if (!isLandscapePlay() && bossThreatCount() < Math.min(bossThreatBudget(), before + 2) && level >= 5) {
+      const side = targetY >= boss.y ? -1 : 1;
+      pushBossEnergyBall(-22 * s, side * 44 * s, -(116 + level * 7) * s, side * 38 * s, "#9de8ff", 0.72, {
+        ignoreSafeLane: true,
+      });
+    }
+    boss.currentSafeLane = null;
+    const fired = bossThreatCount() > before;
+    if (fired) {
+      boss.lastAttackAt = state.time;
+      boss.lastThreatAt = state.time;
+      boss.emptyFlowTimer = 0;
+      boss.blockedThreatTimer = 0;
+      boss.fallbackCooldown = isLandscapePlay() ? 2.2 : 1.85;
+      boss.hit = Math.max(boss.hit || 0, 0.08);
+    }
+    return fired;
+  }
+
+  function updateBossFlowWatchdog(dt, profile) {
+    if (!boss || state.mode !== "playing") return;
+    const count = bossThreatCount();
+    boss.fallbackCooldown = Math.max(0, (boss.fallbackCooldown || 0) - dt);
+    if (count > 0) {
+      boss.emptyFlowTimer = 0;
+    } else {
+      boss.emptyFlowTimer = (boss.emptyFlowTimer || 0) + dt;
+    }
+    if (count >= bossThreatBudget()) {
+      boss.blockedThreatTimer = (boss.blockedThreatTimer || 0) + dt;
+      if (boss.blockedThreatTimer > 1.1) trimStaleBossThreats(true);
+      if (boss.blockedThreatTimer > 2.2) trimBossThreatOverflow();
+    } else {
+      boss.blockedThreatTimer = 0;
+    }
+    const noThreatFor = state.time - (boss.lastThreatAt || state.time);
+    const noAttackFor = state.time - (boss.lastAttackAt || state.time);
+    const stalledEmpty = count === 0 && (boss.emptyFlowTimer > 2.35 || noThreatFor > 2.75);
+    const stalledBlocked = count >= bossThreatBudget() && noAttackFor > 3.4 && (boss.blockedThreatTimer || 0) > 1.8;
+    if ((stalledEmpty || stalledBlocked) && boss.fallbackCooldown <= 0 && !bossHardControlActive()) {
+      if (forceBossFallbackAttack(profile)) {
+        boss.warning = false;
+        boss.previewSafeLane = null;
+        boss.nextAttack = "";
+        boss.attackTimer = Math.max(boss.attackTimer || 0, isLandscapePlay() ? 0.52 : 0.42);
+      }
     }
   }
 
@@ -10966,6 +11267,11 @@
     if (bossSolidHazardOverlapsSameType(hazard)) return false;
     if (bossThreatCount() >= bossThreatBudget()) return false;
     hazards.push(hazard);
+    if (boss && (hazard.bossDamage || hazard.type === "bossPoop")) {
+      boss.lastThreatAt = state.time;
+      boss.emptyFlowTimer = 0;
+      boss.blockedThreatTimer = 0;
+    }
     return true;
   }
 
@@ -11130,6 +11436,7 @@
         trimBossThreatOverflow();
       }
       if (bossThreatCount() >= bossThreatBudget()) {
+        updateBossFlowWatchdog(dt, profile);
         boss.warning = false;
         boss.previewSafeLane = null;
         boss.attackTimer = isLandscapePlay() ? 0.28 : 0.22;
@@ -11144,7 +11451,13 @@
       boss.currentSafeLane = boss.previewSafeLane || bossSafeLane();
       const readReward = boss.tellReadReady || (boss.tellReadCharge || 0) >= 76;
       if (readReward && triggerBossTellReadReward(profile)) boss.attackTimer += boss.daily ? 0.42 : 0.28;
-      fireBossAttack(profile, bossAttackScale(), boss.nextAttack);
+      const fired = fireBossAttack(profile, bossAttackScale(), boss.nextAttack);
+      if (fired) {
+        boss.lastAttackAt = state.time;
+      } else {
+        boss.emptyFlowTimer = Math.max(boss.emptyFlowTimer || 0, 1.4);
+        boss.fallbackCooldown = Math.min(boss.fallbackCooldown || 0.4, 0.35);
+      }
       boss.currentSafeLane = null;
       boss.previewSafeLane = null;
       boss.nextAttack = "";
@@ -11153,6 +11466,7 @@
       resetBossTellRead();
       boss.attackStep = (boss.attackStep || 0) + 1;
     }
+    updateBossFlowWatchdog(dt, profile);
 
     const contactEase = isLandscapePlay() ? 0.82 : 1;
     const contactW = boss.w * (boss.daily ? 0.62 : 0.84) * contactEase;
@@ -11188,6 +11502,7 @@
   }
 
   function fireBossAttack(profile, s, attackOverride = "") {
+    const threatBefore = bossThreatCount();
     profile = { ...profile, attack: attackOverride || chooseBossAttack(profile) };
     const level = bossAttackLevel();
     const damageScale = boss.damageScale || 1;
@@ -11400,7 +11715,13 @@
         bossSpeed: (75 + level * 10) * BOSS_ATTACK_SPEED_SCALE * speedScale * bossSpeedEase,
       });
     }
+    const fired = bossThreatCount() > threatBefore;
+    if (!fired && boss) {
+      boss.emptyFlowTimer = Math.max(boss.emptyFlowTimer || 0, 1.2);
+      boss.fallbackCooldown = Math.min(boss.fallbackCooldown || 0.4, 0.3);
+    }
     beep(profile.attack === "bubbleStorm" ? 720 : profile.attack === "plungerCharge" ? 180 : 130, 0.05, "square", 0.03);
+    return fired;
   }
 
   function pushBossEnergyBall(dx, dy, vx, vy, color, scale = 1, options = {}) {
@@ -15057,6 +15378,21 @@
       grad.addColorStop(0.22, `rgba(255, 227, 122, ${0.72 + pulse * 0.14})`);
       grad.addColorStop(0.62, `rgba(157, 232, 255, ${0.28 + pulse * 0.12})`);
       grad.addColorStop(1, "rgba(255, 248, 232, 0)");
+    } else if (chronoPlumber) {
+      grad.addColorStop(0, `rgba(255, 248, 232, ${0.76 + pulse * 0.12})`);
+      grad.addColorStop(0.28, `rgba(110, 231, 255, ${0.58 + pulse * 0.16})`);
+      grad.addColorStop(0.66, `rgba(157, 232, 255, ${0.3 + pulse * 0.12})`);
+      grad.addColorStop(1, "rgba(110, 231, 255, 0)");
+    } else if (rocketBao) {
+      grad.addColorStop(0, `rgba(255, 241, 166, ${0.86 + pulse * 0.1})`);
+      grad.addColorStop(0.24, `rgba(255, 141, 84, ${0.72 + pulse * 0.14})`);
+      grad.addColorStop(0.62, `rgba(255, 86, 80, ${0.34 + pulse * 0.12})`);
+      grad.addColorStop(1, "rgba(255, 141, 84, 0)");
+    } else if (mirrorFox) {
+      grad.addColorStop(0, `rgba(255, 248, 232, ${0.72 + pulse * 0.12})`);
+      grad.addColorStop(0.34, `rgba(196, 93, 255, ${0.54 + pulse * 0.16})`);
+      grad.addColorStop(0.72, `rgba(157, 232, 255, ${0.32 + pulse * 0.12})`);
+      grad.addColorStop(1, "rgba(196, 93, 255, 0)");
     } else {
       grad.addColorStop(0, `rgba(255, 244, 168, ${0.82 + pulse * 0.12})`);
       grad.addColorStop(0.32, `rgba(255, 141, 84, ${0.52 + pulse * 0.16})`);
@@ -15065,16 +15401,17 @@
     }
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.ellipse(beam.x + beam.w * (paper ? 0.62 : dragonWood ? 0.56 : voidChef ? 0.58 : neonMedic ? 0.5 : tigerMetal ? 0.48 : 0.5), beam.y + beam.h * 0.5, beam.w * (paper ? 0.34 : dragonWood ? 0.44 : voidChef ? 0.46 : neonMedic ? 0.42 : tigerMetal ? 0.5 : 0.52), beam.h * (dragonWood ? 0.46 + pulse * 0.08 : voidChef ? 0.5 + pulse * 0.1 : neonMedic ? 0.42 + pulse * 0.08 : paper ? 0.52 + pulse * 0.08 : ikun ? 0.38 + pulse * 0.09 : tigerMetal ? 0.32 + pulse * 0.08 : 0.34 + pulse * 0.08), 0, 0, Math.PI * 2);
+    ctx.ellipse(beam.x + beam.w * (paper ? 0.62 : dragonWood ? 0.56 : voidChef ? 0.58 : mirrorFox ? 0.56 : neonMedic ? 0.5 : rocketBao ? 0.48 : tigerMetal ? 0.48 : 0.5), beam.y + beam.h * 0.5, beam.w * (paper ? 0.34 : dragonWood ? 0.44 : voidChef ? 0.46 : mirrorFox ? 0.44 : neonMedic ? 0.42 : rocketBao ? 0.5 : tigerMetal ? 0.5 : 0.52), beam.h * (dragonWood ? 0.46 + pulse * 0.08 : voidChef ? 0.5 + pulse * 0.1 : mirrorFox ? 0.48 + pulse * 0.08 : neonMedic ? 0.42 + pulse * 0.08 : paper ? 0.52 + pulse * 0.08 : ikun ? 0.38 + pulse * 0.09 : rocketBao ? 0.34 + pulse * 0.1 : tigerMetal ? 0.32 + pulse * 0.08 : 0.34 + pulse * 0.08), 0, 0, Math.PI * 2);
     ctx.fill();
-    const coreColor = tigerMetal ? "255, 248, 232" : voidChef ? "51, 240, 223" : neonMedic ? "84, 208, 255" : dragonWood ? "53, 208, 127" : jet ? "84, 208, 255" : alchemist ? "167, 240, 74" : paper ? "255, 248, 232" : ikun ? "255, 211, 92" : "245, 200, 75";
-    const coreGlow = ctx.createRadialGradient(hero.x + 36 * s, hero.y, 6 * s, hero.x + 36 * s, hero.y, (dragonWood ? 158 : voidChef ? 150 : neonMedic ? 138 : paper ? 150 : tigerMetal ? 132 : 118) * s);
+    const coreColor = tigerMetal ? "255, 248, 232" : rocketBao ? "255, 141, 84" : voidChef ? "51, 240, 223" : mirrorFox ? "196, 93, 255" : chronoPlumber ? "110, 231, 255" : neonMedic ? "84, 208, 255" : dragonWood ? "53, 208, 127" : jet ? "84, 208, 255" : alchemist ? "167, 240, 74" : paper ? "255, 248, 232" : ikun ? "255, 211, 92" : "245, 200, 75";
+    const coreRadius = (dragonWood ? 158 : voidChef ? 150 : mirrorFox ? 146 : neonMedic ? 138 : paper ? 150 : chronoPlumber ? 140 : rocketBao ? 142 : tigerMetal ? 132 : 118) * s;
+    const coreGlow = ctx.createRadialGradient(hero.x + 36 * s, hero.y, 6 * s, hero.x + 36 * s, hero.y, coreRadius);
     coreGlow.addColorStop(0, `rgba(255, 248, 232, ${0.5 + pulse * 0.2})`);
     coreGlow.addColorStop(0.42, `rgba(${coreColor}, ${0.2 + pulse * 0.14})`);
     coreGlow.addColorStop(1, "rgba(255, 248, 232, 0)");
     ctx.fillStyle = coreGlow;
     ctx.beginPath();
-    ctx.arc(hero.x + 36 * s, hero.y, (dragonWood ? 158 : voidChef ? 150 : neonMedic ? 138 : paper ? 150 : tigerMetal ? 132 : 118) * s, 0, Math.PI * 2);
+    ctx.arc(hero.x + 36 * s, hero.y, coreRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = `rgba(${coreColor}, ${0.42 + pulse * 0.28})`;
     ctx.lineWidth = Math.max(2, 3.5 * s);
@@ -16947,6 +17284,100 @@
         ctx.restore();
         continue;
       }
+      if (shot.kind === "chronoGear") {
+        const r = shot.rx || 20;
+        ctx.rotate(shot.pulse * 0.55);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = "rgba(110, 231, 255, 0.72)";
+        ctx.lineWidth = Math.max(2.2, r * 0.16);
+        for (let i = 0; i < 2; i += 1) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r * (0.92 + i * 0.34), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "rgba(255, 248, 232, 0.8)";
+        for (let i = 0; i < 8; i += 1) {
+          const a = (Math.PI * 2 * i) / 8;
+          ctx.save();
+          ctx.rotate(a);
+          roundRect(r * 0.74, -r * 0.12, r * 0.42, r * 0.24, r * 0.08);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = shot.manual ? "#fff8e8" : "#6ee7ff";
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#1b4054";
+        ctx.lineWidth = Math.max(1.4, r * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -r * 0.32);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(r * 0.28, 0);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
+      if (shot.kind === "rocketBao") {
+        const r = shot.rx || 22;
+        ctx.rotate(Math.sin(shot.pulse * 0.34) * 0.08);
+        ctx.globalCompositeOperation = "lighter";
+        const flame = ctx.createLinearGradient(-r * 2.2, 0, r * 1.2, 0);
+        flame.addColorStop(0, "rgba(255, 86, 80, 0)");
+        flame.addColorStop(0.42, "rgba(255, 141, 84, 0.5)");
+        flame.addColorStop(1, "rgba(255, 241, 166, 0.72)");
+        ctx.fillStyle = flame;
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.72, 0, r * 2.1, r * 0.74, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = "source-over";
+        const body = ctx.createLinearGradient(-r * 0.9, -r * 0.5, r * 1.15, r * 0.45);
+        body.addColorStop(0, "#ff8d54");
+        body.addColorStop(0.48, "#fff1a6");
+        body.addColorStop(1, "#ff5650");
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(r * 1.28, 0);
+        ctx.quadraticCurveTo(r * 0.34, -r * 0.72, -r * 0.95, -r * 0.42);
+        ctx.lineTo(-r * 1.2, r * 0.42);
+        ctx.quadraticCurveTo(r * 0.28, r * 0.7, r * 1.28, 0);
+        ctx.fill();
+        ctx.fillStyle = "#7b241e";
+        roundRect(-r * 0.62, -r * 0.28, r * 0.56, r * 0.56, r * 0.16);
+        ctx.fill();
+        ctx.restore();
+        continue;
+      }
+      if (shot.kind === "mirrorShard") {
+        const r = shot.rx || 19;
+        ctx.rotate((shot.variant === "upper" ? -0.24 : shot.variant === "lower" ? 0.24 : 0) + Math.sin(shot.pulse * 0.5) * 0.1);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = "rgba(196, 93, 255, 0.48)";
+        ctx.lineWidth = Math.max(1.6, r * 0.1);
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.12, 0, r * 1.8, r * 0.78, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalCompositeOperation = "source-over";
+        const shard = ctx.createLinearGradient(-r * 0.9, -r * 0.7, r * 1.1, r * 0.7);
+        shard.addColorStop(0, "#9de8ff");
+        shard.addColorStop(0.52, "#fff8e8");
+        shard.addColorStop(1, "#c45dff");
+        ctx.fillStyle = shard;
+        ctx.beginPath();
+        ctx.moveTo(-r * 1.05, 0);
+        ctx.lineTo(-r * 0.18, -r * 0.82);
+        ctx.lineTo(r * 1.16, -r * 0.12);
+        ctx.lineTo(r * 0.18, r * 0.82);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 248, 232, 0.72)";
+        ctx.lineWidth = Math.max(1.2, r * 0.08);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
       if (shot.kind === "voidCleaver") {
         const r = shot.rx || 23;
         ctx.rotate(Math.sin(shot.pulse * 0.42) * 0.18);
@@ -17202,6 +17633,18 @@
     }
     if (meta.selectedHero === "tigerMetal") {
       shootTigerMetal(manual, tier, special);
+      return;
+    }
+    if (meta.selectedHero === "chronoPlumber") {
+      shootChronoPlumber(manual, tier, special);
+      return;
+    }
+    if (meta.selectedHero === "rocketBao") {
+      shootRocketBao(manual, tier, special);
+      return;
+    }
+    if (meta.selectedHero === "mirrorFox") {
+      shootMirrorFox(manual, tier, special);
       return;
     }
     const focus = runPerkLevel("focus");
@@ -17757,6 +18200,228 @@
     beep(manual ? 880 : 680, manual ? 0.06 : 0.024, "sawtooth", manual ? 0.052 : 0.015);
   }
 
+  function shootChronoPlumber(manual, tier, special) {
+    const manualBoost = manual ? 1 : 0;
+    const focus = runPerkLevel("focus");
+    const combat = runCombatStats();
+    const evolved = currentEvolution();
+    const targetY = boss ? boss.y + Math.sin(state.time * 3.8) * boss.h * 0.12 : nearestHazardY(hero.y);
+    const base = {
+      x: hero.x + 62,
+      y: hero.y,
+      vx: (manual ? 860 : 690) + state.level * 10,
+      vy: clamp((targetY - hero.y) * 0.34, -120, 120),
+      life: (manual ? 1.2 : 0.96) + tier * 0.055,
+      pulse: 0,
+      kind: "chronoGear",
+      manual,
+      damage: manual
+        ? Math.round((state.attackDamage * 2.04 + 3 + evolved + (special ? 3 : 0)) * (1 + focus * 0.07))
+        : Math.max(1, state.attackDamage + Math.floor(evolved * 0.55) + (special ? 1 : 0)),
+      critChance: clamp(combat.crit + (manual ? 7 : 2) + (special ? 4 : 0), 0, manual ? 80 : 64),
+      critMult: manual ? 1.78 + focus * 0.04 : 1.56,
+      rx: 19 + tier * 2 + manualBoost * 7,
+      ry: 19 + tier * 2 + manualBoost * 7,
+      pierce: (tier >= 3 ? 1 : 0) + (tier >= 6 ? 1 : 0) + manualBoost,
+      color: special ? "#fff8e8" : "#6ee7ff",
+      core: "#fff8e8",
+    };
+    const shots = tier === 1
+      ? [base]
+      : tier === 2
+        ? [{ ...base, y: base.y - 18, vy: base.vy - 48 }, { ...base, y: base.y + 18, vy: base.vy + 48 }]
+        : [
+            { ...base, rx: base.rx + 5, ry: base.ry + 5, damage: base.damage + 1 },
+            { ...base, y: base.y - 30, vy: base.vy - 82 },
+            { ...base, y: base.y + 30, vy: base.vy + 82 },
+          ];
+    if (tier >= 5) {
+      shots.push(
+        { ...base, x: base.x + 10, vx: base.vx + 130, rx: base.rx + 9, ry: base.ry + 9, damage: base.damage + 3, pierce: base.pierce + 1, color: "#fff8e8" },
+        { ...base, x: base.x - 18, y: base.y - 58, vy: base.vy + 150, damage: base.damage + 3 },
+        { ...base, x: base.x - 18, y: base.y + 58, vy: base.vy - 150, damage: base.damage + 3 }
+      );
+    }
+    if (tier >= 7) {
+      shots.push(
+        { ...base, x: base.x + 24, vx: base.vx + 220, rx: base.rx + 15, ry: base.ry + 15, damage: base.damage + 7, pierce: base.pierce + 3, color: "#9de8ff" },
+        { ...base, y: base.y - 76, vy: base.vy + 230, vx: base.vx + 80, damage: base.damage + 5 },
+        { ...base, y: base.y + 76, vy: base.vy - 230, vx: base.vx + 80, damage: base.damage + 5 }
+      );
+    }
+    pushProjectiles(shots);
+    if (manual) {
+      const s = playScale();
+      const radius = (245 + tier * 14) * s;
+      let slowed = 0;
+      for (const h of hazards) {
+        if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+        const dist = Math.hypot((h.x || 0) - (hero.x + 150 * s), (h.y || hero.y) - hero.y);
+        if (dist > radius + Math.max(h.w || 0, h.h || 0) * 0.35) continue;
+        h.slow = Math.max(h.slow || 0, 0.82 + tier * 0.04);
+        h.hit = Math.max(h.hit || 0, 0.18);
+        if (h.type === "toilet") h.hp -= Math.max(1, Math.round(state.attackDamage * 0.3));
+        slowed += 1;
+      }
+      if (boss) {
+        applyBossControl("root", 0.36, { attackScale: 0.82 });
+        addBossBreakPressure(bossBreakGain("manual") * 0.2, hero.x + 150 * s, hero.y);
+      }
+      gainStyle(8 + Math.min(10, slowed * 2), "时间慢域", "#6ee7ff");
+      state.draftTimer = Math.max(state.draftTimer || 0, 0.5);
+    }
+    pop(hero.x + 52, hero.y, "#6ee7ff", manual ? 20 : 8);
+    addTrail(hero.x - 36, hero.y + 18);
+    beep(manual ? 660 : 520, manual ? 0.064 : 0.025, "triangle", manual ? 0.042 : 0.014);
+  }
+
+  function shootRocketBao(manual, tier, special) {
+    const manualBoost = manual ? 1 : 0;
+    const focus = runPerkLevel("focus");
+    const combat = runCombatStats();
+    const evolved = currentEvolution();
+    const base = {
+      x: hero.x + 68,
+      y: hero.y + 2,
+      vx: (manual ? 1120 : 870) + state.level * 15,
+      vy: manual ? -18 : 0,
+      life: (manual ? 0.92 : 0.74) + tier * 0.04,
+      pulse: 0,
+      kind: "rocketBao",
+      manual,
+      damage: manual
+        ? Math.round((state.attackDamage * 2.42 + 5 + evolved * 1.15 + (special ? 4 : 0)) * (1 + focus * 0.085))
+        : Math.max(2, state.attackDamage + 2 + Math.floor(evolved * 0.45) + (special ? 1 : 0)),
+      critChance: clamp(combat.crit + (manual ? 10 : 3) + (special ? 5 : 0), 0, manual ? 84 : 68),
+      critMult: manual ? 1.94 + focus * 0.055 : 1.64,
+      rx: 24 + tier * 2 + manualBoost * 9,
+      ry: 14 + tier * 2 + manualBoost * 4,
+      pierce: (tier >= 4 ? 1 : 0) + (tier >= 7 ? 1 : 0),
+      blastRadius: (manual ? 132 : 92) * playScale() + tier * 8,
+      color: special ? "#fff1a6" : "#ff8d54",
+      core: "#fff1a6",
+    };
+    const shots = tier === 1
+      ? [base]
+      : tier === 2
+        ? [{ ...base, y: base.y - 17, vy: -46 }, { ...base, y: base.y + 17, vy: 46 }]
+        : [
+            { ...base, rx: base.rx + 8, damage: base.damage + 2, blastRadius: base.blastRadius + 18 * playScale() },
+            { ...base, x: base.x - 18, y: base.y - 32, vy: -96, damage: base.damage + 1 },
+            { ...base, x: base.x - 18, y: base.y + 32, vy: 96, damage: base.damage + 1 },
+          ];
+    if (tier >= 5) {
+      shots.push(
+        { ...base, x: base.x + 16, vx: base.vx + 210, rx: base.rx + 14, damage: base.damage + 6, pierce: base.pierce + 1, blastRadius: base.blastRadius + 26 * playScale(), color: "#fff1a6" },
+        { ...base, x: base.x - 26, y: base.y - 62, vy: 155, damage: base.damage + 4 },
+        { ...base, x: base.x - 26, y: base.y + 62, vy: -155, damage: base.damage + 4 }
+      );
+    }
+    if (tier >= 7) {
+      shots.push(
+        { ...base, x: base.x + 36, vx: base.vx + 330, rx: base.rx + 22, ry: base.ry + 8, damage: base.damage + 11, pierce: base.pierce + 3, blastRadius: base.blastRadius + 38 * playScale(), color: "#ff5650" },
+        { ...base, y: base.y - 82, vy: 230, vx: base.vx + 130, damage: base.damage + 6 },
+        { ...base, y: base.y + 82, vy: -230, vx: base.vx + 130, damage: base.damage + 6 }
+      );
+    }
+    pushProjectiles(shots);
+    if (manual) {
+      const s = playScale();
+      if (heroFreeMove()) {
+        const xBounds = heroXBounds();
+        hero.x = clamp(hero.x + 16 * s, xBounds.left, xBounds.right);
+        state.dragTargetX = hero.x;
+      }
+      const reach = 340 * s;
+      let blasted = 0;
+      for (let i = hazards.length - 1; i >= 0; i -= 1) {
+        const h = hazards[i];
+        if (!h || h.type !== "toilet" || h.x < hero.x || h.x > hero.x + reach || Math.abs(h.y - hero.y) > 120 * s) continue;
+        h.hp -= Math.max(2, Math.round(state.attackDamage * 0.62));
+        h.hit = Math.max(h.hit || 0, 0.28);
+        h.slow = Math.max(h.slow || 0, 0.18);
+        blasted += 1;
+        if (h.hp <= 0) destroyHazard(i, h);
+      }
+      if (boss && boss.x < hero.x + reach + boss.w * 0.45) {
+        addBossBreakPressure(bossBreakGain("manual") * 0.22, boss.x, boss.y);
+      }
+      gainStyle(9 + Math.min(12, blasted * 2), "爆裂推进", "#ff8d54");
+      state.shake = Math.max(state.shake, 3.8);
+    }
+    pop(hero.x + 58, hero.y, "#ff8d54", manual ? 24 : 9);
+    addTrail(hero.x - 38, hero.y + 18);
+    beep(manual ? 360 : 300, manual ? 0.07 : 0.026, "sawtooth", manual ? 0.05 : 0.015);
+  }
+
+  function shootMirrorFox(manual, tier, special) {
+    const manualBoost = manual ? 1 : 0;
+    const focus = runPerkLevel("focus");
+    const combat = runCombatStats();
+    const evolved = currentEvolution();
+    const targetY = boss ? boss.y + Math.sin(state.time * 4.6) * boss.h * 0.14 : nearestHazardY(hero.y);
+    const base = {
+      x: hero.x + 62,
+      y: hero.y,
+      vx: (manual ? 940 : 760) + state.level * 12,
+      vy: clamp((targetY - hero.y) * 0.42, -138, 138),
+      life: (manual ? 1.12 : 0.9) + tier * 0.05,
+      pulse: 0,
+      kind: "mirrorShard",
+      manual,
+      damage: manual
+        ? Math.round((state.attackDamage * 2.16 + 4 + evolved + (special ? 3 : 0)) * (1 + focus * 0.08))
+        : Math.max(1, state.attackDamage + 1 + Math.floor(evolved * 0.5) + (special ? 1 : 0)),
+      critChance: clamp(combat.crit + (manual ? 9 : 3) + (special ? 4 : 0), 0, manual ? 82 : 66),
+      critMult: manual ? 1.86 + focus * 0.045 : 1.6,
+      rx: 19 + tier * 2 + manualBoost * 7,
+      ry: 15 + tier * 2 + manualBoost * 4,
+      pierce: 1 + (tier >= 4 ? 1 : 0) + (tier >= 6 ? 1 : 0) + manualBoost,
+      color: special ? "#fff8e8" : "#c45dff",
+      core: "#9de8ff",
+    };
+    const shots = tier === 1
+      ? [base]
+      : tier === 2
+        ? [{ ...base, y: base.y - 18, vy: base.vy - 54, variant: "upper" }, { ...base, y: base.y + 18, vy: base.vy + 54, variant: "lower" }]
+        : [
+            { ...base, rx: base.rx + 7, damage: base.damage + 1 },
+            { ...base, y: base.y - 32, vy: base.vy - 94, variant: "upper" },
+            { ...base, y: base.y + 32, vy: base.vy + 94, variant: "lower" },
+          ];
+    if (tier >= 5) {
+      shots.push(
+        { ...base, x: base.x + 10, vx: base.vx + 160, rx: base.rx + 12, damage: base.damage + 4, pierce: base.pierce + 2, color: "#9de8ff" },
+        { ...base, x: base.x - 24, y: base.y - 58, vy: base.vy + 160, damage: base.damage + 3, variant: "upper" },
+        { ...base, x: base.x - 24, y: base.y + 58, vy: base.vy - 160, damage: base.damage + 3, variant: "lower" }
+      );
+    }
+    if (tier >= 7) {
+      shots.push(
+        { ...base, x: base.x + 24, vx: base.vx + 260, rx: base.rx + 18, ry: base.ry + 8, damage: base.damage + 8, pierce: base.pierce + 4, color: "#fff8e8" },
+        { ...base, y: base.y - 78, vy: base.vy + 230, vx: base.vx + 120, damage: base.damage + 5, variant: "upper" },
+        { ...base, y: base.y + 78, vy: base.vy - 230, vx: base.vx + 120, damage: base.damage + 5, variant: "lower" }
+      );
+    }
+    pushProjectiles(shots);
+    if (manual) {
+      hero.invuln = Math.max(hero.invuln || 0, 0.22);
+      state.shieldTimer = Math.max(state.shieldTimer || 0, 0.32);
+      const s = playScale();
+      if (boss) addBossBreakPressure(bossBreakGain("manual") * 0.2, boss.x - boss.w * 0.18, boss.y);
+      for (const h of hazards) {
+        if (!h || !h.bossDamage || h.x < hero.x - 30 * s || h.x > hero.x + 230 * s) continue;
+        h.vy = (h.vy || 0) * 0.48 + Math.sign((h.y || hero.y) - hero.y || 1) * 54 * s;
+        h.slow = Math.max(h.slow || 0, 0.42);
+        h.hit = Math.max(h.hit || 0, 0.2);
+      }
+      gainStyle(10, "镜影回响", "#c45dff");
+    }
+    pop(hero.x + 52, hero.y, "#c45dff", manual ? 22 : 8);
+    addTrail(hero.x - 36, hero.y + 18);
+    beep(manual ? 980 : 740, manual ? 0.062 : 0.024, "sine", manual ? 0.042 : 0.014);
+  }
+
   function nearestHazardY(fallback) {
     let best = null;
     let bestDist = Infinity;
@@ -17789,10 +18454,10 @@
     state.eventName = ultimateSkillName();
     state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.2);
     recordRunStat("ultimates", 1);
-    const color = state.ultimateKind === "dragonWood" ? "#35d07f" : state.ultimateKind === "voidChef" ? "#33f0df" : state.ultimateKind === "neonMedic" ? "#54d0ff" : state.ultimateKind === "tigerMetal" ? "#fff8e8" : state.ultimateKind === "jet" ? "#9de8ff" : state.ultimateKind === "alchemist" ? "#a7f04a" : state.ultimateKind === "paper" ? "#fff8e8" : state.ultimateKind === "ikun" ? "#fff3c4" : "#f5c84b";
+    const color = state.ultimateKind === "dragonWood" ? "#35d07f" : state.ultimateKind === "voidChef" ? "#33f0df" : state.ultimateKind === "neonMedic" ? "#54d0ff" : state.ultimateKind === "tigerMetal" ? "#fff8e8" : state.ultimateKind === "chronoPlumber" ? "#6ee7ff" : state.ultimateKind === "rocketBao" ? "#ff8d54" : state.ultimateKind === "mirrorFox" ? "#c45dff" : state.ultimateKind === "jet" ? "#9de8ff" : state.ultimateKind === "alchemist" ? "#a7f04a" : state.ultimateKind === "paper" ? "#fff8e8" : state.ultimateKind === "ikun" ? "#fff3c4" : "#f5c84b";
     pop(hero.x + 72 * playScale(), hero.y, color, 34);
-    beep(state.ultimateKind === "tigerMetal" ? 760 : state.ultimateKind === "voidChef" ? 300 : state.ultimateKind === "neonMedic" ? 980 : state.ultimateKind === "dragonWood" ? 540 : state.ultimateKind === "paper" ? 920 : state.ultimateKind === "ikun" ? 520 : state.ultimateKind === "jet" ? 620 : 180, 0.08, "sawtooth", 0.05);
-    setTimeout(() => beep(state.ultimateKind === "tigerMetal" ? 1180 : state.ultimateKind === "voidChef" ? 560 : state.ultimateKind === "neonMedic" ? 1320 : state.ultimateKind === "dragonWood" ? 820 : state.ultimateKind === "alchemist" ? 360 : state.ultimateKind === "paper" ? 1180 : state.ultimateKind === "ikun" ? 860 : 420, 0.1, "sawtooth", 0.045), 80);
+    beep(state.ultimateKind === "tigerMetal" ? 760 : state.ultimateKind === "rocketBao" ? 340 : state.ultimateKind === "mirrorFox" ? 1040 : state.ultimateKind === "chronoPlumber" ? 640 : state.ultimateKind === "voidChef" ? 300 : state.ultimateKind === "neonMedic" ? 980 : state.ultimateKind === "dragonWood" ? 540 : state.ultimateKind === "paper" ? 920 : state.ultimateKind === "ikun" ? 520 : state.ultimateKind === "jet" ? 620 : 180, 0.08, "sawtooth", 0.05);
+    setTimeout(() => beep(state.ultimateKind === "tigerMetal" ? 1180 : state.ultimateKind === "rocketBao" ? 620 : state.ultimateKind === "mirrorFox" ? 1320 : state.ultimateKind === "chronoPlumber" ? 920 : state.ultimateKind === "voidChef" ? 560 : state.ultimateKind === "neonMedic" ? 1320 : state.ultimateKind === "dragonWood" ? 820 : state.ultimateKind === "alchemist" ? 360 : state.ultimateKind === "paper" ? 1180 : state.ultimateKind === "ikun" ? 860 : 420, 0.1, "sawtooth", 0.045), 80);
   }
 
   function eventClientPoint(event) {
@@ -19628,6 +20293,13 @@
       jet: ["水压飞弹", "双喷速射", "三线水炮", "破浪穿刺", "高压连喷", "涡轮水阵", "骑士冲刷", "圣蓝冲水阵"],
       alchemist: ["腐蚀毒瓶", "双瓶投掷", "毒雾散射", "黏液炼金", "连锁腐蚀", "毒云压制", "剧毒爆瓶", "终极臭气炼成"],
       paper: ["追踪纸卷", "双卷环绕", "纸卷散射", "束缚卷轴", "星纸法阵", "回旋纸雨", "纸卷风暴", "终极纸卷星河"],
+      dragonWood: ["青龙星藤", "双叶缠绕", "三叶龙息", "藤脉穿刺", "万叶护航", "青木龙阵", "辰龙星雨", "终极万叶龙域"],
+      voidChef: ["黑洞锅铲", "双铲牵引", "虚空三切", "锅炉慢煮", "重力翻炒", "虚空连锅", "黑洞盛宴", "终极虚空锅炉"],
+      neonMedic: ["急救光针", "双针护航", "霓虹三连", "护幕穿刺", "急救连针", "霓虹针雨", "生命光幕", "终极霓虹急救"],
+      tigerMetal: ["庚金虎魄", "双刃裂空", "三斩虎啸", "白虎破甲", "庚金连斩", "电刃虎阵", "天裂虎牙", "终极庚金万斩"],
+      chronoPlumber: ["齿轮回旋", "双钟校准", "三针慢域", "时间扳手", "齿轮连环", "钟摆压制", "时停星环", "终极时停齿轮域"],
+      rocketBao: ["燃焰包弹", "双包推进", "三线火箭", "爆裂穿刺", "火箭连发", "包仔弹幕", "燃焰冲锋", "终极火箭爆燃"],
+      mirrorFox: ["镜片折光", "双影折射", "三镜分身", "镜雾穿刺", "回响光刃", "万华镜雨", "狐影连闪", "终极镜影万华阵"],
       poop: ["普通便弹", "双重大便", "扇形便雨", "穿透金便", "旋风便弹", "陨石便雨", "黄金便风暴", "终极臭星雨"],
     };
     const names = list[meta.selectedHero] || list.poop;
