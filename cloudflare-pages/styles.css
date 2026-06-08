@@ -1914,6 +1914,95 @@ button:focus-visible {
   background: linear-gradient(90deg, #dfff7a, #f5c84b);
 }
 
+.compendium-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 9px;
+}
+
+.compendium-card {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 94px;
+  padding: 8px;
+  border: 1px solid rgba(157, 232, 255, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(13, 29, 36, 0.88), rgba(20, 32, 42, 0.74)),
+    radial-gradient(circle at 12% 18%, rgba(91, 222, 212, 0.14), transparent 44%);
+}
+
+.compendium-icon {
+  width: 74px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 248, 232, 0.2);
+  border-radius: 8px;
+  background-image: url("assets/compendium-icons.webp");
+  background-repeat: no-repeat;
+  background-size: 300% 300%;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.icon-pipe {
+  background-position: 0 0;
+}
+
+.icon-toilet {
+  background-position: 50% 0;
+}
+
+.icon-plunger {
+  background-position: 100% 0;
+}
+
+.icon-stink {
+  background-position: 0 50%;
+}
+
+.icon-bubble {
+  background-position: 50% 50%;
+}
+
+.icon-barricade {
+  background-position: 100% 50%;
+}
+
+.icon-sludge {
+  background-position: 0 100%;
+}
+
+.icon-startrail {
+  background-position: 50% 100%;
+}
+
+.icon-purification {
+  background-position: 100% 100%;
+}
+
+.compendium-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+.compendium-copy strong {
+  overflow: hidden;
+  color: #fff8e8;
+  font-size: 14px;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compendium-copy span {
+  color: rgba(255, 248, 232, 0.74);
+  font-size: 11px;
+  line-height: 1.36;
+}
+
 .shop-shield {
   background-position: 0 0;
 }

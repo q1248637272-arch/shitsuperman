@@ -13,7 +13,8 @@
   <link rel="preload" as="image" href="assets/mail-festival-seal.png">
   <link rel="preload" as="image" href="assets/adventure-route-compass.png">
   <link rel="preload" as="image" href="assets/stage-contract-badge.png">
-  <link rel="stylesheet" href="styles.css?v=20260608-boss-power">
+  <link rel="preload" as="image" href="assets/compendium-icons.webp">
+  <link rel="stylesheet" href="styles.css?v=20260608-compendium">
 </head>
 <body class="menu-open">
   <main class="game-shell" aria-label="大便超人">
@@ -83,6 +84,7 @@
           <button id="equipmentPageButton" type="button">装备</button>
           <button id="shopPageButton" type="button">商店</button>
           <button id="achievementPageButton" type="button">成就</button>
+          <button id="compendiumPageButton" type="button">图鉴</button>
           <button id="rulesPageButton" type="button">规则</button>
         </div>
         <div class="mode-tabs">
@@ -260,6 +262,73 @@
           <div id="achievementSummary" class="achievement-summary">完成目标可领取奖励和称号。</div>
           <div id="achievementGrid" class="achievement-grid"></div>
         </div>
+        <div id="compendiumPage" class="progress-page compendium-page" hidden aria-label="游戏图鉴">
+          <div class="compendium-grid">
+            <article class="compendium-card">
+              <div class="compendium-icon icon-pipe" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>管道夹缝</strong>
+                <span>上下管道会封锁航线，观察中间缺口，提前把角色稳定在安全高度。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-toilet" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>马桶机器人</strong>
+                <span>基础敌人，击破给经验和分数；精英潮里的机器人更硬，但补给收益更好。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-plunger" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>皮搋子弹</strong>
+                <span>直线突进型弹道，Boss 预警出现后换层躲避，不要沿原高度硬穿。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-stink" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>臭气云</strong>
+                <span>持续占位的软封锁，边缘也有威胁；用护盾、净化或大招清场更稳。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-bubble" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>肥皂泡</strong>
+                <span>移动慢但体积大，常和其他弹道夹击；优先找空隙，不要贪贴边纸卷。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-barricade" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>旋转路障</strong>
+                <span>宽体障碍，常用于压缩可走空间；看到预警轮廓时提前拉开纵向距离。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-sludge" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>酸液桶</strong>
+                <span>紫色污泥桶会制造高压横向威胁，适合用闪反、臭弹炸弹或技能核心处理。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-startrail" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>星轨试炼</strong>
+                <span>贴着星轨航线飞行会蓄能，满后自动触发星辉爆发，清弹并压制 Boss。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-purification" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>净化核心</strong>
+                <span>拾取后冲洗周围弹幕、补能护盾，并给 Boss 施加破防压力，是高压局的救场点。</span>
+              </div>
+            </article>
+          </div>
+        </div>
         <div id="rulesPage" class="progress-page rules-page" hidden>
       <div class="rules-card" aria-label="游戏规则">
         <h2>规则</h2>
@@ -314,7 +383,7 @@
           <li>达到 3、5、7、15、25、35、50 级时，攻击方式会继续强化。</li>
           <li>闯关模式共 60 关；普通关达到目标分数通关，后续普通关会增加受击次数限制，BOSS 关需要击败 BOSS。旧城区关卡会显示城区稳定度、航线提示和路线委托，事件、拾取与委托过程会推进稳定度，35%/70%/100% 会触发航线支援，完成后本局获得补血回能和结算小奖励。</li>
           <li>冒险模式更重视探索节奏：分数、航图和契约都要推进，航图或契约跨过关键进度时会触发远征支援，短暂减压并投放补给。</li>
-          <li>每日挑战会刷新 1 个百分比伤害 Boss，战力固定为玩家当前实时战力的 20 倍；60 秒内造成越多伤害，结算奖励越高，首次击败今日 Boss 会获得大额奖励并额外获得 5 枚便便币。</li>
+          <li>每日挑战会刷新 1 个百分比伤害 Boss，战力固定为玩家当前实时战力的 10 倍；60 秒内造成越多伤害，结算奖励越高，首次击败今日 Boss 会获得大额奖励并额外获得 5 枚便便币。</li>
           <li>金币可升级超人或购买背包道具；除复活心核外，商店金币商品价格已再次上调，购买前会显示余额、库存和差额。复活心核仍消耗便便币购买。每局会自动从背包携带最多 3 种可用道具，每种单局只能使用或触发 1 次，未带入或未使用的库存会保留。</li>
           <li>局内升级更偏向临时微成长，长期战力主要来自局外升级、进化、装备和坐骑培养；坐骑可选择不乘坐，解锁需要金币和极稀有便便币。</li>
           <li>无尽模式也会在后段切换到翻新的深层废都地图；每个英雄首次达到 50万、100万、250万、500万分时，各获得 1 颗自己的专属进化石。</li>
@@ -361,6 +430,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260608-boss-power"></script>
+  <script src="main.js?v=20260608-compendium"></script>
 </body>
 </html>

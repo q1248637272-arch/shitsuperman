@@ -57,6 +57,7 @@
   const equipmentPageButton = document.getElementById("equipmentPageButton");
   const shopPageButton = document.getElementById("shopPageButton");
   const achievementPageButton = document.getElementById("achievementPageButton");
+  const compendiumPageButton = document.getElementById("compendiumPageButton");
   const rulesPageButton = document.getElementById("rulesPageButton");
   const moduleHeader = document.getElementById("moduleHeader");
   const moduleBackButton = document.getElementById("moduleBackButton");
@@ -84,6 +85,7 @@
   const shopDetail = document.getElementById("shopDetail");
   const shopCards = Array.from(document.querySelectorAll(".shop-card[data-shop-key]"));
   const achievementPage = document.getElementById("achievementPage");
+  const compendiumPage = document.getElementById("compendiumPage");
   const rulesPage = document.getElementById("rulesPage");
   const achievementSummary = document.getElementById("achievementSummary");
   const achievementGrid = document.getElementById("achievementGrid");
@@ -529,7 +531,7 @@
   const ENDLESS_BOSS_PROGRESS_MULTIPLIER = 5;
   const STAGE_BOSS_POWER_SCALE = 2.4;
   const ADVENTURE_BOSS_POWER_SCALE = 3.15;
-  const DAILY_BOSS_POWER_MULTIPLIER = 20;
+  const DAILY_BOSS_POWER_MULTIPLIER = 10;
   const BOSS_SIZE_SCALE = 0.68;
   const BOSS_ATTACK_SPEED_SCALE = 0.72;
   const BOSS_ATTACK_RATE_SCALE = 0.5625;
@@ -17340,7 +17342,7 @@
       const daily = dailyBossProfile();
       const dailyStatus = meta.dailyChallenge.date === todayKey() && meta.dailyChallenge.bossDefeated ? "击败奖已领" : "击败奖便便币 +5";
       attributeText.textContent = state.gameMode === "daily"
-        ? `今日Boss ${daily.name} · 20x 实时战力 · 已领奖伤害 ${meta.dailyChallenge.date === todayKey() ? meta.dailyChallenge.rewardedDamage : 0} · ${dailyStatus}`
+        ? `今日Boss ${daily.name} · 10x 实时战力 · 已领奖伤害 ${meta.dailyChallenge.date === todayKey() ? meta.dailyChallenge.rewardedDamage : 0} · ${dailyStatus}`
         : `生命 ${sheet.health} · 能量 ${sheet.energy} · 攻击 ${sheet.attack} · 暴击 ${Math.round(sheet.crit)}% · 闪避 ${Math.round(sheet.dodge)}% · 韧性 ${Math.round(sheet.guard)} · 回复 ${Math.round(sheet.regen)} · 攻速 ${Math.round(sheet.haste)} · 幸运 ${sheet.luck}`;
     }
     if (equipmentText) {
@@ -18254,12 +18256,12 @@
   }
 
   function setMenuPage(page) {
-    const target = ["home", "stage", "growth", "mail", "hero", "mount", "drone", "equipment", "shop", "achievement", "rules"].includes(page) ? page : "home";
+    const target = ["home", "stage", "growth", "mail", "hero", "mount", "drone", "equipment", "shop", "achievement", "compendium", "rules"].includes(page) ? page : "home";
     const moduleOpen = target !== "home";
     menuPanel.classList.toggle("module-open", moduleOpen);
     if (moduleHeader) moduleHeader.hidden = !moduleOpen;
     if (moduleTitle) {
-      moduleTitle.textContent = target === "stage" ? (state.gameMode === "adventure" ? "冒险模式" : "闯关模式") : target === "growth" ? "养成" : target === "mail" ? "邮箱" : target === "hero" ? "英雄" : target === "drone" ? "僚机" : target === "equipment" ? "装备" : target === "shop" ? "商店" : target === "achievement" ? "成就" : target === "rules" ? "规则" : "";
+      moduleTitle.textContent = target === "stage" ? (state.gameMode === "adventure" ? "冒险模式" : "闯关模式") : target === "growth" ? "养成" : target === "mail" ? "邮箱" : target === "hero" ? "英雄" : target === "drone" ? "僚机" : target === "equipment" ? "装备" : target === "shop" ? "商店" : target === "achievement" ? "成就" : target === "compendium" ? "图鉴" : target === "rules" ? "规则" : "";
     }
     if (moduleTitle && target === "mount") moduleTitle.textContent = "坐骑";
     if (stagePage) stagePage.hidden = target !== "stage";
@@ -18271,6 +18273,7 @@
     if (equipmentPage) equipmentPage.hidden = target !== "equipment";
     if (shopPage) shopPage.hidden = target !== "shop";
     if (achievementPage) achievementPage.hidden = target !== "achievement";
+    if (compendiumPage) compendiumPage.hidden = target !== "compendium";
     if (rulesPage) rulesPage.hidden = target !== "rules";
     if (growthPageButton) growthPageButton.classList.toggle("is-selected", target === "growth");
     if (mailPageButton) mailPageButton.classList.toggle("is-selected", target === "mail");
@@ -18280,6 +18283,7 @@
     if (equipmentPageButton) equipmentPageButton.classList.toggle("is-selected", target === "equipment");
     if (shopPageButton) shopPageButton.classList.toggle("is-selected", target === "shop");
     if (achievementPageButton) achievementPageButton.classList.toggle("is-selected", target === "achievement");
+    if (compendiumPageButton) compendiumPageButton.classList.toggle("is-selected", target === "compendium");
     if (rulesPageButton) rulesPageButton.classList.toggle("is-selected", target === "rules");
     if (target === "equipment") renderEquipmentPage();
     if (target === "mail") {
@@ -19126,7 +19130,7 @@
     dailyModeButton.addEventListener("click", () => {
       state.gameMode = "daily";
       const daily = dailyBossProfile();
-      panelCopy.textContent = `每日挑战：今日Boss为${daily.name}。Boss战力固定为玩家当前实时战力的 20 倍，击败可领取每日大额奖励和便便币 +5；60秒内尽量多打伤害，弱点期全力爆发。`;
+      panelCopy.textContent = `每日挑战：今日Boss为${daily.name}。Boss战力固定为玩家当前实时战力的 10 倍，击败可领取每日大额奖励和便便币 +5；60秒内尽量多打伤害，弱点期全力爆发。`;
       updateMetaUi();
     });
   }
@@ -19154,6 +19158,7 @@
   if (equipmentPageButton) equipmentPageButton.addEventListener("click", () => setMenuPage("equipment"));
   if (shopPageButton) shopPageButton.addEventListener("click", () => setMenuPage("shop"));
   if (achievementPageButton) achievementPageButton.addEventListener("click", () => setMenuPage("achievement"));
+  if (compendiumPageButton) compendiumPageButton.addEventListener("click", () => setMenuPage("compendium"));
   if (rulesPageButton) rulesPageButton.addEventListener("click", () => setMenuPage("rules"));
   if (moduleBackButton) moduleBackButton.addEventListener("click", () => setMenuPage("home"));
   shopCards.forEach((card) => {
