@@ -199,7 +199,9 @@ async function main() {
   const token = await readAuthToken();
   const saveNamespace = await ensureSaveKvBinding(accountId, projectName, token);
   const blake3 = loadBlake3();
-  const files = await walkFiles(publishDir);
+  const allFiles = await walkFiles(publishDir);
+  const workerFile = allFiles.find((file) => file.relPath === "_worker.js");
+  const files = allFiles.filter((file) => file.relPath !== "_worker.js");
   for (const file of files) {
     file.hash = blake3.hash(file.buffer.toString("base64") + file.extension).toString("hex").slice(0, 32);
   }
@@ -233,6 +235,13 @@ async function main() {
   const manifest = Object.fromEntries(files.map((file) => [`/${file.relPath}`, file.hash]));
   const form = new FormData();
   form.append("manifest", JSON.stringify(manifest));
+  if (workerFile) {
+    form.append(
+      "_worker.js",
+      new Blob([workerFile.buffer], { type: "application/javascript" }),
+      "_worker.js",
+    );
+  }
   form.append("branch", "main");
   form.append("commit_message", "Shit Superman update");
   form.append("commit_dirty", "true");
