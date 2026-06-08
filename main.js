@@ -6811,6 +6811,78 @@
     }[attackKey] || 1.1;
   }
 
+  function bossEstimatedPatternCount(attackKey, level, daily = false) {
+    const density = daily ? 0.86 : 1;
+    const count = {
+      poopVolley: Math.min(5, 2 + Math.floor(level / 2)),
+      plungerCharge: Math.min(4, 2 + Math.floor(level / 3)),
+      stinkLab: 3,
+      bubbleStorm: Math.min(5, 3 + Math.floor(level / 3)),
+      sewerBarrage: 4,
+      demonRain: Math.min(7, 4 + Math.floor(level / 2)),
+      toxicPump: 3,
+      mixerBlade: Math.min(5, 2 + Math.floor(level / 2)),
+      wasteCore: 5,
+      cycloneClog: 4,
+      slimeCourt: 4,
+      leviathanWave: 4,
+      aimedArc: level >= 9 ? 3 : 1,
+      orbBurst: 8,
+      splitFan: 5,
+    }[attackKey] || Math.min(6, 3 + Math.floor(level / 3));
+    return Math.max(1, Math.floor(count * BOSS_PROJECTILE_DENSITY_SCALE * density));
+  }
+
+  function bossRepresentativeHitDamage(profile, level, damageScale, bossData = {}) {
+    const attackKey = profile.attack || "";
+    const base = {
+      poopVolley: 20 + level * 4,
+      plungerCharge: 18 + level * 4,
+      stinkLab: 9 + level * 2,
+      bubbleStorm: 12 + level * 3,
+      sewerBarrage: 20 + level * 4,
+      demonRain: 20 + level * 4,
+      toxicPump: 20 + level * 4,
+      mixerBlade: 16 + level * 3,
+      wasteCore: 20 + level * 4,
+      cycloneClog: 17 + level * 3.4,
+      slimeCourt: 16 + level * 3.4,
+      leviathanWave: 20 + level * 4,
+    }[attackKey] || (18 + level * 3.6);
+    const variantHit = Math.max(
+      level >= 3 ? 20 + level * 4 : 0,
+      level >= 5 ? 15 + level * 3.2 : 0,
+      level >= 8 && !bossData.daily ? 20 + level * 4 : 0
+    );
+    const directHit = Math.max(base, variantHit) * profile.damage * damageScale;
+    if (!profile.percentDamage) return directHit;
+    const percentScale = clamp(damageScale || 1, 0.7, 1.05);
+    const ramp = bossData.enraged ? 1.28 : 1.05;
+    return Math.max(directHit, Math.max(100, state.maxHealth || 100) * profile.percentDamage * ramp * percentScale);
+  }
+
+  function bossPowerStageRamp(level, bossData = {}) {
+    if (bossData.daily) return 1;
+    const stageNo = Math.max(0, Number(bossData.stageNumber) || (isStageMode() ? activeStage().number : 0));
+    const levelRamp = clamp((level - 6) / 12, 0, 1);
+    const stageRamp = stageNo > 0 ? clamp((stageNo - 12) / 26, 0, 1) : 0;
+    const endlessRamp = state.gameMode === "endless" ? clamp((Math.max(1, state.bossLevel) - 2) / 6, 0, 1) : 0;
+    return Math.max(levelRamp, stageRamp, endlessRamp);
+  }
+
+  function bossHeroGuardedHealthForPower() {
+    const stats = runCombatStats({ powerModel: true });
+    const health = Math.max(100, state.maxHealth || (100 + (heroSheetStats().health || 0)));
+    const guard = clamp(Number(stats.guard) || 0, 0, 80);
+    const taken = 1 - Math.min(0.36, guard * 0.006);
+    return health / Math.max(0.54, taken);
+  }
+
+  function bossHeroPowerReference() {
+    const base = heroCombatPower();
+    return ["playing", "paused", "perkchoice"].includes(state.mode) ? Math.max(base, runHeroCombatPower()) : base;
+  }
+
   function bossAttackInterval(seconds) {
     return Math.max(0.01, seconds) / BOSS_ATTACK_RATE_SCALE;
   }
@@ -6828,14 +6900,28 @@
     const speedScale = bossData.speedScale || 1;
     const cadence = Math.max(0.52, (profile.cadence + 0.34 - level * 0.018) * cadenceScale);
     const attackRate = BOSS_ATTACK_RATE_SCALE / cadence;
-    const pattern = bossAttackPatternFactor(profile.attack) * (profile.percentDamage ? 1.18 : 1);
-    const baseHit = (18 + level * 4.2) * profile.damage * damageScale;
-    const percentHit = (profile.percentDamage || 0) * Math.max(100, state.maxHealth || 100) * 2.8;
-    const offense = (baseHit + percentHit) * attackRate * pattern * (1 + Math.max(0, speedScale - 1) * 0.85);
+    const patternCount = bossEstimatedPatternCount(profile.attack, level, bossData.daily);
+    const volume = 1 + Math.min(1.45, (patternCount - 1) * 0.18);
+    const pattern = bossAttackPatternFactor(profile.attack) * volume * (profile.percentDamage ? 1.34 : 1);
+    const representativeHit = bossRepresentativeHitDamage(profile, level, damageScale, bossData);
+    const packetDamage = representativeHit * (1 + Math.min(1.9, (patternCount - 1) * 0.32));
+    const guardedHealth = bossHeroGuardedHealthForPower();
+    const oneHitRatio = representativeHit / Math.max(1, guardedHealth);
+    const packetRatio = packetDamage / Math.max(1, guardedHealth);
+    const threatRamp = bossPowerStageRamp(level, bossData);
+    const lethalPressure = Math.max(
+      clamp((oneHitRatio - 0.28) / 0.32, 0, 1),
+      clamp((packetRatio - 0.72) / 0.72, 0, 1) * 0.82
+    );
+    const volumePressure = clamp((volume - 1) / 1.45, 0, 1);
+    const offense = (representativeHit * 0.72 + packetDamage * 0.28) * attackRate * pattern * (1 + Math.max(0, speedScale - 1) * 0.85);
     const bulk = Math.sqrt(maxHp) * (70 + level * 2.9) * (0.82 + profile.hp * 0.13);
     const scaling = Math.pow(level, 1.18) * 52 + maxHp * 1.8 + profile.hp * 150;
-    const phase = (bossData.enraged ? 1.08 : 1) * (bossData.daily ? 1.14 : 1);
-    return Math.round((offense * 30 + bulk + scaling) * phase);
+    const phase = (bossData.enraged ? 1.08 : 1) * (bossData.daily ? 1.14 : 1) * (1 + threatRamp * (lethalPressure * 0.34 + volumePressure * 0.08));
+    const rawPower = Math.round((offense * 30 + bulk + scaling) * phase);
+    const lethalFloorRatio = lethalPressure > 0 ? clamp(0.38 + lethalPressure * 0.54 + volumePressure * 0.08, 0, 1.05) : 0;
+    const lethalFloor = Math.round(bossHeroPowerReference() * threatRamp * lethalFloorRatio);
+    return Math.max(1, rawPower, lethalFloor);
   }
 
   function dailyBossTargetPower() {
@@ -6930,6 +7016,7 @@
         cadenceScale: growth.cadence * bossCadenceScaleFromPower(powerScale),
         speedScale: growth.speed * bossSpeedScaleFromPower(powerScale),
         daily: false,
+        stageNumber: stage.number,
       });
       return Math.round(estimate * (stage.adventure ? 0.94 : 0.88));
     }
@@ -9917,6 +10004,7 @@
     }
     const growth = bossGrowth(level);
     const endlessProgress = state.gameMode === "endless" ? endlessBossProgress(level) : null;
+    const bossStageNumber = isStageMode() ? activeStage().number : 0;
     const stagePower = state.gameMode === "daily" ? currentHeroLevel() * 12 : isStageMode() ? activeStage().number * (state.gameMode === "adventure" ? 7.6 : 6.2) : endlessProgress ? endlessProgress.stagePower : state.bossLevel * 4.8;
     const stagePowerScale = isStageMode() ? stageBossPowerScale(activeStage()) : 1;
     const baseHp = Math.round((26 + level * 15 + state.level * 3 + stagePower) * profile.hp * growth.hp * bossHpScaleFromPower(stagePowerScale));
@@ -9934,6 +10022,7 @@
       damageScale: growth.damage * bossDamageScaleFromPower(stagePowerScale),
       cadenceScale: growth.cadence * bossCadenceScaleFromPower(stagePowerScale),
       speedScale: growth.speed * bossSpeedScaleFromPower(stagePowerScale),
+      stageNumber: bossStageNumber,
       power: 0,
       daily: state.gameMode === "daily",
       phase: 0,
