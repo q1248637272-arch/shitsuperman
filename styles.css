@@ -3390,20 +3390,21 @@ button:focus-visible {
 }
 
 .utility-controls {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  left: max(12px, env(safe-area-inset-left));
-  right: max(12px, env(safe-area-inset-right));
-  display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
-  gap: 8px;
-  align-items: start;
+  --utility-top: max(12px, env(safe-area-inset-top));
+  --utility-side: max(12px, env(safe-area-inset-left));
+  --utility-size: 54px;
+  --utility-height: 38px;
+  --utility-gap: 8px;
+  display: contents;
   pointer-events: none;
 }
 
 .utility-controls button {
-  width: 54px;
-  height: 38px;
+  position: absolute;
+  top: var(--utility-top);
+  z-index: 12;
+  width: var(--utility-size);
+  height: var(--utility-height);
   padding: 0;
   border: 1px solid rgba(255, 248, 232, 0.28);
   background: rgba(247, 240, 222, 0.92);
@@ -3413,24 +3414,20 @@ button:focus-visible {
 }
 
 .utility-controls #pauseButton {
-  grid-column: 1;
-  justify-self: start;
+  left: max(12px, env(safe-area-inset-left));
 }
 
 .utility-controls #endRunButton {
-  grid-column: 2;
-  justify-self: start;
+  left: calc(max(12px, env(safe-area-inset-left)) + var(--utility-size) + var(--utility-gap));
   background: rgba(255, 209, 92, 0.95);
 }
 
 .utility-controls #fullscreenButton {
-  grid-column: 4;
-  justify-self: end;
+  right: calc(max(12px, env(safe-area-inset-right)) + var(--utility-size) + var(--utility-gap));
 }
 
 .utility-controls #muteButton {
-  grid-column: 5;
-  justify-self: end;
+  right: max(12px, env(safe-area-inset-right));
 }
 
 @media (max-width: 720px) {
@@ -3608,9 +3605,13 @@ button:focus-visible {
     right: max(10px, env(safe-area-inset-right));
   }
 
+  .utility-controls {
+    --utility-size: 44px;
+    --utility-height: 34px;
+    --utility-gap: 6px;
+  }
+
   .utility-controls button {
-    width: 44px;
-    height: 34px;
     font-size: 12px;
   }
 
@@ -4295,6 +4296,8 @@ button:focus-visible {
 
   body.menu-open .menu-panel.module-open .stage-summary-goals {
     gap: 3px;
+    max-height: 46px;
+    overflow: hidden;
   }
 
   body.menu-open .menu-panel.module-open .stage-route-intel {
@@ -4339,9 +4342,7 @@ button:focus-visible {
   }
 
   body.menu-open .menu-panel.module-open .stage-milestone-plan {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 3px;
-    padding: 4px;
+    display: none;
   }
 
   body.menu-open .menu-panel.module-open .stage-milestone-caption {
@@ -4358,6 +4359,10 @@ button:focus-visible {
     padding: 3px 5px;
     font-size: 9.5px;
     line-height: 1.24;
+  }
+
+  body.menu-open .menu-panel.module-open .stage-summary-goals .stage-chip:nth-child(n + 7) {
+    display: none;
   }
 
   body.menu-open .menu-panel.module-open .stage-chip.is-wide {
@@ -4421,7 +4426,8 @@ button:focus-visible {
 
   body.menu-open .menu-panel.module-open .shop-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
+    gap: 6px;
+    align-content: start;
   }
 
   body.menu-open .menu-panel.module-open .hero-grid {
@@ -4486,16 +4492,17 @@ button:focus-visible {
   }
 
   body.menu-open .menu-panel.module-open .shop-card {
-    padding: 6px;
+    padding: 5px;
   }
 
   body.menu-open .menu-panel.module-open .shop-icon {
-    width: 42px;
-    margin-bottom: 4px;
+    width: 34px;
+    margin-bottom: 3px;
   }
 
   body.menu-open .menu-panel.module-open .shop-name {
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.12;
   }
 
   body.menu-open .menu-panel.module-open .shop-price,
@@ -4503,9 +4510,34 @@ button:focus-visible {
     font-size: 10px;
   }
 
+  body.menu-open .menu-panel.module-open .shop-price {
+    margin: 2px 0 5px;
+  }
+
   body.menu-open .menu-panel.module-open .shop-card button {
-    height: 27px;
+    height: 24px;
     font-size: 11px;
+  }
+
+  body.menu-open .menu-panel.module-open .redeem-panel {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  body.menu-open .menu-panel.module-open .redeem-panel input,
+  body.menu-open .menu-panel.module-open .redeem-panel button {
+    height: 30px;
+    font-size: 11px;
+  }
+
+  body.menu-open .menu-panel.module-open .redeem-panel button {
+    min-width: 58px;
+    padding: 0 8px;
+  }
+
+  body.menu-open .menu-panel.module-open .redeem-status {
+    font-size: 9.5px;
+    line-height: 1.18;
   }
 }
 
