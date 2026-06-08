@@ -892,6 +892,53 @@
     return `入场 8 秒跟随情报航线，提前熟悉${mechanicText}节奏。`;
   }
 
+  function classicRouteMechanicText(stage = activeStage()) {
+    return stage && stage.map === "deep" ? "深阀净化" : "绿波跟线";
+  }
+
+  function classicRouteRiskText(profile = classicStageProfile(), stage = activeStage()) {
+    if (stage && stage.bossStage) return "Boss 前哨";
+    return {
+      clean: "低压清路",
+      supply: "资源充足",
+      combo: "快节奏连击",
+      threat: "高压清障",
+      bossPrep: "Boss 前哨",
+    }[profile.key] || "均衡航线";
+  }
+
+  function classicRouteTempoText(profile = classicStageProfile()) {
+    return {
+      clean: "稳",
+      supply: "稳补",
+      combo: "快",
+      threat: "压制",
+      bossPrep: "预热",
+    }[profile.key] || "标准";
+  }
+
+  function classicRouteStabilityText(stage = activeStage()) {
+    return `${classicDistrictTarget(stage)} 稳定 · 35/70/100% ${classicRouteMechanicText(stage)}支援`;
+  }
+
+  function classicRouteStabilityLabel(progress, target) {
+    const percent = target > 0 ? progress / target : 0;
+    if (percent >= 1) return "稳定 III";
+    if (percent >= 0.7) return "稳定 II";
+    if (percent >= 0.35) return "稳定 I";
+    return "稳定 0";
+  }
+
+  function classicRouteChainPickupType(profile = classicStageProfile()) {
+    return {
+      clean: "focusOrb",
+      supply: "supplyCrate",
+      combo: "comboSigil",
+      threat: "counterSeal",
+      bossPrep: "breakCore",
+    }[profile.key] || "energy";
+  }
+
   function classicStageBonus(stage, firstClear) {
     if (!stage || state.gameMode !== "stage") return { coins: 0, materials: 0 };
     const profile = classicStageProfile(stage);
@@ -1039,6 +1086,7 @@
     const profile = classicStageProfile(stage);
     const target = state.classicDistrictTarget || classicDistrictTarget(stage);
     const progress = clamp(state.classicDistrictProgress || 0, 0, target);
+    const stability = classicRouteStabilityLabel(progress, target);
     const focus = state.classicRouteFocusTimer > 0 ? ` · ${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s` : "";
     const forecastInfo = classicRouteForecastInfo();
     const forecast = classicRouteForecastText(forecastInfo);
@@ -1047,14 +1095,14 @@
     const deepValve = deepPurgeValveActive() && !forecast ? ` · 深阀 ${Math.floor(clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) * 100)}%` : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}航线稳定${boost}${focus}${briefing}${greenWave}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
+      return `${profile.short}${stability}${boost}${focus}${briefing}${greenWave}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}航线${focus}${briefing}${greenWave}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
+      return `${profile.short}${stability}${focus}${briefing}${greenWave}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}航线${focus}${briefing}${greenWave}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}${stability}${focus}${briefing}${greenWave}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
   }
 
   function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
@@ -4366,11 +4414,12 @@
     const visible = (state.mode === "playing" || state.mode === "paused") && (missions.length > 0 || classicText);
     missionHud.hidden = !visible;
     if (!visible) return;
-    missionHud.classList.remove("route-clean", "route-supply", "route-combo", "route-threat", "route-bossPrep", "route-read", "route-pressure");
+    missionHud.classList.remove("route-clean", "route-supply", "route-combo", "route-threat", "route-bossPrep", "route-read", "route-pressure", "route-chain");
     if (classicText && state.gameMode === "stage") {
       missionHud.classList.add(`route-${classicStageProfile(activeStage()).key}`);
       const forecast = classicRouteForecastInfo();
       if (forecast) missionHud.classList.add(forecast.severe ? "route-pressure" : "route-read");
+      if ((state.classicRouteClearStreak || 0) >= 5) missionHud.classList.add("route-chain");
     }
     const missionTextParts = missions.length > 0
       ? [`${runModifier().name}：${missions.map((mission) => `${mission.done ? "✓" : ""}${mission.label} ${missionValue(mission)}/${mission.target}`).join(" · ")}`]
@@ -9937,6 +9986,24 @@
     state.classicRouteClearPulse = Math.max(state.classicRouteClearPulse || 0, severe ? 0.52 : 0.34);
     state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, severe ? 0.24 : 0.16);
     state.classicRouteClearStreak = (state.classicRouteClearStreak || 0) + 1;
+    if (state.classicRouteClearStreak > 0 && state.classicRouteClearStreak % 5 === 0) {
+      const profile = classicStageProfile(activeStage());
+      const color = profile.districtColor || "#5bded4";
+      const chain = state.classicRouteClearStreak;
+      const majorChain = chain % 10 === 0;
+      addClassicDistrictProgress(majorChain ? 4.2 : 2.4, majorChain ? "major" : "clear");
+      state.energy = clamp(state.energy + (majorChain ? 8 : 5) + state.level * 0.12, 0, state.maxEnergy);
+      state.comboTimer = Math.max(state.comboTimer, 2.4);
+      state.classicRouteFocusPulse = Math.max(state.classicRouteFocusPulse || 0, majorChain ? 0.58 : 0.38);
+      addRoundedScore((100 + chain * 8) * state.scoreBonus * styleMultiplier());
+      gainStyle(majorChain ? 10 : 7, "旧城清障连携", color);
+      if (majorChain) spawnClassicDistrictPickup(classicRouteChainPickupType(profile), 0, 1, 1.08);
+      state.eventName = `${profile.short}清障连携 x${chain}`;
+      state.eventLabelTimer = Math.max(state.eventLabelTimer, majorChain ? 1.05 : 0.82);
+      pop(hero.x + 34 * s, hero.y - 12 * s, color, majorChain ? 13 : 9);
+      beep(820 + Math.min(260, chain * 8), 0.045, "triangle", 0.03);
+      return;
+    }
     if (state.classicRouteClearStreak > 0 && state.classicRouteClearStreak % 4 === 0) {
       const profile = classicStageProfile(activeStage());
       const color = profile.districtColor || "#5bded4";
@@ -15653,6 +15720,7 @@
     const deepProgress = clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1);
     const briefActive = classicRouteBriefingActive();
     const briefProgress = clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1);
+    const stability = classicRouteStabilityLabel(progress, target);
     const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
     const x = compact ? 12 : 18;
@@ -15678,7 +15746,7 @@
     ctx.font = `800 ${compact ? 10 : 14}px Microsoft YaHei, Arial`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText(ready ? `${profile.short}城区稳定` : `${profile.short}稳定 ${Math.floor(percent * 100)}%`, barX, y + (compact ? 5 : 8), textMaxW);
+    ctx.fillText(ready ? `${profile.short}稳定 III` : `${profile.short}${stability} ${Math.floor(percent * 100)}%`, barX, y + (compact ? 5 : 8), textMaxW);
     ctx.fillStyle = "rgba(255, 248, 232, 0.78)";
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
@@ -17966,7 +18034,29 @@
         const reward = document.createElement("span");
         reward.className = "stage-route-reward";
         reward.textContent = classicRouteOpeningRewardText(classicProfile);
-        copy.append(heading, desc, reward);
+        const meta = document.createElement("div");
+        meta.className = "stage-route-meta";
+        [
+          ["风险", classicRouteRiskText(classicProfile, stage)],
+          ["节奏", classicRouteTempoText(classicProfile)],
+          ["收益", classicProfile.rewardLabel],
+        ].forEach(([label, value]) => {
+          const tag = document.createElement("span");
+          tag.textContent = `${label} ${value}`;
+          meta.appendChild(tag);
+        });
+        const flow = document.createElement("div");
+        flow.className = "stage-route-flow";
+        [
+          ["入航", classicRouteMechanicText(stage)],
+          ["清障", "5 组连携"],
+          ["稳定", "三段支援"],
+        ].forEach(([label, value]) => {
+          const step = document.createElement("span");
+          step.textContent = `${label} · ${value}`;
+          flow.appendChild(step);
+        });
+        copy.append(heading, desc, meta, reward, flow);
         panel.append(visual, copy);
         return panel;
       };
@@ -17986,9 +18076,10 @@
           routeIntel = buildClassicRouteIntel();
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("备战", classicProfile.tip, ["wide", "alert"]);
-          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
+          addChip("稳定", classicRouteStabilityText(stage), "reward");
           const routeMission = classicRouteMission(stage);
           if (routeMission) addChip("委托", `${routeMission.label} ${routeMission.target} · 完成推进稳定`, "reward");
+          addChip("连携", "连续清过 5 组障碍触发补能和稳定推进", "reward");
           milestonePlan = buildMilestonePlan();
         }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
@@ -17997,9 +18088,10 @@
           routeIntel = buildClassicRouteIntel();
           addChip("航线", `${classicProfile.short} · ${classicProfile.desc}`, ["wide"]);
           addChip("建议", classicProfile.tip, ["wide"]);
-          addChip("稳定", `${classicDistrictTarget(stage)} 进度 · 35/70/100% 分段支援`, "reward");
+          addChip("稳定", classicRouteStabilityText(stage), "reward");
           const routeMission = classicRouteMission(stage);
           if (routeMission) addChip("委托", `${routeMission.label} ${routeMission.target} · 完成推进稳定`, "reward");
+          addChip("连携", "连续清过 5 组障碍触发补能和稳定推进", "reward");
           addChip("倾向", classicStageRewardText(classicProfile), "reward");
           milestonePlan = buildMilestonePlan();
         }

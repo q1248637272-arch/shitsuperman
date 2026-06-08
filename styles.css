@@ -449,6 +449,16 @@ button:focus-visible {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2), inset 0 -1px 0 rgba(255, 141, 84, 0.2);
 }
 
+.mission-hud.route-chain {
+  border-color: rgba(223, 255, 122, 0.52);
+  background:
+    linear-gradient(90deg, rgba(223, 255, 122, 0.16), rgba(91, 222, 212, 0.11), rgba(17, 27, 34, 0.72));
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.2),
+    0 0 18px rgba(223, 255, 122, 0.16),
+    inset 0 -1px 0 rgba(223, 255, 122, 0.2);
+}
+
 .menu-panel {
   position: absolute;
   inset: 0;
@@ -2417,14 +2427,15 @@ button:focus-visible {
   --route-color: #5bded4;
   --route-rgb: 91, 222, 212;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 86px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 6px;
+  padding: 7px;
   border: 1px solid rgba(var(--route-rgb), 0.26);
   border-radius: 8px;
   background:
+    radial-gradient(circle at 12% 18%, rgba(var(--route-rgb), 0.15), transparent 34%),
     linear-gradient(90deg, rgba(var(--route-rgb), 0.14), rgba(17, 27, 34, 0.2)),
     rgba(17, 27, 34, 0.3);
 }
@@ -2452,7 +2463,7 @@ button:focus-visible {
 .stage-route-map {
   position: relative;
   display: block;
-  width: 72px;
+  width: 86px;
   aspect-ratio: 1;
   overflow: hidden;
   border: 1px solid rgba(255, 248, 232, 0.2);
@@ -2460,14 +2471,14 @@ button:focus-visible {
   background:
     radial-gradient(circle at 50% 50%, rgba(var(--route-rgb), 0.2), transparent 44%),
     linear-gradient(180deg, rgba(255, 248, 232, 0.1), rgba(0, 0, 0, 0.16)),
-    url("assets/stage-route-intel.png") center / 220% 220%;
+    url("assets/classic-route-briefing.png") center / cover;
   box-shadow:
     inset 0 0 0 1px rgba(255, 248, 232, 0.08),
     0 8px 20px rgba(0, 0, 0, 0.22);
 }
 
 .stage-route-intel.map-deep .stage-route-map {
-  background-position: 50% 76%;
+  background-position: 66% 58%;
 }
 
 .stage-route-map::before {
@@ -2500,7 +2511,7 @@ button:focus-visible {
 
 .stage-route-copy {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
   color: rgba(255, 248, 232, 0.84);
   font-size: 11px;
@@ -2524,6 +2535,34 @@ button:focus-visible {
 .stage-route-reward {
   color: var(--route-color);
   font-weight: 900;
+}
+
+.stage-route-meta,
+.stage-route-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stage-route-meta span,
+.stage-route-flow span {
+  min-width: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(var(--route-rgb), 0.2);
+  border-radius: 999px;
+  background: rgba(13, 25, 34, 0.48);
+  color: rgba(255, 248, 232, 0.82);
+  font-size: 9.5px;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.stage-route-flow span {
+  border-color: rgba(255, 248, 232, 0.14);
+  background: rgba(var(--route-rgb), 0.11);
+  color: rgba(255, 248, 232, 0.9);
 }
 
 .stage-milestone-plan {
@@ -4288,6 +4327,11 @@ button:focus-visible {
 
   body.menu-open .menu-panel.module-open .stage-route-copy strong {
     font-size: 10px;
+  }
+
+  body.menu-open .menu-panel.module-open .stage-route-meta,
+  body.menu-open .menu-panel.module-open .stage-route-flow {
+    display: none;
   }
 
   body.menu-open .menu-panel.module-open .stage-route-copy span:not(.stage-route-reward) {
