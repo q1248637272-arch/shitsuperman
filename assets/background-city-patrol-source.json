@@ -1,0 +1,6 @@
+{
+  "model": "gpt-image-2",
+  "size": "1536x1024",
+  "quality": "high",
+  "prompt": "Create a high quality 2D game background for a side-scrolling HTML5 canvas arcade game called Shit Superman. Scene: rebuilt old toilet city skyline at dusk, warm comic adventure tone, clean teal route beacons, paper-roll air lanes, distant sewer towers, soft golden traffic lights, playful but heroic. Composition: 16:10 panoramic background, strong horizontal motion, foreground flight corridor must stay readable and not cluttered, no characters, no UI, no text, no logos, no letters. Style: polished hand-painted cartoon concept art, crisp silhouettes, layered parallax depth, saturated but balanced palette, high image quality, suitable as seamless-ish side scrolling backdrop."
+}
