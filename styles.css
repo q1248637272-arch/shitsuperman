@@ -2334,12 +2334,9 @@ button:focus-visible {
 }
 
 .shop-material {
-  background-image:
-    radial-gradient(circle at 60% 42%, rgba(255, 248, 232, 0.86) 0 12%, transparent 13%),
-    radial-gradient(circle at 42% 58%, rgba(245, 200, 75, 0.95) 0 18%, transparent 19%),
-    linear-gradient(145deg, #9d5a2c, #f5c84b);
-  border: 2px solid rgba(255, 248, 232, 0.55);
-  border-radius: 14px;
+  background-image: url("assets/shop-material-supply.png");
+  background-position: center;
+  background-size: 128%;
 }
 
 .shop-battle {

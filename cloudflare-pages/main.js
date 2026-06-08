@@ -604,6 +604,20 @@
   const BOSS_ATTACK_SPEED_SCALE = 0.72;
   const BOSS_ATTACK_RATE_SCALE = 0.5625;
   const BOSS_PROJECTILE_DENSITY_SCALE = 0.9;
+  const CLASSIC_STAGE_BOSS_POWER_FLOORS = {
+    5: 28000,
+    10: 66666,
+    15: 126000,
+    20: 208888,
+    25: 388888,
+    30: 654321,
+    35: 1120000,
+    40: 1888888,
+    45: 3340000,
+    50: 5899999,
+    55: 10240000,
+    60: 16999999,
+  };
   const HAZARD_SPAWN_INTERVAL_SCALE = 1.12;
   const REDEEM_CODES = [
     {
@@ -682,6 +696,7 @@
     revive: 1,
   };
   const RUN_ITEM_SLOT_LIMIT = 3;
+  const RUN_ITEM_USE_LIMIT = 3;
   const RUN_CARRIED_ITEM_TYPES = ["revive", "shield", "energy", "magnet", "storm", "wing", "reroll"];
   const RUN_ITEM_NAMES = {
     shield: "护盾",
@@ -693,17 +708,17 @@
     reroll: "天赋重骰券",
   };
   const shopInfo = {
-    shield: { name: "护盾", price: shopPriceText("shield"), effect: "放入背包。进局若被携带，局内最多使用一次，获得短时间护盾来抵消受击。" },
-    magnet: { name: "磁铁", price: shopPriceText("magnet"), effect: "放入背包。进局若被携带，局内最多使用一次，吸附附近纸卷、能量和补给。" },
-    energy: { name: "能量瓶", price: shopPriceText("energy"), effect: "放入背包。进局若被携带，局内最多使用一次，立即补满能量。" },
+    shield: { name: "护盾", price: shopPriceText("shield"), effect: "放入背包。进局若被携带，局内最多使用三次，获得短时间护盾来抵消受击。" },
+    magnet: { name: "磁铁", price: shopPriceText("magnet"), effect: "放入背包。进局若被携带，局内最多使用三次，吸附附近纸卷、能量和补给。" },
+    energy: { name: "能量瓶", price: shopPriceText("energy"), effect: "放入背包。进局若被携带，局内最多使用三次，立即补满能量。" },
     luckyBox: { name: "幸运宝箱", price: shopPriceText("luckyBox"), effect: "开启后随机获得金币、材料和道具，约 30% 概率开出稀有组合，可能附带更多战斗道具。" },
     material: { name: "材料补给", price: shopPriceText("material"), effect: "立即获得大量升级材料，并附带能量瓶，适合准备进化或快速提升属性。" },
     battle: { name: "战斗礼包", price: shopPriceText("battle"), effect: "一次获得护盾、磁铁、能量瓶和臭弹炸弹，适合挑战 Boss 关和每日挑战。" },
     gear: { name: "装备补给箱", price: shopPriceText("gear"), effect: "开启后至少获得紫色及以上装备；彩色装备概率随英雄和关卡进程提升。" },
-    reroll: { name: "天赋重骰券", price: shopPriceText("reroll"), effect: "放入背包。进局若被携带，局内最多使用一次，用于刷新天赋选项。" },
+    reroll: { name: "天赋重骰券", price: shopPriceText("reroll"), effect: "放入背包。进局若被携带，局内最多使用三次，用于刷新天赋选项。" },
     revive: { name: "复活心核", price: shopPriceText("revive"), effect: "放入背包。进局若被携带，濒死时自动触发一次复活，会占用一个携带位。" },
-    storm: { name: "臭弹炸弹", price: shopPriceText("storm"), effect: "放入背包。进局若被携带，局内最多使用一次，清除大量障碍并伤害 Boss。" },
-    wing: { name: "顺风羽翼", price: shopPriceText("wing"), effect: "放入背包。进局若被携带，开局自动触发一次顺风效果，会占用一个携带位。" },
+    storm: { name: "臭弹炸弹", price: shopPriceText("storm"), effect: "放入背包。进局若被携带，局内最多使用三次，清除大量障碍并伤害 Boss。" },
+    wing: { name: "顺风羽翼", price: shopPriceText("wing"), effect: "放入背包。进局若被携带，开局最多触发三段顺风效果，会占用一个携带位。" },
   };
 
   function shopPriceText(key) {
@@ -756,7 +771,7 @@
   }
 
   function shopCarryText(key) {
-    if (RUN_CARRIED_ITEM_TYPES.includes(key)) return "入场携带";
+    if (RUN_CARRIED_ITEM_TYPES.includes(key)) return key === "revive" ? "入场携带 · 1次" : "入场携带 · 3次";
     if (key === "gear" || key === "luckyBox") return "开箱即用";
     return "立即生效";
   }
@@ -794,15 +809,52 @@
     { key: "rainbow", name: "彩", color: "#ffffff", mult: 4, power: 5 },
   ];
 
+  function deterministicStageUnit(seed) {
+    const raw = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+    return raw - Math.floor(raw);
+  }
+
+  function classicStageTargetMultiplier(number) {
+    const max = number % 10 === 0 ? 1.34 : number % 5 === 0 ? 1.29 : 1.25;
+    const value = 1.2 + deterministicStageUnit(number + 404) * (max - 1.2);
+    return clamp(value, 1.2, 2);
+  }
+
+  function roundUpStageScoreTarget(value) {
+    const unit = value >= 100000000 ? 1000000 : value >= 10000000 ? 100000 : value >= 1000000 ? 10000 : value >= 100000 ? 1000 : 100;
+    return Math.ceil(value / unit) * unit;
+  }
+
+  function classicStageBaseTarget(number, bossStage, lateStage) {
+    return ((bossStage ? 1750 + number * 255 : 1350 + number * 225) + (lateStage ? 820 + number * 76 : 0)) * STAGE_TARGET_SCORE_MULTIPLIER;
+  }
+
+  function classicStageTarget(number, previousTarget) {
+    const bossStage = number % 5 === 0;
+    const lateStage = number > 30;
+    const base = classicStageBaseTarget(number, bossStage, lateStage);
+    if (number <= 1 || !previousTarget) return roundUpStageScoreTarget(base);
+    return roundUpStageScoreTarget(Math.max(base, previousTarget * classicStageTargetMultiplier(number)));
+  }
+
+  function classicStageBossPowerFloor(stageOrNumber) {
+    const number = typeof stageOrNumber === "number" ? stageOrNumber : Math.max(0, Number(stageOrNumber && stageOrNumber.number) || 0);
+    if (!number || (stageOrNumber && stageOrNumber.adventure)) return 0;
+    return CLASSIC_STAGE_BOSS_POWER_FLOORS[number] || 0;
+  }
+
+  let classicStagePreviousTarget = 0;
   const stages = Array.from({ length: 60 }, (_, i) => {
     const number = i + 1;
     const bossStage = number % 5 === 0;
     const lateStage = number > 30;
+    const target = classicStageTarget(number, classicStagePreviousTarget);
+    classicStagePreviousTarget = target;
     return {
       number,
       bossStage,
       map: lateStage ? "deep" : "city",
-      target: Math.round(((bossStage ? 1750 + number * 255 : 1350 + number * 225) + (lateStage ? 820 + number * 76 : 0)) * STAGE_TARGET_SCORE_MULTIPLIER),
+      target,
       hitLimit: bossStage ? 0 : number >= 46 ? 5 : number >= 31 ? 6 : number >= 16 ? 7 : 0,
       bossLevel: bossStage ? number / 5 + Math.floor(number / 10) : 0,
       coinReward: 110 + number * 22 + (bossStage ? 260 : 0) + (lateStage ? 90 : 0),
@@ -2165,7 +2217,7 @@
     strongAutoTimer: 0,
     strongTapHintTimer: 0,
     controlMode: storageGet("shitSupermanMoveMode") || "tap",
-    controlLayout: "leftAttack",
+    controlLayout: "full",
     qualityMode: storageGet("shitSupermanQualityMode") || "auto",
     effectiveQuality: "normal",
     frameAvg: 16.7,
@@ -7086,27 +7138,46 @@
     return Boolean(state.runItemLoadout && state.runItemLoadout[type]);
   }
 
+  function runItemUseLimit(type) {
+    return type === "revive" ? 1 : RUN_ITEM_USE_LIMIT;
+  }
+
+  function runItemUsedCount(type) {
+    const used = state.runItemUsed && state.runItemUsed[type];
+    if (used === true) return 1;
+    return Math.max(0, Math.floor(Number(used) || 0));
+  }
+
+  function runItemRemaining(type) {
+    if (!runItemCarried(type)) return 0;
+    const stock = Math.max(0, Math.floor(Number(meta.inventory[type]) || 0));
+    return Math.max(0, Math.min(stock, runItemUseLimit(type) - runItemUsedCount(type)));
+  }
+
   function runItemAvailable(type) {
-    return runItemCarried(type) && !(state.runItemUsed && state.runItemUsed[type]) && (meta.inventory[type] || 0) > 0;
+    return runItemRemaining(type) > 0;
   }
 
   function consumeRunItem(type) {
     if (!runItemAvailable(type)) return false;
-    state.runItemUsed[type] = true;
+    state.runItemUsed[type] = runItemUsedCount(type) + 1;
     meta.inventory[type] = Math.max(0, (meta.inventory[type] || 0) - 1);
     return true;
   }
 
   function runItemButtonCount(type) {
-    if (state.mode === "playing" || state.mode === "perkchoice") return runItemAvailable(type) ? 1 : 0;
+    if (state.mode === "playing" || state.mode === "perkchoice") return runItemRemaining(type);
     return meta.inventory[type] || 0;
   }
 
   function runItemStatusText(type) {
     if (state.mode !== "playing" && state.mode !== "perkchoice") return `背包 ${meta.inventory[type] || 0}`;
     if (!runItemCarried(type)) return "本局未携带";
-    if (state.runItemUsed && state.runItemUsed[type]) return "本局已使用";
-    return runItemAvailable(type) ? "本局可用 1 次" : "背包不足";
+    const limit = runItemUseLimit(type);
+    const used = runItemUsedCount(type);
+    const remaining = runItemRemaining(type);
+    if (remaining <= 0) return used >= limit ? "本局次数已用满" : "背包不足";
+    return `本局可用 ${remaining}/${limit} 次`;
   }
 
   function runItemLoadoutText() {
@@ -7115,14 +7186,18 @@
   }
 
   function applyOpeningConsumables() {
-    if (consumeRunItem("wing")) {
-      state.draftTimer = Math.max(state.draftTimer, 9.5);
-      state.energy = clamp(state.energy + state.maxEnergy * 0.25, 0, state.maxEnergy);
-      state.eventName = "顺风羽翼";
+    let wingUses = 0;
+    while (wingUses < runItemUseLimit("wing") && consumeRunItem("wing")) {
+      wingUses += 1;
+    }
+    if (wingUses > 0) {
+      state.draftTimer = Math.max(state.draftTimer, 9.5 + (wingUses - 1) * 4.4);
+      state.energy = clamp(state.energy + state.maxEnergy * (0.22 + wingUses * 0.12), 0, state.maxEnergy);
+      state.eventName = wingUses > 1 ? `顺风羽翼 x${wingUses}` : "顺风羽翼";
       state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.6);
       saveMeta();
-      showRewardToast([{ type: "wing", label: "顺风羽翼", amount: 1 }], { duration: 1700 });
-      pop(hero.x, hero.y, "#9de8ff", 18);
+      showRewardToast([{ type: "wing", label: "顺风羽翼", amount: wingUses }], { duration: 1700 });
+      pop(hero.x, hero.y, "#9de8ff", 18 + wingUses * 4);
     }
   }
 
@@ -7738,6 +7813,25 @@
     return Math.max(1, rawPower, lethalFloor);
   }
 
+  function enforceClassicStageBossPowerFloor(bossData) {
+    if (!bossData || bossData.daily) return 0;
+    const floor = classicStageBossPowerFloor(bossData.stageNumber);
+    if (!floor) return 0;
+    let current = Math.max(1, bossCombatPower(bossData));
+    if (current < floor) {
+      const ratio = floor / current;
+      const hpScale = clamp(Math.pow(ratio, 0.72), 1, 18);
+      const damageScale = clamp(Math.pow(ratio, 0.16), 1, 1.9);
+      bossData.maxHp = Math.max(1, Math.round((bossData.maxHp || bossData.hp || 1) * hpScale));
+      bossData.hp = bossData.maxHp;
+      bossData.damageScale = (bossData.damageScale || 1) * damageScale;
+      bossData.speedScale = (bossData.speedScale || 1) * clamp(Math.pow(ratio, 0.035), 1, 1.08);
+      current = Math.max(1, bossCombatPower(bossData));
+    }
+    bossData.power = Math.max(floor, current);
+    return bossData.power;
+  }
+
   function dailyBossTargetPower() {
     return Math.max(1, Math.round(runHeroCombatPower() * DAILY_BOSS_POWER_MULTIPLIER));
   }
@@ -7832,7 +7926,7 @@
         daily: false,
         stageNumber: stage.number,
       });
-      return Math.round(estimate * (stage.adventure ? 0.94 : 0.88));
+      return Math.max(classicStageBossPowerFloor(stage), Math.round(estimate * (stage.adventure ? 0.94 : 0.88)));
     }
     const hitPressure = stage.hitLimit > 0 ? (9 - stage.hitLimit) * 360 : 0;
     if (stage.adventure) {
@@ -11041,7 +11135,7 @@
     if (boss.daily) {
       tuneDailyBossToTarget(boss);
     } else {
-      boss.power = bossCombatPower(boss);
+      enforceClassicStageBossPowerFloor(boss) || (boss.power = bossCombatPower(boss));
     }
     const rating = currentBossBattleRating();
     if (rating) {
@@ -11398,7 +11492,7 @@
       boss.damageScale = (boss.damageScale || 1) * 1.08;
       boss.cadenceScale = Math.max(0.78, (boss.cadenceScale || 1) * 0.93);
       boss.speedScale = Math.min(1.16, (boss.speedScale || 1) * 1.05);
-      boss.power = boss.daily ? syncDailyBossPower() : bossCombatPower(boss);
+      boss.power = boss.daily ? syncDailyBossPower() : Math.max(classicStageBossPowerFloor(boss.stageNumber), bossCombatPower(boss));
       state.eventName = "BOSS 狂暴";
       state.eventLabelTimer = 1.45;
       state.shake = Math.max(state.shake, 7);
@@ -18506,8 +18600,7 @@
   }
 
   function isAttackZone(x, width) {
-    const leftSide = x < width * 0.5;
-    return state.controlLayout === "leftAttack" ? leftSide : !leftSide;
+    return false;
   }
 
   function handleCanvasMove(event) {
@@ -20666,19 +20759,14 @@
   }
 
   function setControlLayout(layout) {
-    state.controlLayout = layout === "rightAttack" ? "rightAttack" : "leftAttack";
+    state.controlLayout = "full";
     storageSet("shitSupermanControlLayout", state.controlLayout);
     releaseCanvasControl();
     updateControlLayoutUi();
   }
 
   function updateControlLayoutUi() {
-    const swapped = state.controlLayout === "rightAttack";
-    document.body.classList.toggle("controls-swapped", swapped);
-    if (controlSideButton) {
-      controlSideButton.textContent = swapped ? "右攻左移" : "左攻右移";
-      controlSideButton.setAttribute("aria-label", swapped ? "当前右半屏攻击，点按切换为左攻右移" : "当前左半屏攻击，点按切换为右攻左移");
-    }
+    document.body.classList.remove("controls-swapped");
   }
 
   function bindPress(target, onDown, onUp = () => {}) {
@@ -20923,11 +21011,6 @@
   pauseButton.addEventListener("click", togglePause);
   if (endRunButton) endRunButton.addEventListener("click", endCurrentRun);
   if (fullscreenButton) fullscreenButton.addEventListener("click", toggleFullscreen);
-  if (controlSideButton) {
-    controlSideButton.addEventListener("click", () => {
-      setControlLayout(state.controlLayout === "leftAttack" ? "rightAttack" : "leftAttack");
-    });
-  }
   tapMoveButton.addEventListener("click", () => setControlMode("tap"));
   dragMoveButton.addEventListener("click", () => setControlMode("drag"));
   if (qualityAutoButton) qualityAutoButton.addEventListener("click", () => setQualityMode("auto"));
