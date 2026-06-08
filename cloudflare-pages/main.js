@@ -237,6 +237,8 @@
     "ikunChickenPeck",
     "mountAtlas",
   ];
+  const BGM_TRACK_SRC = "assets/bgm-poop-hero-rush.wav";
+  const BGM_TRACK_VERSION = "20260608-hero-rush";
   const warmedAssetKeys = new Set();
   let warmupScheduled = false;
 
@@ -17925,6 +17927,13 @@
       step: 0,
       nextStepTime: 0,
       mode: "",
+      trackBuffer: null,
+      trackPromise: null,
+      trackFailed: false,
+      trackSource: null,
+      trackStartedAt: 0,
+      trackOffset: 0,
+      trackStopTimer: 0,
     };
     return state.bgm;
   }
@@ -17941,8 +17950,87 @@
     return mode === "boss" ? 172 : mode === "fever" ? 176 : mode === "daily" ? 168 : mode === "event" ? 164 : 156;
   }
 
-  function bgmTargetVolume(mode = bgmMode()) {
+  function bgmTrackUrl() {
+    return `${BGM_TRACK_SRC}?v=${BGM_TRACK_VERSION}`;
+  }
+
+  function decodeAudioDataCompat(audio, arrayBuffer) {
+    return new Promise((resolve, reject) => {
+      const maybePromise = audio.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+      if (maybePromise && typeof maybePromise.then === "function") maybePromise.then(resolve, reject);
+    });
+  }
+
+  function loadBgmTrack(audio, bgm) {
+    if (!audio || !bgm || bgm.trackBuffer || bgm.trackFailed) return null;
+    if (!bgm.trackPromise) {
+      bgm.trackPromise = fetch(bgmTrackUrl())
+        .then((response) => {
+          if (!response.ok) throw new Error("bgm fetch failed");
+          return response.arrayBuffer();
+        })
+        .then((buffer) => decodeAudioDataCompat(audio, buffer))
+        .then((decoded) => {
+          bgm.trackBuffer = decoded;
+          bgm.trackPromise = null;
+          if (bgm.active && !state.muted) startBgmTrack(audio, bgm);
+          return decoded;
+        })
+        .catch(() => {
+          bgm.trackPromise = null;
+          bgm.trackFailed = true;
+          bgm.nextStepTime = audio.currentTime + 0.04;
+          bgm.master.gain.cancelScheduledValues(audio.currentTime);
+          bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), audio.currentTime);
+          bgm.master.gain.linearRampToValueAtTime(bgmTargetVolume(bgmMode()), audio.currentTime + 0.32);
+          return null;
+        });
+    }
+    return bgm.trackPromise;
+  }
+
+  function stopBgmTrack(bgm, fade = true) {
+    if (!bgm || !bgm.trackSource || !state.audio) return;
+    const audio = state.audio;
+    const source = bgm.trackSource;
+    if (bgm.trackBuffer && bgm.trackBuffer.duration > 0) {
+      bgm.trackOffset = (audio.currentTime - (bgm.trackStartedAt || audio.currentTime)) % bgm.trackBuffer.duration;
+      if (bgm.trackOffset < 0) bgm.trackOffset += bgm.trackBuffer.duration;
+    }
+    bgm.trackSource = null;
+    if (bgm.trackStopTimer) clearTimeout(bgm.trackStopTimer);
+    bgm.trackStopTimer = setTimeout(() => {
+      try { source.stop(); } catch {}
+    }, (fade ? 460 : 60));
+  }
+
+  function startBgmTrack(audio, bgm) {
+    if (!audio || !bgm || !bgm.trackBuffer || bgm.trackSource) return;
+    if (bgm.trackStopTimer) {
+      clearTimeout(bgm.trackStopTimer);
+      bgm.trackStopTimer = 0;
+    }
+    const source = audio.createBufferSource();
+    const offset = bgm.trackBuffer.duration > 0 ? (bgm.trackOffset || 0) % bgm.trackBuffer.duration : 0;
+    source.buffer = bgm.trackBuffer;
+    source.loop = true;
+    source.connect(bgm.master);
+    source.onended = () => {
+      if (bgm.trackSource === source) bgm.trackSource = null;
+    };
+    source.start(audio.currentTime, offset);
+    bgm.trackSource = source;
+    bgm.trackStartedAt = audio.currentTime - offset;
+  }
+
+  function bgmFallbackVolume(mode = bgmMode()) {
     return mode === "boss" ? 0.062 : mode === "fever" ? 0.066 : mode === "event" ? 0.058 : 0.052;
+  }
+
+  function bgmTargetVolume(mode = bgmMode()) {
+    const trackReady = state.bgm && !state.bgm.trackFailed;
+    if (!trackReady) return bgmFallbackVolume(mode);
+    return mode === "boss" ? 0.22 : mode === "fever" ? 0.23 : mode === "event" ? 0.2 : mode === "daily" ? 0.21 : 0.185;
   }
 
   function startBgm() {
@@ -17956,7 +18044,9 @@
     const mode = bgmMode();
     bgm.active = true;
     bgm.mode = mode;
-    if (!bgm.nextStepTime || bgm.nextStepTime < now) bgm.nextStepTime = now + 0.04;
+    loadBgmTrack(audio, bgm);
+    if (bgm.trackBuffer) startBgmTrack(audio, bgm);
+    if (bgm.trackFailed && (!bgm.nextStepTime || bgm.nextStepTime < now)) bgm.nextStepTime = now + 0.04;
     bgm.master.gain.cancelScheduledValues(now);
     bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), now);
     bgm.master.gain.linearRampToValueAtTime(bgmTargetVolume(mode), now + 0.45);
@@ -17967,6 +18057,7 @@
     if (!bgm || !bgm.master || !state.audio) return;
     const now = state.audio.currentTime;
     bgm.active = false;
+    stopBgmTrack(bgm, fade);
     bgm.master.gain.cancelScheduledValues(now);
     bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), now);
     bgm.master.gain.linearRampToValueAtTime(0.0001, now + (fade ? 0.38 : 0.04));
@@ -18054,12 +18145,14 @@
     if (!audio || !bgm || !bgm.active) return;
     const mode = bgmMode();
     const now = audio.currentTime;
+    if (bgm.trackBuffer && !bgm.trackSource) startBgmTrack(audio, bgm);
     if (mode !== bgm.mode) {
       bgm.mode = mode;
       bgm.master.gain.cancelScheduledValues(now);
       bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), now);
       bgm.master.gain.linearRampToValueAtTime(bgmTargetVolume(mode), now + 0.24);
     }
+    if (!bgm.trackFailed) return;
     let safety = 0;
     while (bgm.nextStepTime < now + 0.26 && safety < 24) {
       const stepDuration = 60 / bgmBpm(mode) / 4;
