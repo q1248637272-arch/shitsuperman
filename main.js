@@ -259,7 +259,7 @@
 
   const heroProfiles = [
     { key: "poop", name: "大便超人", stat: "便便弹 · 黄金大便能量波", asset: "hero", unlocked: true, power: 1, ultimate: "poop" },
-    { key: "ikun", name: "蔡徐坤", stat: "篮球投掷 · 鸡鸣扣篮波", asset: "heroIkunSheet", sheet: true, unlocked: false, unlockDay: 3, power: 1.045, ultimate: "ikun" },
+    { key: "ikun", name: "蔡徐坤", stat: "鸡啄发射 · 鸡鸣冲击波", asset: "heroIkunSheet", sheet: true, unlocked: false, unlockDay: 3, power: 1.045, ultimate: "ikun" },
     { key: "jet", name: "喷射马桶骑士", stat: "水压飞弹 · 超压冲水炮 · 全图滑动", asset: "heroJetSheet", sheet: true, unlocked: false, unlockDay: 5, power: 1.06, freeMove: true, ultimate: "jet" },
     { key: "alchemist", name: "臭气炼金师", stat: "腐蚀毒瓶 · 臭气炼成阵", asset: "heroAlchemistSheet", sheet: true, unlocked: false, unlockDay: 7, power: 1.04, ultimate: "alchemist" },
     { key: "paper", name: "纸卷法师", stat: "追踪纸卷 · 纸卷黑洞", asset: "heroPaperSheet", sheet: true, unlocked: false, unlockDay: 10, power: 1.035, ultimate: "paper" },
@@ -3675,7 +3675,7 @@
     if (meta.selectedHero === "jet") {
       pool.push({ key: "jetDash", label: "穿门", stat: "draftGates", target: 1 + Math.floor(stageNo / 22), coins: 155 + stageNo * 7, materials: 9 + Math.floor(stageNo / 8) });
     } else if (meta.selectedHero === "ikun") {
-      pool.push({ key: "ikunShot", label: "连投", stat: "manualShots", target: 9 + Math.floor(stageNo / 7), coins: 150 + stageNo * 7, materials: 8 + Math.floor(stageNo / 8) });
+      pool.push({ key: "ikunShot", label: "连啄", stat: "manualShots", target: 9 + Math.floor(stageNo / 7), coins: 150 + stageNo * 7, materials: 8 + Math.floor(stageNo / 8) });
     } else if (meta.selectedHero === "alchemist") {
       pool.push({ key: "alchemyClean", label: "炼成", stat: "kills", target: 5 + Math.floor(stageNo / 10), coins: 150 + stageNo * 7, materials: 9 + Math.floor(stageNo / 7) });
     } else if (meta.selectedHero === "paper") {
@@ -8751,7 +8751,6 @@
 
   function projectileHitPop(shot, crit = false, weak = false) {
     if (shot.kind === "chickenPeck") return { color: weak ? "#fff8c4" : "#fff3c4", count: weak ? 24 : crit ? 20 : 15 };
-    if (shot.kind === "basketball") return { color: crit ? "#ffe37a" : "#ffb75a", count: crit ? 16 : 10 };
     if (shot.kind === "waterBolt") return { color: weak ? "#fff8e8" : "#9de8ff", count: weak ? 22 : crit ? 16 : 10 };
     if (shot.kind === "poisonFlask") return { color: weak ? "#dfff7a" : "#a7f04a", count: weak ? 24 : crit ? 18 : 12 };
     if (shot.kind === "paperRoll") return { color: weak ? "#fff8e8" : "#fff1a6", count: weak ? 24 : crit ? 17 : 11 };
@@ -8865,7 +8864,7 @@
 
   function ultimateSkillName(kind = state.ultimateKind || heroProfile().ultimate || "poop") {
     return {
-      ikun: "鸡鸣扣篮波",
+      ikun: "鸡鸣冲击波",
       jet: "超压冲水炮",
       alchemist: "臭气炼成阵",
       paper: "纸卷黑洞",
@@ -14538,27 +14537,6 @@
         ctx.restore();
         continue;
       }
-      if (shot.kind === "basketball") {
-        ctx.rotate(shot.pulse);
-        const r = shot.rx || 18;
-        ctx.fillStyle = "#d8792f";
-        ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#5a2b16";
-        ctx.lineWidth = Math.max(2, r * 0.14);
-        ctx.beginPath();
-        ctx.arc(0, 0, r * 0.98, 0, Math.PI * 2);
-        ctx.moveTo(-r, 0);
-        ctx.lineTo(r, 0);
-        ctx.moveTo(0, -r);
-        ctx.bezierCurveTo(r * 0.45, -r * 0.35, r * 0.45, r * 0.35, 0, r);
-        ctx.moveTo(0, -r);
-        ctx.bezierCurveTo(-r * 0.45, -r * 0.35, -r * 0.45, r * 0.35, 0, r);
-        ctx.stroke();
-        ctx.restore();
-        continue;
-      }
       if (shot.kind === "chickenPeck") {
         const r = shot.rx || 24;
         const frame = Math.floor(shot.pulse * 0.78) % 4;
@@ -14959,7 +14937,7 @@
       vx: (manual ? 860 : 720) + state.level * 13,
       life: (manual ? 1.02 : 0.82) + tier * 0.05,
       pulse: 0,
-      kind: tier >= 4 || evolved >= 2 ? "chickenPeck" : "basketball",
+      kind: "chickenPeck",
       manual,
       damage: manual
         ? Math.round((state.attackDamage * 2 + 2 + evolved + (special ? 2 : 0)) * (1 + focus * 0.08))
@@ -14979,26 +14957,26 @@
         : tier === 3
           ? [{ ...base }, { ...base, y: base.y - 20, vy: -80 }, { ...base, y: base.y + 20, vy: 80 }]
           : [
-              { ...base, kind: "basketball", rx: base.rx + 8, ry: base.ry + 5, damage: base.damage + 1, pierce: base.pierce + 1 },
+              { ...base, rx: base.rx + 8, ry: base.ry + 5, damage: base.damage + 1, pierce: base.pierce + 1 },
               { ...base, kind: "chickenPeck", y: base.y - 25, vy: -110, damage: base.damage + 1 },
               { ...base, kind: "chickenPeck", y: base.y + 25, vy: 110, damage: base.damage + 1 },
             ];
     if (tier >= 5) {
       shots.push(
-        { ...base, kind: "basketball", y: base.y - 42, vy: -145, damage: base.damage + 2, pierce: base.pierce + 1 },
-        { ...base, kind: "basketball", y: base.y + 42, vy: 145, damage: base.damage + 2, pierce: base.pierce + 1 }
+        { ...base, y: base.y - 42, vy: -145, damage: base.damage + 2, pierce: base.pierce + 1 },
+        { ...base, y: base.y + 42, vy: 145, damage: base.damage + 2, pierce: base.pierce + 1 }
       );
     }
     if (tier >= 7) {
       shots.push(
         { ...base, kind: "chickenPeck", x: base.x + 10, vx: base.vx + 180, rx: base.rx + 12, damage: base.damage + 5, pierce: base.pierce + 3 },
-        { ...base, kind: "basketball", x: base.x - 24, y: base.y - 72, vy: 250, vx: base.vx + 70, damage: base.damage + 4 }
+        { ...base, x: base.x - 24, y: base.y - 72, vy: 250, vx: base.vx + 70, damage: base.damage + 4 }
       );
     }
     pushProjectiles(shots);
-    pop(hero.x + 50, hero.y + 8, base.kind === "chickenPeck" ? "#fff3c4" : "#ffb75a", manual ? 10 : 5);
+    pop(hero.x + 50, hero.y + 8, "#fff3c4", manual ? 10 : 5);
     addTrail(hero.x - 36, hero.y + 22);
-    beep(base.kind === "chickenPeck" ? 740 : 360, manual ? 0.06 : 0.025, "square", manual ? 0.04 : 0.014);
+    beep(740, manual ? 0.06 : 0.025, "square", manual ? 0.04 : 0.014);
   }
 
   function shootJet(manual, tier, special) {
@@ -17232,7 +17210,7 @@
 
   function attackName() {
     const list = {
-      ikun: ["篮球投掷", "双球快攻", "三分散射", "鸡啄冲锋", "鸡球连打", "全场压迫", "鸡你太美风暴", "终极唱跳扣杀"],
+      ikun: ["鸡啄发射", "双啄快攻", "三路鸡啄", "鸡啄冲锋", "连环鸡啄", "全场啄击", "鸡你太美风暴", "终极唱跳啄杀"],
       jet: ["水压飞弹", "双喷速射", "三线水炮", "破浪穿刺", "高压连喷", "涡轮水阵", "骑士冲刷", "圣蓝冲水阵"],
       alchemist: ["腐蚀毒瓶", "双瓶投掷", "毒雾散射", "黏液炼金", "连锁腐蚀", "毒云压制", "剧毒爆瓶", "终极臭气炼成"],
       paper: ["追踪纸卷", "双卷环绕", "纸卷散射", "束缚卷轴", "星纸法阵", "回旋纸雨", "纸卷风暴", "终极纸卷星河"],
