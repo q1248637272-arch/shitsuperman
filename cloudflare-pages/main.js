@@ -110,6 +110,14 @@
   const redeemCodeInput = document.getElementById("redeemCodeInput");
   const redeemCodeButton = document.getElementById("redeemCodeButton");
   const redeemCodeStatus = document.getElementById("redeemCodeStatus");
+  const accountForm = document.getElementById("accountForm");
+  const accountTitle = document.getElementById("accountTitle");
+  const accountStatus = document.getElementById("accountStatus");
+  const accountUsernameInput = document.getElementById("accountUsernameInput");
+  const accountPasswordInput = document.getElementById("accountPasswordInput");
+  const accountLoginButton = document.getElementById("accountLoginButton");
+  const accountRegisterButton = document.getElementById("accountRegisterButton");
+  const accountLogoutButton = document.getElementById("accountLogoutButton");
   const pauseButton = document.getElementById("pauseButton");
   const endRunButton = document.getElementById("endRunButton");
   const muteButton = document.getElementById("muteButton");
@@ -2119,6 +2127,382 @@
     bgm: null,
   };
 
+  const CLOUD_ACCOUNT_KEY = "shitSupermanAccount";
+  const CLOUD_SAVE_VERSION = 1;
+  const CLOUD_SAVE_UPLOAD_DELAY = 1200;
+  const cloudAccount = {
+    token: "",
+    accountId: "",
+    username: "",
+    syncing: false,
+    busy: false,
+    applyingRemote: false,
+    pendingUpload: false,
+    saveTimer: 0,
+    lastPayloadHash: "",
+  };
+
+  function cloneSaveData(value) {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return null;
+    }
+  }
+
+  function readRememberedAccount() {
+    try {
+      const saved = JSON.parse(storageGet(CLOUD_ACCOUNT_KEY) || "null");
+      if (!saved || typeof saved !== "object" || !saved.token) return null;
+      return {
+        token: String(saved.token || ""),
+        accountId: String(saved.accountId || ""),
+        username: String(saved.username || ""),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function rememberAccountSession() {
+    if (!cloudAccount.token) return;
+    storageSet(CLOUD_ACCOUNT_KEY, JSON.stringify({
+      token: cloudAccount.token,
+      accountId: cloudAccount.accountId,
+      username: cloudAccount.username,
+    }));
+  }
+
+  function clearRememberedAccount() {
+    storageRemove(CLOUD_ACCOUNT_KEY);
+  }
+
+  function setAccountBusy(busy) {
+    cloudAccount.busy = !!busy;
+    for (const control of [accountUsernameInput, accountPasswordInput, accountLoginButton, accountRegisterButton, accountLogoutButton]) {
+      if (control) control.disabled = cloudAccount.busy;
+    }
+  }
+
+  function setAccountStatus(message, tone = "") {
+    if (accountStatus) accountStatus.textContent = message || "登录后自动云同步";
+    if (accountForm) {
+      accountForm.classList.toggle("is-syncing", tone === "syncing");
+      accountForm.classList.toggle("is-error", tone === "error");
+      accountForm.classList.toggle("is-ready", tone === "ready");
+    }
+  }
+
+  function updateAccountUi() {
+    const loggedIn = !!cloudAccount.token;
+    if (accountForm) accountForm.classList.toggle("is-logged-in", loggedIn);
+    if (accountTitle) accountTitle.textContent = loggedIn ? `账号：${cloudAccount.username || "已登录"}` : "游客存档";
+    if (accountUsernameInput && loggedIn) accountUsernameInput.value = cloudAccount.username || "";
+    if (accountLogoutButton) accountLogoutButton.hidden = !loggedIn;
+  }
+
+  function readAccountCredentials() {
+    const username = String(accountUsernameInput ? accountUsernameInput.value : "").normalize("NFKC").trim();
+    const password = String(accountPasswordInput ? accountPasswordInput.value : "");
+    if ([...username].length < 2 || [...username].length > 24) throw new Error("账号需要 2-24 个字符。");
+    if (/[\u0000-\u001f\u007f]/.test(username)) throw new Error("账号不能包含控制字符。");
+    if (password.length < 4 || password.length > 64) throw new Error("密码需要 4-64 个字符。");
+    return { username, password };
+  }
+
+  async function accountApi(path, options = {}) {
+    const headers = new Headers(options.headers || {});
+    headers.set("Accept", "application/json");
+    if (options.body !== undefined) headers.set("Content-Type", "application/json");
+    if (options.auth !== false && cloudAccount.token) headers.set("Authorization", `Bearer ${cloudAccount.token}`);
+    const response = await fetch(path, {
+      method: options.method || (options.body === undefined ? "GET" : "POST"),
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      cache: "no-store",
+    });
+    const text = await response.text();
+    let json = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      json = {};
+    }
+    if (!response.ok || json.ok === false) {
+      throw new Error(json.error || "云存档暂时不可用。");
+    }
+    return json;
+  }
+
+  function applyAccountSession(data) {
+    const account = data && data.account ? data.account : {};
+    cloudAccount.token = String((data && data.token) || cloudAccount.token || "");
+    cloudAccount.accountId = String(account.id || cloudAccount.accountId || "");
+    cloudAccount.username = String(account.username || cloudAccount.username || "");
+    rememberAccountSession();
+    updateAccountUi();
+  }
+
+  function collectCloudSavePayload() {
+    const best = Math.max(
+      Math.floor(Number(state.best) || 0),
+      Math.floor(Number(meta.stats && meta.stats.bestScore) || 0),
+    );
+    return {
+      version: CLOUD_SAVE_VERSION,
+      best,
+      meta: cloneSaveData(meta) || cloneSaveData(metaDefaults),
+    };
+  }
+
+  function cloudPayloadHash(payload) {
+    const body = {
+      version: CLOUD_SAVE_VERSION,
+      best: Math.max(0, Math.floor(Number(payload && payload.best) || 0)),
+      meta: payload && payload.meta ? payload.meta : {},
+    };
+    try {
+      return JSON.stringify(body);
+    } catch {
+      return `${Date.now()}`;
+    }
+  }
+
+  function normalizeCloudSavePayload(save) {
+    if (!save || typeof save !== "object" || !save.meta || typeof save.meta !== "object") return null;
+    return {
+      version: Math.max(1, Math.floor(Number(save.version) || 1)),
+      best: Math.max(0, Math.floor(Number(save.best) || 0)),
+      updatedAt: String(save.updatedAt || ""),
+      meta: save.meta,
+    };
+  }
+
+  function objectCount(value) {
+    return value && typeof value === "object" ? Object.keys(value).filter((key) => value[key]).length : 0;
+  }
+
+  function numberMapScore(value, weight = 1) {
+    if (!value || typeof value !== "object") return 0;
+    return Object.values(value).reduce((sum, entry) => sum + Math.max(0, Number(entry) || 0) * weight, 0);
+  }
+
+  function cloudSaveScore(payload) {
+    const save = normalizeCloudSavePayload(payload);
+    if (!save) return -1;
+    const m = save.meta || {};
+    const stats = m.stats && typeof m.stats === "object" ? m.stats : {};
+    return [
+      Math.max(0, Number(m.maxStage) || 0) * 2400,
+      Math.max(0, Number(m.maxAdventureStage) || 0) * 2600,
+      objectCount(m.cleared) * 3200,
+      objectCount(m.adventureCleared) * 3600,
+      objectCount(m.achievements) * 1800,
+      Math.max(save.best || 0, Number(stats.bestScore) || 0) * 0.035,
+      Math.max(0, Number(stats.totalRuns) || 0) * 120,
+      Math.max(0, Number(stats.totalBossKills) || 0) * 420,
+      Math.max(0, Number(stats.totalDailyDamage) || 0) * 0.018,
+      numberMapScore(m.heroLevels, 360),
+      numberMapScore(m.heroEvolutions, 2600),
+      numberMapScore(m.heroEvoStones, 900),
+      numberMapScore(m.mountLevels, 430),
+      objectCount(m.unlockedHeroes) * 1400,
+      objectCount(m.unlockedMounts) * 1200,
+      objectCount(m.unlockedDrones) * 1000,
+      Math.max(0, Number(m.coins) || 0) * 0.002,
+      Math.max(0, Number(m.materials) || 0) * 0.06,
+      Math.max(0, Number(m.poopCoins) || 0) * 260,
+      Math.max(0, Number(m.evoStones) || 0) * 500,
+      Array.isArray(m.equipmentBag) ? m.equipmentBag.length * 160 : 0,
+      objectCount(m.equipped) * 320,
+    ].reduce((sum, value) => sum + value, 0);
+  }
+
+  function chooseCloudSave(localPayload, remotePayload) {
+    if (!remotePayload) return localPayload ? "local" : "";
+    if (!localPayload) return "remote";
+    const localScore = cloudSaveScore(localPayload);
+    const remoteScore = cloudSaveScore(remotePayload);
+    if (remoteScore > localScore + 1200) return "remote";
+    if (localScore > remoteScore + 1200) return "local";
+    const remoteTime = Date.parse(remotePayload.updatedAt || "") || 0;
+    const localTime = Date.parse(localPayload.updatedAt || "") || 0;
+    return remoteTime > localTime ? "remote" : "local";
+  }
+
+  function replaceMetaWith(nextMeta) {
+    for (const key of Object.keys(meta)) delete meta[key];
+    Object.assign(meta, nextMeta);
+  }
+
+  function applyCloudSavePayload(payload) {
+    const save = normalizeCloudSavePayload(payload);
+    if (!save) return false;
+    cloudAccount.applyingRemote = true;
+    try {
+      storageSet("shitSupermanMeta", JSON.stringify(save.meta));
+      const remoteBest = Math.max(save.best || 0, Math.floor(Number(save.meta.stats && save.meta.stats.bestScore) || 0));
+      storageSet("shitSupermanBest", String(remoteBest));
+      const loaded = loadMeta();
+      replaceMetaWith(loaded);
+      state.best = Math.max(remoteBest, loaded.stats ? loaded.stats.bestScore || 0 : 0);
+      updateMetaUi();
+      updateHud();
+      draw();
+      cloudAccount.lastPayloadHash = cloudPayloadHash(collectCloudSavePayload());
+      return true;
+    } finally {
+      cloudAccount.applyingRemote = false;
+    }
+  }
+
+  async function uploadCloudSave(payload, successMessage = "云存档已保存") {
+    if (!cloudAccount.token || cloudAccount.applyingRemote) return false;
+    const hash = cloudPayloadHash(payload);
+    if (hash === cloudAccount.lastPayloadHash && !successMessage) return true;
+    cloudAccount.syncing = true;
+    setAccountStatus("云端同步中...", "syncing");
+    try {
+      const save = {
+        ...payload,
+        updatedAt: new Date().toISOString(),
+      };
+      await accountApi("/api/save", { method: "PUT", body: { save } });
+      cloudAccount.lastPayloadHash = hash;
+      setAccountStatus(successMessage, "ready");
+      return true;
+    } catch (error) {
+      setAccountStatus(error.message || "云同步失败，稍后会重试。", "error");
+      return false;
+    } finally {
+      cloudAccount.syncing = false;
+      updateAccountUi();
+    }
+  }
+
+  function queueCloudSave({ immediate = false } = {}) {
+    if (!cloudAccount.token || cloudAccount.applyingRemote) return;
+    cloudAccount.pendingUpload = true;
+    window.clearTimeout(cloudAccount.saveTimer);
+    cloudAccount.saveTimer = window.setTimeout(flushCloudSave, immediate ? 80 : CLOUD_SAVE_UPLOAD_DELAY);
+  }
+
+  async function flushCloudSave() {
+    if (!cloudAccount.token || cloudAccount.applyingRemote) return;
+    if (cloudAccount.syncing) {
+      queueCloudSave({ immediate: false });
+      return;
+    }
+    cloudAccount.pendingUpload = false;
+    const payload = collectCloudSavePayload();
+    const hash = cloudPayloadHash(payload);
+    if (hash === cloudAccount.lastPayloadHash) return;
+    await uploadCloudSave(payload);
+  }
+
+  async function syncCloudSaveAfterLogin(source = "login") {
+    if (!cloudAccount.token) return;
+    setAccountStatus("正在读取云存档...", "syncing");
+    const localPayload = {
+      ...collectCloudSavePayload(),
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      const remote = await accountApi("/api/save");
+      const remotePayload = normalizeCloudSavePayload(remote.save);
+      const choice = chooseCloudSave(localPayload, remotePayload);
+      if (choice === "remote") {
+        applyCloudSavePayload(remotePayload);
+        setAccountStatus("云端进度已加载", "ready");
+      } else {
+        await uploadCloudSave(localPayload, source === "register" ? "账号已创建，本地进度已上传" : "本地进度已上传");
+      }
+      updateAccountUi();
+    } catch (error) {
+      setAccountStatus(error.message || "云存档读取失败。", "error");
+    }
+  }
+
+  async function loginAccount(event) {
+    if (event) event.preventDefault();
+    try {
+      const credentials = readAccountCredentials();
+      setAccountBusy(true);
+      setAccountStatus("正在登录...", "syncing");
+      const data = await accountApi("/api/auth/login", { method: "POST", body: credentials, auth: false });
+      applyAccountSession(data);
+      if (accountPasswordInput) accountPasswordInput.value = "";
+      await syncCloudSaveAfterLogin("login");
+    } catch (error) {
+      setAccountStatus(error.message || "登录失败。", "error");
+    } finally {
+      setAccountBusy(false);
+      updateAccountUi();
+    }
+  }
+
+  async function registerAccount() {
+    try {
+      const credentials = readAccountCredentials();
+      setAccountBusy(true);
+      setAccountStatus("正在注册...", "syncing");
+      const data = await accountApi("/api/auth/register", { method: "POST", body: credentials, auth: false });
+      applyAccountSession(data);
+      if (accountPasswordInput) accountPasswordInput.value = "";
+      await syncCloudSaveAfterLogin("register");
+    } catch (error) {
+      setAccountStatus(error.message || "注册失败。", "error");
+    } finally {
+      setAccountBusy(false);
+      updateAccountUi();
+    }
+  }
+
+  async function logoutAccount() {
+    const hadToken = cloudAccount.token;
+    const oldToken = cloudAccount.token;
+    cloudAccount.token = "";
+    cloudAccount.accountId = "";
+    cloudAccount.username = "";
+    cloudAccount.lastPayloadHash = "";
+    clearRememberedAccount();
+    updateAccountUi();
+    setAccountStatus("已退出账号，本机仍保留当前进度。", "");
+    if (hadToken) {
+      try {
+        const headers = new Headers({ Accept: "application/json", Authorization: `Bearer ${oldToken}` });
+        await fetch("/api/auth/logout", { method: "POST", headers, cache: "no-store" });
+      } catch {}
+    }
+  }
+
+  async function restoreCloudAccount() {
+    const remembered = readRememberedAccount();
+    if (!remembered || !remembered.token) {
+      updateAccountUi();
+      setAccountStatus("登录后自动云同步", "");
+      return;
+    }
+    cloudAccount.token = remembered.token;
+    cloudAccount.accountId = remembered.accountId;
+    cloudAccount.username = remembered.username;
+    updateAccountUi();
+    setAccountStatus("正在自动登录...", "syncing");
+    try {
+      const data = await accountApi("/api/auth/me");
+      applyAccountSession({ ...data, token: remembered.token });
+      await syncCloudSaveAfterLogin("restore");
+    } catch (error) {
+      cloudAccount.token = "";
+      cloudAccount.accountId = "";
+      cloudAccount.username = "";
+      cloudAccount.lastPayloadHash = "";
+      clearRememberedAccount();
+      updateAccountUi();
+      setAccountStatus(error.message || "自动登录失效，请重新登录。", "error");
+    }
+  }
+
   const hero = {
     x: 170,
     y: 360,
@@ -2300,6 +2684,12 @@
   function storageSet(key, value) {
     try {
       localStorage.setItem(key, value);
+    } catch {}
+  }
+
+  function storageRemove(key) {
+    try {
+      localStorage.removeItem(key);
     } catch {}
   }
 
@@ -2544,6 +2934,7 @@
 
   function persistMeta() {
     storageSet("shitSupermanMeta", JSON.stringify(meta));
+    queueCloudSave();
   }
 
   function saveMeta() {
@@ -8279,6 +8670,7 @@
     hidePerkChoice();
     state.best = Math.max(state.best, Math.floor(state.score));
     storageSet("shitSupermanBest", String(state.best));
+    queueCloudSave({ immediate: true });
     finalizeRunStats("gameover");
     if (state.gameMode === "endless") {
       const heroKey = meta.selectedHero;
@@ -19846,6 +20238,9 @@
   if (buyStormButton) buyStormButton.addEventListener("click", () => buyShopItem("storm", () => buyItem("storm")));
   if (buyWingButton) buyWingButton.addEventListener("click", () => buyShopItem("wing", () => buyItem("wing")));
   if (redeemForm) redeemForm.addEventListener("submit", redeemCode);
+  if (accountForm) accountForm.addEventListener("submit", loginAccount);
+  if (accountRegisterButton) accountRegisterButton.addEventListener("click", registerAccount);
+  if (accountLogoutButton) accountLogoutButton.addEventListener("click", logoutAccount);
   if (sellWeakEquipmentButton) sellWeakEquipmentButton.addEventListener("click", () => sellEquipmentBatch("weak"));
   if (sellAllEquipmentButton) sellAllEquipmentButton.addEventListener("click", () => sellEquipmentBatch("all"));
   useShieldButton.addEventListener("click", () => useInventoryItem("shield"));
@@ -19888,6 +20283,7 @@
   updateMetaUi();
   checkAchievements();
   setMenuPage("home");
+  restoreCloudAccount();
   updateHud();
   draw();
   scheduleGameplayAssetWarmup("boot");

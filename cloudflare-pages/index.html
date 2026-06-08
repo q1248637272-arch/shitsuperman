@@ -17,7 +17,7 @@
   <link rel="preload" as="image" href="assets/compendium-icons.webp">
   <link rel="preload" as="image" href="assets/compendium-pickups.webp">
   <link rel="preload" as="image" href="assets/compendium-systems.webp">
-  <link rel="stylesheet" href="styles.css?v=20260609-adventure-beacon">
+  <link rel="stylesheet" href="styles.css?v=20260609-cloud-save-hud">
 </head>
 <body class="menu-open">
   <main class="game-shell" aria-label="大便超人">
@@ -96,6 +96,19 @@
           <button id="adventureModeButton" type="button">冒险模式</button>
           <button id="dailyModeButton" type="button">每日挑战</button>
         </div>
+        <form id="accountForm" class="account-panel" aria-label="账号云存档">
+          <div class="account-summary">
+            <strong id="accountTitle">游客存档</strong>
+            <span id="accountStatus">登录后自动云同步</span>
+          </div>
+          <div class="account-fields">
+            <input id="accountUsernameInput" type="text" autocomplete="username" maxlength="24" placeholder="账号" aria-label="账号">
+            <input id="accountPasswordInput" type="password" autocomplete="current-password" maxlength="64" placeholder="密码" aria-label="密码">
+            <button id="accountLoginButton" type="submit">登录</button>
+            <button id="accountRegisterButton" type="button">注册</button>
+            <button id="accountLogoutButton" type="button" hidden>退出</button>
+          </div>
+        </form>
         <div id="moduleHeader" class="module-header" hidden>
           <button id="moduleBackButton" type="button">返回</button>
           <strong id="moduleTitle">养成</strong>
@@ -784,6 +797,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260609-adventure-beacon"></script>
+  <script src="main.js?v=20260609-cloud-save-hud"></script>
 </body>
 </html>

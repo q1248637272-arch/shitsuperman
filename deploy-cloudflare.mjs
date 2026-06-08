@@ -21,8 +21,13 @@ const mimeTypes = new Map([
   [".css", "text/css"],
   [".js", "application/javascript"],
   [".png", "image/png"],
+  [".webp", "image/webp"],
+  [".wav", "audio/wav"],
+  [".json", "application/json"],
   [".md", "text/markdown"],
 ]);
+const saveKvBinding = "SHIT_SUPERMAN_SAVES";
+const saveKvTitle = "shitsuperman-saves";
 
 function matchTomlValue(text, key) {
   return text.match(new RegExp(`${key}\\s*=\\s*"([^"]*)"`))?.[1] || "";
@@ -137,9 +142,62 @@ async function cfFetch(pathname, options = {}, token) {
   return json.result ?? json;
 }
 
+function kvBindingId(config = {}) {
+  const namespaces = config.kv_namespaces || {};
+  const binding = namespaces[saveKvBinding];
+  if (!binding) return "";
+  if (typeof binding === "string") return binding;
+  return binding.namespace_id || binding.id || "";
+}
+
+function withSaveKvBinding(config = {}, namespaceId) {
+  return {
+    ...config,
+    kv_namespaces: {
+      ...(config.kv_namespaces || {}),
+      [saveKvBinding]: { namespace_id: namespaceId },
+    },
+  };
+}
+
+async function ensureSaveKvBinding(accountId, projectName, token) {
+  const namespaces = await cfFetch(`/accounts/${accountId}/storage/kv/namespaces?per_page=100`, {}, token);
+  let namespace = Array.isArray(namespaces) ? namespaces.find((entry) => entry.title === saveKvTitle) : null;
+  if (!namespace) {
+    namespace = await cfFetch(
+      `/accounts/${accountId}/storage/kv/namespaces`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: saveKvTitle }) },
+      token,
+    );
+  }
+  const project = await cfFetch(`/accounts/${accountId}/pages/projects/${projectName}`, {}, token);
+  const configs = project.deployment_configs || {};
+  const preview = configs.preview || {};
+  const production = configs.production || {};
+  const previewId = kvBindingId(preview);
+  const productionId = kvBindingId(production);
+  if (previewId === namespace.id && productionId === namespace.id) return namespace;
+  await cfFetch(
+    `/accounts/${accountId}/pages/projects/${projectName}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        deployment_configs: {
+          preview: withSaveKvBinding(preview, namespace.id),
+          production: withSaveKvBinding(production, namespace.id),
+        },
+      }),
+    },
+    token,
+  );
+  return namespace;
+}
+
 async function main() {
   const { account_id: accountId, project_name: projectName } = await readPagesConfig();
   const token = await readAuthToken();
+  const saveNamespace = await ensureSaveKvBinding(accountId, projectName, token);
   const blake3 = loadBlake3();
   const files = await walkFiles(publishDir);
   for (const file of files) {
@@ -184,6 +242,7 @@ async function main() {
     token,
   );
   console.log(`Uploaded ${toUpload.length}/${files.length} changed files`);
+  console.log(`KV binding: ${saveKvBinding} -> ${saveNamespace.id}`);
   console.log(`Deployment: ${deployment.url}`);
 }
 
