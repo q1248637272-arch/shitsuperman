@@ -919,6 +919,85 @@
     }[profile.key] || "专注";
   }
 
+  function classicRouteHazardLabel(pattern) {
+    return {
+      toilet: "马桶机",
+      pipePair: "管道",
+      plunger: "马桶塞",
+      barricade: "路障",
+      sludgeBarrel: "酸桶",
+      acidGeyser: "酸泉",
+      stinkCloud: "臭气",
+      soapBubble: "泡泡",
+      bossPoop: "Boss 弹",
+      energyBall: "能量弹",
+    }[pattern] || "障碍";
+  }
+
+  function classicRouteForecastInfo() {
+    if (state.gameMode !== "stage" || !["playing", "paused"].includes(state.mode) || hazards.length === 0) return null;
+    const s = playScale();
+    const start = hero.x + 30 * s;
+    const end = state.width + (isLandscapePlay() ? 250 : 190) * s;
+    const byGroup = new Map();
+    for (const h of hazards) {
+      if (!h || h.x < start || h.x > end) continue;
+      const pattern = h.routePattern || hazardPatternKey(h);
+      if (!pattern) continue;
+      const groupKey = h.routeGroup || `${pattern}:${Math.round((h.x || 0) / Math.max(1, 46 * s))}:${Math.round(((h.y || 0) - playTop()) / Math.max(1, 56 * s))}`;
+      let entry = byGroup.get(groupKey);
+      if (!entry) {
+        entry = {
+          key: groupKey,
+          pattern,
+          minX: h.x,
+          yTotal: 0,
+          yCount: 0,
+          count: 0,
+          severe: false,
+        };
+        byGroup.set(groupKey, entry);
+      }
+      const threat = hazardThreatProfile(h);
+      entry.minX = Math.min(entry.minX, h.x || entry.minX);
+      entry.count += 1;
+      entry.severe = entry.severe || threat.severe || Boolean(h.elite || h.bossDamage);
+      if (h.type === "pipeTop") {
+        entry.topY = h.h;
+      } else if (h.type === "pipeBottom") {
+        entry.bottomY = h.y;
+      } else if (Number.isFinite(h.y)) {
+        entry.yTotal += h.y;
+        entry.yCount += 1;
+      }
+    }
+    const entries = Array.from(byGroup.values()).map((entry) => {
+      const gapY = Number.isFinite(entry.topY) && Number.isFinite(entry.bottomY)
+        ? (entry.topY + entry.bottomY) * 0.5
+        : null;
+      return {
+        ...entry,
+        y: gapY || (entry.yCount > 0 ? entry.yTotal / entry.yCount : (playTop() + playBottom()) * 0.5),
+      };
+    }).sort((a, b) => a.minX - b.minX);
+    const lead = entries[0];
+    if (!lead) return null;
+    const followSame = entries.slice(1).some((entry) => entry.pattern === lead.pattern && entry.minX - lead.minX < 180 * s);
+    return {
+      ...lead,
+      label: classicRouteHazardLabel(lead.pattern),
+      distance: clamp(Math.round((lead.minX - hero.x) / Math.max(1, 42 * s)), 1, 18),
+      followSame,
+    };
+  }
+
+  function classicRouteForecastText(info = classicRouteForecastInfo()) {
+    if (!info) return "";
+    const count = info.count > 1 && info.pattern !== "pipePair" ? `×${info.count}` : "";
+    const chain = info.followSame ? "连段" : "";
+    return `前方 ${info.distance}格 ${info.label}${count}${chain}`;
+  }
+
   function classicRouteHudText() {
     if (state.gameMode !== "stage" || !isStageMode() || !["playing", "paused"].includes(state.mode)) return "";
     const stage = activeStage();
@@ -927,16 +1006,17 @@
     const target = state.classicDistrictTarget || classicDistrictTarget(stage);
     const progress = clamp(state.classicDistrictProgress || 0, 0, target);
     const focus = state.classicRouteFocusTimer > 0 ? ` · ${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s` : "";
+    const forecast = classicRouteForecastText();
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}航线稳定${boost}${focus} · ${classicRouteBiasText(profile)}`;
+      return `${profile.short}航线稳定${boost}${focus} · ${forecast || classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}航线${focus} · ${state.eventName} ${Math.ceil(state.eventTimer)}s · 稳定 ${Math.floor(progress)}/${target}`;
+      return `${profile.short}航线${focus} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}航线${focus} · ${nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}航线${focus} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
   }
 
   function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
@@ -1406,6 +1486,9 @@
     classicRouteFocusKey: "",
     classicRouteFocusTimer: 0,
     classicRouteFocusPulse: 0,
+    classicRouteClearPulse: 0,
+    classicRouteClearStreak: 0,
+    classicRouteLastClearGroup: "",
     goldRushCharge: 0,
     draftLaneCharge: 0,
     mysteryLaneCharge: 0,
@@ -1429,6 +1512,7 @@
     draftTimer: 0,
     spawnTimer: 0,
     lastHazardPatternKey: "",
+    routeHazardSerial: 0,
     pickupTimer: 0,
     scroll: 0,
     speed: 185,
@@ -3895,9 +3979,11 @@
     const visible = (state.mode === "playing" || state.mode === "paused") && (missions.length > 0 || classicText);
     missionHud.hidden = !visible;
     if (!visible) return;
-    missionHud.classList.remove("route-clean", "route-supply", "route-combo", "route-threat", "route-bossPrep");
+    missionHud.classList.remove("route-clean", "route-supply", "route-combo", "route-threat", "route-bossPrep", "route-read", "route-pressure");
     if (classicText && state.gameMode === "stage") {
       missionHud.classList.add(`route-${classicStageProfile(activeStage()).key}`);
+      const forecast = classicRouteForecastInfo();
+      if (forecast) missionHud.classList.add(forecast.severe ? "route-pressure" : "route-read");
     }
     const missionTextParts = missions.length > 0
       ? [`${runModifier().name}：${missions.map((mission) => `${mission.done ? "✓" : ""}${mission.label} ${missionValue(mission)}/${mission.target}`).join(" · ")}`]
@@ -7145,6 +7231,9 @@
     state.classicRouteFocusKey = "";
     state.classicRouteFocusTimer = 0;
     state.classicRouteFocusPulse = 0;
+    state.classicRouteClearPulse = 0;
+    state.classicRouteClearStreak = 0;
+    state.classicRouteLastClearGroup = "";
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -7172,6 +7261,7 @@
     state.draftTimer = 0;
     state.spawnTimer = state.gameMode === "daily" ? 4.2 : 2.7;
     state.lastHazardPatternKey = "";
+    state.routeHazardSerial = 0;
     state.pickupTimer = 0.8;
     state.scroll = 0;
     state.speed = 185;
@@ -7512,6 +7602,7 @@
     state.classicDistrictBoostTimer = Math.max(0, (state.classicDistrictBoostTimer || 0) - dt);
     state.classicRouteFocusTimer = Math.max(0, (state.classicRouteFocusTimer || 0) - dt);
     state.classicRouteFocusPulse = Math.max(0, (state.classicRouteFocusPulse || 0) - dt * 0.92);
+    state.classicRouteClearPulse = Math.max(0, (state.classicRouteClearPulse || 0) - dt * 1.15);
     if (state.classicRouteFocusTimer <= 0) state.classicRouteFocusKey = "";
     state.purificationPulse = Math.max(0, (state.purificationPulse || 0) - dt * 0.88);
     if (state.counterTimer > 0) {
@@ -8215,6 +8306,11 @@
     state.lastHazardPatternKey = pattern || "";
   }
 
+  function nextRouteHazardGroup(pattern) {
+    state.routeHazardSerial = (state.routeHazardSerial || 0) + 1;
+    return `${pattern || "hazard"}:${state.routeHazardSerial}`;
+  }
+
   function spawnHazards(dt) {
     if (boss) return;
     if (state.gameMode === "daily" && state.time > 0.4) return;
@@ -8239,9 +8335,12 @@
     state.spawnTimer = (interval + random(0.14, 0.48)) * HAZARD_SPAWN_INTERVAL_SCALE;
     const pattern = chooseHazardPattern(Math.random());
     rememberHazardPattern(pattern);
+    const routeGroup = nextRouteHazardGroup(pattern);
     if (pattern === "stinkCloud") {
       hazards.push({
         type: "stinkCloud",
+        routeGroup,
+        routePattern: pattern,
         x: state.width + 96 * s,
         y: randomLaneY(34 * hs),
         w: random(76, 110) * hs,
@@ -8252,6 +8351,8 @@
     } else if (pattern === "soapBubble") {
       hazards.push({
         type: "soapBubble",
+        routeGroup,
+        routePattern: pattern,
         x: state.width + 84 * s,
         y: randomLaneY(30 * hs),
         w: random(44, 60) * hs,
@@ -8273,6 +8374,8 @@
       const w = random(treasure ? 84 : elite ? 78 : 70, treasure ? 108 : elite ? 102 : 94) * hs;
       hazards.push({
         type: "toilet",
+        routeGroup,
+        routePattern: pattern,
         elite,
         treasure,
         x: state.width + 110 * s,
@@ -8290,11 +8393,13 @@
       const maxCenter = bottom - gap * 0.55;
       const center = minCenter < maxCenter ? random(minCenter, maxCenter) : (top + bottom) * 0.5;
       const pipeW = (isLandscapePlay() ? 50 : 58) * hs;
-      hazards.push({ type: "pipeTop", x: state.width + 96 * s, y: 0, w: pipeW, h: Math.max(0, center - gap * 0.5) });
-      hazards.push({ type: "pipeBottom", x: state.width + 96 * s, y: center + gap * 0.5, w: pipeW, h: Math.max(0, state.height - (center + gap * 0.5)) });
+      hazards.push({ type: "pipeTop", routeGroup, routePattern: pattern, x: state.width + 96 * s, y: 0, w: pipeW, h: Math.max(0, center - gap * 0.5) });
+      hazards.push({ type: "pipeBottom", routeGroup, routePattern: pattern, x: state.width + 96 * s, y: center + gap * 0.5, w: pipeW, h: Math.max(0, state.height - (center + gap * 0.5)) });
     } else if (pattern === "plunger") {
       hazards.push({
         type: "plunger",
+        routeGroup,
+        routePattern: pattern,
         x: state.width + 90 * s,
         y: randomLaneY(30 * hs),
         w: 64 * hs,
@@ -8304,6 +8409,8 @@
     } else if (pattern === "barricade") {
       hazards.push({
         type: "barricade",
+        routeGroup,
+        routePattern: pattern,
         x: state.width + 104 * s,
         y: randomLaneY(38 * hs),
         w: 92 * hs,
@@ -8313,6 +8420,8 @@
     } else if (pattern === "sludgeBarrel") {
       hazards.push({
         type: "sludgeBarrel",
+        routeGroup,
+        routePattern: pattern,
         x: state.width + 96 * s,
         y: randomLaneY(42 * hs),
         w: 54 * hs,
@@ -8324,6 +8433,8 @@
       const h = isLandscapePlay() ? random(playable * 0.16, playable * 0.25) : random(playable * 0.24, playable * 0.36);
       hazards.push({
         type: "acidGeyser",
+        routeGroup,
+        routePattern: pattern,
         x: state.width + 96 * s,
         y: fromTop ? top + h * 0.5 : bottom - h * 0.5,
         w: random(42, 54) * hs,
@@ -9073,6 +9184,8 @@
   function updateHazards(dt) {
     for (let i = hazards.length - 1; i >= 0; i -= 1) {
       const h = hazards[i];
+      const hitsBefore = state.hitsTaken || 0;
+      const healthBefore = state.health || 0;
       const landscapeEase = isLandscapePlay() ? 0.86 : 1;
       const hitEase = h.type === "pipeTop" || h.type === "pipeBottom" ? 1 : landscapeHitScale();
       const slowFactor = h.slow > 0 ? 0.58 : 1;
@@ -9206,8 +9319,41 @@
         damageHero(h.bossDamage || 8);
       }
 
+      if ((state.hitsTaken || 0) > hitsBefore || (state.health || 0) < healthBefore - 0.01) {
+        h.routeDamaged = true;
+        if (state.gameMode === "stage") state.classicRouteClearStreak = 0;
+      }
+
       awardNearMiss(h);
-      if (h.x < -180) hazards.splice(i, 1);
+      if (h.x < -180) {
+        awardClassicRouteClear(h);
+        hazards.splice(i, 1);
+      }
+    }
+  }
+
+  function awardClassicRouteClear(h) {
+    if (!h || h.routeDamaged || state.gameMode !== "stage" || state.mode !== "playing" || state.classicDistrictClaimed) return;
+    const pattern = h.routePattern || hazardPatternKey(h);
+    if (!pattern || pattern === "bossPoop" || pattern === "energyBall") return;
+    const s = playScale();
+    const group = h.routeGroup || `${pattern}:${Math.round((h.x || 0) / Math.max(1, 44 * s))}`;
+    if (state.classicRouteLastClearGroup === group) return;
+    state.classicRouteLastClearGroup = group;
+    const threat = hazardThreatProfile(h);
+    const severe = threat.severe || pattern === "barricade" || pattern === "sludgeBarrel" || pattern === "acidGeyser";
+    const value = pattern === "pipePair" ? 1.35 : severe ? 1.65 : 1.1;
+    addClassicDistrictProgress(value, "clear");
+    state.classicRouteClearPulse = Math.max(state.classicRouteClearPulse || 0, severe ? 0.52 : 0.34);
+    state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, severe ? 0.24 : 0.16);
+    state.classicRouteClearStreak = (state.classicRouteClearStreak || 0) + 1;
+    if (state.classicRouteClearStreak > 0 && state.classicRouteClearStreak % 4 === 0) {
+      const profile = classicStageProfile(activeStage());
+      const color = profile.districtColor || "#5bded4";
+      state.eventName = `${profile.short}清障 x${state.classicRouteClearStreak}`;
+      state.eventLabelTimer = Math.max(state.eventLabelTimer, 0.75);
+      gainStyle(5, "旧城清障", color);
+      pop(hero.x + 30 * s, hero.y - 10 * s, color, 8);
     }
   }
 
@@ -11486,24 +11632,88 @@
     return { rgb: "245, 200, 75", accent: "#f5c84b", severe: false, icon: "chevron" };
   }
 
+  function groupedThreatWarnings(windowStart, windowEnd, s) {
+    const byGroup = new Map();
+    for (const h of hazards) {
+      if (!h || h.x < windowStart || h.x > windowEnd) continue;
+      const pattern = h.routePattern || hazardPatternKey(h);
+      const laneBucket = Math.round(((h.y || (playTop() + playBottom()) * 0.5) - playTop()) / Math.max(1, 52 * s));
+      const key = h.routeGroup || `${pattern}:${Math.round((h.x || 0) / Math.max(1, 42 * s))}:${laneBucket}`;
+      let entry = byGroup.get(key);
+      if (!entry) {
+        entry = {
+          key,
+          pattern,
+          sample: h,
+          minX: h.x,
+          count: 0,
+          yTotal: 0,
+          yCount: 0,
+          severe: false,
+        };
+        byGroup.set(key, entry);
+      }
+      const threat = hazardThreatProfile(h);
+      entry.minX = Math.min(entry.minX, h.x || entry.minX);
+      entry.count += 1;
+      entry.severe = entry.severe || threat.severe || Boolean(h.elite || h.bossDamage);
+      const sampleThreat = hazardThreatProfile(entry.sample);
+      if ((threat.severe && !sampleThreat.severe) || (threat.severe === sampleThreat.severe && (h.x || 0) < (entry.sample.x || Infinity))) {
+        entry.sample = h;
+      }
+      if (h.type === "pipeTop") {
+        entry.topY = h.h;
+      } else if (h.type === "pipeBottom") {
+        entry.bottomY = h.y;
+      } else {
+        entry.yTotal += h.y || (playTop() + playBottom()) * 0.5;
+        entry.yCount += 1;
+      }
+    }
+    return Array.from(byGroup.values()).map((entry) => {
+      const pipeGapY = Number.isFinite(entry.topY) && Number.isFinite(entry.bottomY)
+        ? (entry.topY + entry.bottomY) * 0.5
+        : null;
+      return {
+        ...entry,
+        y: clamp(pipeGapY || (entry.yCount ? entry.yTotal / entry.yCount : (playTop() + playBottom()) * 0.5), playTop() + 12 * s, playBottom() - 12 * s),
+      };
+    }).sort((a, b) => a.minX - b.minX).slice(0, 5);
+  }
+
   function drawThreatWarnings() {
     if (state.mode !== "playing" || hazards.length === 0) return;
     const s = playScale();
     const windowStart = state.width + 12 * s;
     const windowEnd = state.width + (isLandscapePlay() ? 190 : 150) * s;
-    const visible = hazards.filter((h) => h.x >= windowStart && h.x <= windowEnd).slice(-6);
+    const visible = groupedThreatWarnings(windowStart, windowEnd, s);
     if (visible.length === 0) return;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    for (const h of visible) {
-      const progress = clamp((windowEnd - h.x) / Math.max(1, windowEnd - windowStart), 0, 1);
+    for (const entry of visible) {
+      const h = entry.sample;
+      const progress = clamp((windowEnd - entry.minX) / Math.max(1, windowEnd - windowStart), 0, 1);
       const alpha = 0.18 + progress * 0.46;
       const x = state.width - (18 + progress * 12) * s;
-      const y = h.type === "pipeTop" || h.type === "pipeBottom"
-        ? clamp(h.type === "pipeTop" ? h.h + 22 * s : h.y - 22 * s, playTop() + 12 * s, playBottom() - 12 * s)
-        : clamp(h.y || (playTop() + playBottom()) * 0.5, playTop() + 12 * s, playBottom() - 12 * s);
+      const y = entry.y;
       const threat = hazardThreatProfile(h);
       const pulse = Math.sin(state.time * 16 + (h.phase || 0)) * 0.5 + 0.5;
+      ctx.strokeStyle = `rgba(${threat.rgb}, ${alpha * 0.22})`;
+      ctx.lineWidth = Math.max(1, 1.4 * s);
+      ctx.beginPath();
+      ctx.moveTo(state.width - 58 * s, y);
+      ctx.lineTo(state.width - 7 * s, y);
+      ctx.stroke();
+      if (entry.pattern === "pipePair" && Number.isFinite(entry.topY) && Number.isFinite(entry.bottomY)) {
+        const topY = clamp(entry.topY, playTop() + 6 * s, playBottom() - 6 * s);
+        const bottomY = clamp(entry.bottomY, playTop() + 6 * s, playBottom() - 6 * s);
+        ctx.strokeStyle = `rgba(${threat.rgb}, ${alpha * 0.32})`;
+        ctx.lineWidth = Math.max(2, 3 * s);
+        ctx.beginPath();
+        ctx.moveTo(state.width - 7 * s, topY);
+        ctx.lineTo(state.width - 7 * s, bottomY);
+        ctx.stroke();
+      }
       ctx.fillStyle = `rgba(${threat.rgb}, ${alpha * (threat.severe ? 1 : 0.86)})`;
       ctx.strokeStyle = `rgba(255, 248, 232, ${alpha * (threat.severe ? 0.82 : 0.62)})`;
       ctx.lineWidth = Math.max(1.5, 2.2 * s);
@@ -11570,6 +11780,14 @@
         ctx.globalAlpha = alpha * 0.9;
         ctx.fillRect(state.width - 5 * s, Math.max(playTop(), y - 20 * s), 3 * s, 40 * s);
         ctx.globalAlpha = 1;
+      }
+      if (entry.count > 1 && entry.pattern !== "pipePair") {
+        ctx.fillStyle = `rgba(255, 248, 232, ${alpha * 0.78})`;
+        for (let i = 0; i < Math.min(3, entry.count - 1); i += 1) {
+          ctx.beginPath();
+          ctx.arc(x - (26 + i * 6) * s, y + 14 * s, 2.2 * s, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
     ctx.restore();
@@ -14382,6 +14600,54 @@
     ctx.restore();
   }
 
+  function drawClassicRouteRadar(cx, cy, radius, forecast, color) {
+    const pulse = Math.sin(state.time * 8) * 0.5 + 0.5;
+    const clearPulse = state.classicRouteClearPulse || 0;
+    const accent = forecast ? (forecast.severe ? "#ff8d54" : color) : "#dfff7a";
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = canvasRgba(accent, 0.36 + clearPulse * 0.26);
+    ctx.lineWidth = Math.max(1, radius * 0.13);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 248, 232, 0.2)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 0.58, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - radius * 0.9, cy);
+    ctx.lineTo(cx + radius * 0.9, cy);
+    ctx.moveTo(cx, cy - radius * 0.9);
+    ctx.lineTo(cx, cy + radius * 0.9);
+    ctx.stroke();
+    if (forecast) {
+      const angle = -Math.PI * 0.5 + Math.sin(state.time * 2.2 + forecast.distance) * 0.52;
+      const distance = clamp(forecast.distance / 12, 0.22, 0.92);
+      const bx = cx + Math.cos(angle) * radius * distance;
+      const by = cy + Math.sin(angle) * radius * distance;
+      ctx.fillStyle = canvasRgba(accent, 0.74 + pulse * 0.2);
+      ctx.beginPath();
+      ctx.arc(bx, by, radius * (forecast.severe ? 0.28 : 0.22), 0, Math.PI * 2);
+      ctx.fill();
+      if (forecast.followSame) {
+        ctx.strokeStyle = canvasRgba(accent, 0.46 + pulse * 0.18);
+        ctx.beginPath();
+        ctx.arc(bx, by, radius * 0.46, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else {
+      ctx.strokeStyle = canvasRgba(accent, 0.68 + clearPulse * 0.18);
+      ctx.lineWidth = Math.max(1.4, radius * 0.15);
+      ctx.beginPath();
+      ctx.moveTo(cx - radius * 0.38, cy + radius * 0.02);
+      ctx.lineTo(cx - radius * 0.08, cy + radius * 0.28);
+      ctx.lineTo(cx + radius * 0.48, cy - radius * 0.34);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawClassicDistrictHud() {
     if (state.gameMode !== "stage" || state.mode !== "playing" || state.classicDistrictTarget <= 0) return;
     const stage = activeStage();
@@ -14394,6 +14660,7 @@
     const pulse = state.classicDistrictPulse || 0;
     const focusActive = state.classicRouteFocusTimer > 0 && state.classicRouteFocusKey === profile.key;
     const focusPulse = focusActive ? (state.classicRouteFocusPulse || 0) : 0;
+    const forecast = classicRouteForecastInfo();
     const color = profile.districtColor || "#5bded4";
     const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
@@ -14401,6 +14668,7 @@
     const y = playTop() + (compact ? 62 : 70);
     const barX = x + 12;
     const barW = w - 24;
+    const textMaxW = barW - (compact ? 25 : 34);
     const barH = compact ? 6 : 9;
     const barY = y + h - (compact ? 11 : 17);
     ctx.save();
@@ -14408,7 +14676,9 @@
     ctx.fillStyle = `rgba(13, 25, 34, ${0.64 + pulse * 0.16 + focusPulse * 0.1})`;
     roundRect(x, y, w, h, 8);
     ctx.fill();
-    ctx.strokeStyle = focusActive ? canvasRgba(color, 0.68 + focusPulse * 0.22) : ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
+    ctx.strokeStyle = forecast && forecast.severe
+      ? canvasRgba("#ff8d54", 0.62 + pulse * 0.16)
+      : focusActive ? canvasRgba(color, 0.68 + focusPulse * 0.22) : ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
     ctx.lineWidth = 1.4 + pulse * 1.1 + focusPulse * 0.8;
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -14416,13 +14686,14 @@
     ctx.font = `800 ${compact ? 10 : 14}px Microsoft YaHei, Arial`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText(ready ? `${profile.short}城区稳定` : `${profile.short}稳定 ${Math.floor(percent * 100)}%`, barX, y + (compact ? 5 : 8));
+    ctx.fillText(ready ? `${profile.short}城区稳定` : `${profile.short}稳定 ${Math.floor(percent * 100)}%`, barX, y + (compact ? 5 : 8), textMaxW);
     ctx.fillStyle = "rgba(255, 248, 232, 0.78)";
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
       ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
-      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : `${Math.floor(progress)}/${target} · 事件/拾取推进`;
-    ctx.fillText(hint, barX, y + (compact ? 18 : 27));
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
+    ctx.fillText(hint, barX, y + (compact ? 18 : 27), textMaxW);
+    drawClassicRouteRadar(x + w - (compact ? 14 : 18), y + (compact ? 14 : 20), compact ? 8 : 11, forecast, color);
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
     roundRect(barX, barY, barW, barH, barH * 0.5);
     ctx.fill();
