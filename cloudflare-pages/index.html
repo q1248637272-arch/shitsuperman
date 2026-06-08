@@ -8,7 +8,7 @@
   <link rel="preload" as="image" href="assets/background-city-patrol.png" fetchpriority="high">
   <link rel="preload" as="image" href="assets/menu-hero-refit.png" fetchpriority="high">
   <link rel="preload" as="image" href="assets/background-deep-valve.png">
-  <link rel="preload" as="image" href="assets/background-adventure-refit.png">
+  <link rel="preload" as="image" href="assets/background-adventure-beacon.png">
   <link rel="preload" as="image" href="assets/mount-atlas.png">
   <link rel="preload" as="image" href="assets/mail-festival-seal.png">
   <link rel="preload" as="image" href="assets/adventure-route-compass.png">
@@ -17,7 +17,7 @@
   <link rel="preload" as="image" href="assets/compendium-icons.webp">
   <link rel="preload" as="image" href="assets/compendium-pickups.webp">
   <link rel="preload" as="image" href="assets/compendium-systems.webp">
-  <link rel="stylesheet" href="styles.css?v=20260609-deep-valve">
+  <link rel="stylesheet" href="styles.css?v=20260609-adventure-beacon">
 </head>
 <body class="menu-open">
   <main class="game-shell" aria-label="大便超人">
@@ -450,6 +450,13 @@
                 </div>
               </article>
               <article class="compendium-card">
+                <div class="compendium-icon icon-system-adventure" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>远征信标</strong>
+                  <span>冒险目标未完成时会出现导航信标，贴线蓄满可推进航图和契约，并短暂提前标记威胁。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
                 <div class="compendium-icon icon-cloud-current" aria-hidden="true"></div>
                 <div class="compendium-copy">
                   <strong>清风补给</strong>
@@ -715,7 +722,7 @@
           <li>局内会随机出现“奇遇胶囊”，拾取后可能触发天赋盲盒、黄金喷泉、冲击波、时空滑流或弱点雷达；奇遇航线已翻新为可见紫色航道，贴着航道飞行可蓄出额外胶囊或技能核心。</li>
           <li>冒险模式现在需要同时满足分数、航图目标和本关契约；通过事件、云海顺流、补给空投、遗迹、极限闪避、精英和宝藏击破来积累探索、线索、货箱和契约进度，目标未完成时会继续探索，BOSS 关也会等航图和契约完成后才现身。</li>
           <li>冒险契约分为侦察、护送、讨伐和遗迹四类，每类鼓励不同跑法；完成契约会获得普通补给、航图推进和短时签章增益，不会新增便便币来源。</li>
-          <li>冒险会出现云海顺流，贴着移动顺流航线可蓄能，拾取顺流贝壳会补能并加速蓄能，蓄满后自动释放冲流爆发。</li>
+          <li>冒险会出现云海顺流，贴着移动顺流航线可蓄能，拾取顺流贝壳会补能并加速蓄能，蓄满后自动释放冲流爆发。目标未完成时还会出现远征信标，贴线蓄满可推进航图和契约，并短暂提前标记前方威胁。</li>
           <li>冒险和中后段会出现补给空投、云海遗迹和废都遗迹，拾取后可获得道具、临时强化、遗迹冲击或本局天赋，并推动航图进度。</li>
           <li>中后段新增五行裂隙事件，场景会切入五行战场；拾取五行灵核可获得木、火、土、金、水五种短时效果，分别偏向续航、爆发、护盾、破甲和回能控场。</li>
           <li>中后段会出现星轨试炼，场景切入星轨战场；贴着移动星轨飞行会蓄能，蓄满后自动触发星辉爆发，清理弹幕并压制 Boss。</li>
@@ -777,6 +784,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260609-deep-valve"></script>
+  <script src="main.js?v=20260609-adventure-beacon"></script>
 </body>
 </html>

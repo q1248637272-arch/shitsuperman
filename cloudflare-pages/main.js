@@ -138,6 +138,7 @@
     backgroundDeepValve: loadImage("assets/background-deep-valve.png"),
     backgroundDeepRefit: loadImage("assets/background-deep-refit.png"),
     backgroundAdventure: loadImage("assets/background-adventure.png", true),
+    backgroundAdventureBeacon: loadImage("assets/background-adventure-beacon.png"),
     backgroundAdventureRefit: loadImage("assets/background-adventure-refit.png"),
     backgroundElementRift: loadImage("assets/background-element-rift.png", true),
     backgroundStarTrail: loadImage("assets/background-star-trail.png", true),
@@ -204,7 +205,7 @@
     stageContractBadge: loadImage("assets/stage-contract-badge.png", true),
   };
 
-  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityPatrol", "backgroundCityRefit", "background", "backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
+  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityPatrol", "backgroundCityRefit", "background", "backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureBeacon", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
   const BOSS_WARMUP_ASSET_KEYS = [
     "bossToiletKing",
     "bossPlungerGeneral",
@@ -2011,6 +2012,10 @@
     adventureSupportTimer: 0,
     adventureSupportPulse: 0,
     adventureCurrentCharge: 0,
+    adventureBeaconCharge: 0,
+    adventureBeaconPulse: 0,
+    adventureBeaconReliefTimer: 0,
+    adventureBeaconReadTimer: 0,
     adventureLanePhase: 0,
     adventurePulse: 0,
     adventureBoostTimer: 0,
@@ -2754,6 +2759,161 @@
     const scoreGate = state.score > 120 || state.eventKind === "adventureCurrent";
     if (!scoreGate) return;
     addAdventureRouteProgress(dt * (0.42 + Math.min(0.52, state.speed / 520)), { silent: true });
+  }
+
+  function adventureBeaconActive() {
+    if (state.gameMode !== "adventure" || state.mode !== "playing" || !isStageMode()) return false;
+    return !adventureStageObjectivesReady(activeStage());
+  }
+
+  function adventureBeaconLaneInfo() {
+    const s = playScale();
+    const top = playTop();
+    const bottom = playBottom();
+    const playable = Math.max(86 * s, bottom - top);
+    let half = clamp(playable * 0.105, 22 * s, 38 * s);
+    const margin = Math.max(hero.radiusY + half + 8 * s, 38 * s);
+    let min = top + margin;
+    let max = bottom - margin;
+    if (min > max) {
+      half = clamp(playable * 0.14, 20 * s, 34 * s);
+      min = top + half + hero.radiusY * 0.58;
+      max = bottom - half - hero.radiusY * 0.58;
+    }
+    const contract = adventureContractForStage();
+    const route = adventureRouteProgress();
+    const routePercent = adventureRoutePercent();
+    const contractInfo = adventureContractProgressInfo();
+    const missingCargo = route.cargo < route.target.cargo;
+    const missingIntel = route.intel < route.target.intel;
+    const contractRatio = contractInfo.ready ? 1 : clamp(contractInfo.value / Math.max(1, contractInfo.target), 0, 1);
+    const ratioByContract = {
+      scout: 0.42,
+      cargo: 0.58,
+      hunt: 0.46,
+      relic: 0.62,
+    };
+    let ratio = ratioByContract[contract && contract.key] || 0.5;
+    if (missingIntel) ratio -= 0.08;
+    if (missingCargo) ratio += 0.09;
+    if (routePercent > contractRatio * 100 + 12) ratio += 0.04;
+    const base = min <= max ? min + (max - min) * clamp(ratio, 0.18, 0.82) : (top + bottom) * 0.5;
+    const sweep = min <= max ? Math.max(0, (max - min) * 0.27) : 0;
+    const phase = (state.adventureLanePhase || 0) + 1.7;
+    const drift = Math.sin(state.time * 0.56 + phase) * sweep
+      + Math.sin(state.time * 1.08 + phase * 0.42) * sweep * 0.24;
+    return {
+      center: clamp(base + drift, top + half, bottom - half),
+      half,
+      top,
+      bottom,
+      contract,
+      route,
+      progress: clamp((state.adventureBeaconCharge || 0) / 100, 0, 1),
+    };
+  }
+
+  function triggerAdventureBeacon(lane = adventureBeaconLaneInfo()) {
+    if (!adventureBeaconActive()) return;
+    const s = playScale();
+    const stage = activeStage();
+    const contract = lane.contract || adventureContractForStage(stage);
+    const route = adventureRouteProgress(stage);
+    const color = contract && contract.color ? contract.color : "#f5c84b";
+    let marked = 0;
+    let softened = 0;
+    for (const h of hazards) {
+      if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+      const hx = (h.x || 0) + (h.w || 0) * 0.5;
+      if (hx < hero.x + 8 * s || hx > state.width + 240 * s) continue;
+      const hy = Number.isFinite(h.y) ? h.y : lane.center;
+      const maxDim = Math.max(h.w || 0, h.h || 0, 42 * s);
+      const nearLane = Math.abs(hy - lane.center) <= lane.half + maxDim * 0.5 + 24 * s;
+      if (!nearLane && marked >= 4) continue;
+      h.routeReadMarked = Math.max(h.routeReadMarked || 0, nearLane ? 5.4 : 4.4);
+      h.slow = Math.max(h.slow || 0, nearLane ? 0.9 : 0.5);
+      h.hit = Math.max(h.hit || 0, 0.12);
+      marked += 1;
+      if (nearLane) softened += 1;
+    }
+
+    const missingIntel = route.intel < route.target.intel;
+    const missingCargo = route.cargo < route.target.cargo;
+    const routeGain = 13 + Math.min(12, (stage.number || 1) * 0.55) + softened * 1.6;
+    addAdventureRouteProgress(routeGain, {
+      intel: missingIntel ? 1 : 0,
+      cargo: !missingIntel && missingCargo ? 1 : 0,
+      label: "远征信标",
+      major: true,
+    });
+    const contractGain = contract && !adventureContractReady(stage)
+      ? 6.5 + Math.min(7, (stage.number || 1) * 0.22) + (contract.key === "scout" ? 2.4 : contract.key === "cargo" ? 1.8 : 0) + softened * 0.85
+      : 0;
+    if (contractGain > 0) addAdventureContractProgress(contractGain, "信标签章", { major: true });
+
+    state.adventureBeaconCharge = 18;
+    state.adventureBeaconPulse = 1;
+    state.adventureBeaconReliefTimer = Math.max(state.adventureBeaconReliefTimer || 0, 5.6);
+    state.adventureBeaconReadTimer = Math.max(state.adventureBeaconReadTimer || 0, 6.4);
+    state.adventureRoutePulse = Math.max(state.adventureRoutePulse || 0, 0.9);
+    state.adventureContractPulse = Math.max(state.adventureContractPulse || 0, 0.7);
+    state.spawnTimer = Math.max(state.spawnTimer || 0, 0.58);
+    state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.48);
+    state.energy = clamp(state.energy + state.maxEnergy * 0.1 + state.level * 0.18, 0, state.maxEnergy);
+    state.combo += 1;
+    state.comboTimer = Math.max(state.comboTimer, 2.8);
+    recordRunStat("maxCombo", state.combo);
+    addRoundedScore((160 + marked * 26 + contractGain * 7 + state.combo * 8) * state.scoreBonus * styleMultiplier());
+    gainXp(32 + marked * 3 + Math.min(16, contractGain), false);
+    gainStyle(17 + Math.min(14, marked * 1.8 + contractGain * 0.35), "远征信标", color);
+    if (Math.random() < 0.42 || marked >= 3 || missingCargo) {
+      const type = missingCargo ? "supplyCrate" : missingIntel ? "currentShell" : "focusOrb";
+      addPickup({
+        type,
+        x: Math.min(state.width - 66 * s, hero.x + 205 * s),
+        y: clamp(lane.center + random(-24, 24) * s, playTop() + 38 * s, playBottom() - 38 * s),
+        r: pickupRadius(type, s, 1.08),
+        strength: 1.08,
+        phase: random(0, 6.28),
+      }, true);
+    }
+    spawnAdventureCurrentParticles(hero.x + 78 * s, lane.center, color, 14 + Math.min(8, marked));
+    pop(hero.x + 78 * s, lane.center, color, 18 + Math.min(10, marked));
+    state.eventName = marked > 0 ? `远征信标 x${marked}` : "远征信标";
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.15);
+    beep(1080, 0.055, "triangle", 0.036);
+    setTimeout(() => beep(1380, 0.05, "sine", 0.028), 70);
+  }
+
+  function updateAdventureBeacon(dt) {
+    state.adventureBeaconPulse = Math.max(0, (state.adventureBeaconPulse || 0) - dt * 0.86);
+    state.adventureBeaconReliefTimer = Math.max(0, (state.adventureBeaconReliefTimer || 0) - dt);
+    state.adventureBeaconReadTimer = Math.max(0, (state.adventureBeaconReadTimer || 0) - dt);
+    if (!adventureBeaconActive()) {
+      state.adventureBeaconCharge = Math.max(0, (state.adventureBeaconCharge || 0) - dt * 16);
+      return;
+    }
+    const lane = adventureBeaconLaneInfo();
+    const distance = Math.abs(hero.y - lane.center);
+    const inside = distance <= lane.half + hero.radiusY * 0.22;
+    const near = distance <= lane.half + hero.radiusY * 0.82;
+    if (inside) {
+      const contract = lane.contract || adventureContractForStage();
+      const routeNeed = adventureRouteReady() ? 0 : 2.4;
+      const contractNeed = adventureContractReady() ? 0 : 2.2;
+      const contractBias = contract && contract.key === "scout" ? 1.4 : contract && contract.key === "cargo" ? 1.2 : 0;
+      const gain = 18 + Math.min(9, state.level * 0.28) + routeNeed + contractNeed + contractBias;
+      state.adventureBeaconCharge = clamp((state.adventureBeaconCharge || 0) + dt * gain, 0, 100);
+      state.energy = clamp(state.energy + dt * 0.55, 0, state.maxEnergy);
+      state.styleTimer = Math.max(state.styleTimer, 0.28);
+      state.adventureBeaconPulse = Math.max(state.adventureBeaconPulse || 0, 0.1);
+      addAdventureRouteProgress(dt * (0.8 + Math.min(1.4, state.level * 0.035)), { silent: true });
+      if (contract && !adventureContractReady()) addAdventureContractProgress(dt * 0.5, "", { silent: true });
+      if (Math.random() < dt * (isSmoothQuality() ? 2.2 : 3.8)) spawnAdventureCurrentParticles(hero.x - 8 * playScale(), hero.y, contract && contract.color ? contract.color : "#f5c84b", 1);
+    } else {
+      state.adventureBeaconCharge = Math.max(0, (state.adventureBeaconCharge || 0) - dt * (near ? 4 : 10));
+    }
+    if ((state.adventureBeaconCharge || 0) >= 100) triggerAdventureBeacon(lane);
   }
 
   function adventureContractForStage(stage = activeStage()) {
@@ -7365,7 +7525,7 @@
 
   function warmMapBackground(map, priority = "low") {
     const keys = map === "adventure"
-      ? ["backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge"]
+      ? ["backgroundAdventureBeacon", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge"]
       : map === "deep"
         ? ["backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep"]
         : ["backgroundCityPatrol", "backgroundCityRefit", "background"];
@@ -7475,11 +7635,12 @@
     const draftRelief = state.draftTimer > 0 ? 0.08 : 0;
     const contractRelief = state.adventureContractBoostTimer > 0 ? 0.055 : 0;
     const adventureSupportRelief = state.adventureSupportTimer > 0 ? 0.075 : 0;
+    const adventureBeaconRelief = state.adventureBeaconReliefTimer > 0 ? 0.065 : state.adventureBeaconReadTimer > 0 ? 0.025 : 0;
     const classicRelief = state.gameMode === "stage" ? (classicStageProfile(activeStage()).pressureRelief || 0) : 0;
     const classicGreenRelief = state.classicGreenWaveReliefTimer > 0 ? 0.045 : 0;
     const deepValveRelief = state.deepValvePressureTimer > 0 ? 0.085 : state.deepPurgeValveReliefTimer > 0 ? 0.055 : state.deepValveReadTimer > 0 ? 0.025 : 0;
     const patrolRelief = state.classicPatrolReliefTimer > 0 ? 0.05 : state.classicPatrolReadTimer > 0 ? 0.025 : 0;
-    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief - classicGreenRelief - deepValveRelief - patrolRelief, 0, 0.78);
+    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - adventureBeaconRelief - classicRelief - classicGreenRelief - deepValveRelief - patrolRelief, 0, 0.78);
   }
 
   function pickupGenerosity() {
@@ -7500,6 +7661,7 @@
     if (state.eventKind === "supplyDrop") value += 0.3;
     if (state.eventKind === "relicRoute") value += 0.2;
     if (state.adventureSupportTimer > 0) value += 0.16;
+    if (state.adventureBeaconReliefTimer > 0) value += 0.09;
     if (state.eventKind === "elementRift") value += 0.24;
     if (state.eventKind === "purificationTide") value += 0.24;
     if (state.eventKind === "mirrorCurrent") value += 0.2;
@@ -7970,6 +8132,10 @@
     state.adventureSupportTimer = 0;
     state.adventureSupportPulse = 0;
     state.adventureCurrentCharge = 0;
+    state.adventureBeaconCharge = 0;
+    state.adventureBeaconPulse = 0;
+    state.adventureBeaconReliefTimer = 0;
+    state.adventureBeaconReadTimer = 0;
     state.adventureLanePhase = random(0, Math.PI * 2);
     state.adventurePulse = 0;
     state.adventureBoostTimer = 0;
@@ -8415,6 +8581,7 @@
     state.shake = SCREEN_SHAKE_ENABLED ? Math.max(0, state.shake - dt * 18) : 0;
     hero.invuln = Math.max(0, hero.invuln - dt);
     updateAdventureRoute(dt);
+    updateAdventureBeacon(dt);
     if (state.gameMode !== "daily") {
       maybeStartEvent();
       prepareBackgroundTransition();
@@ -11285,6 +11452,7 @@
     drawClassicPatrolBeaconLane();
     drawDeepPurgeValveLane();
     drawClassicEventLane();
+    drawAdventureBeaconLane();
     drawAdventureCurrentLane();
     drawMysteryRouteLane();
     drawStarTrailLane();
@@ -11319,7 +11487,7 @@
   }
 
   function mapBackgroundAssetKey(map) {
-    if (map === "adventure") return imageReady(assets.backgroundAdventureRefit) ? "backgroundAdventureRefit" : "backgroundAdventure";
+    if (map === "adventure") return imageReady(assets.backgroundAdventureBeacon) ? "backgroundAdventureBeacon" : imageReady(assets.backgroundAdventureRefit) ? "backgroundAdventureRefit" : "backgroundAdventure";
     if (map === "deep") return imageReady(assets.backgroundDeepValve) ? "backgroundDeepValve" : imageReady(assets.backgroundDeepRefit) ? "backgroundDeepRefit" : "backgroundDeep";
     return imageReady(assets.backgroundCityPatrol) ? "backgroundCityPatrol" : imageReady(assets.backgroundCityRefit) ? "backgroundCityRefit" : "background";
   }
@@ -11336,7 +11504,7 @@
     const cityMap = !deepMap && !adventureMap && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap && !forgeMap;
     const cityRefitReady = imageReady(assets.backgroundCityPatrol) || imageReady(assets.backgroundCityRefit);
     const deepRefitReady = imageReady(assets.backgroundDeepValve) || imageReady(assets.backgroundDeepRefit);
-    const adventureRefitReady = imageReady(assets.backgroundAdventureRefit);
+    const adventureRefitReady = imageReady(assets.backgroundAdventureBeacon) || imageReady(assets.backgroundAdventureRefit);
     let assetKey = mapBackgroundAssetKey(map);
     let key = `map:${map}:${assetKey}`;
     if (elementRiftMap) {
@@ -11456,6 +11624,8 @@
     const patrolPulse = profile && frame.cityMap ? Math.max(state.classicPatrolPulse || 0, state.classicPatrolReadTimer > 0 ? 0.38 : 0) : 0;
     const deepValve = profile && frame.deepMap && state.mode === "playing" ? clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) : 0;
     const deepPulse = profile && frame.deepMap ? Math.max(state.deepPurgeValvePulse || 0, state.deepValvePressureTimer > 0 ? 0.42 : state.deepValveReadTimer > 0 ? 0.28 : 0) : 0;
+    const adventureBeacon = frame.adventureMap && state.mode === "playing" ? clamp((state.adventureBeaconCharge || 0) / 100, 0, 1) : 0;
+    const adventureBeaconPulse = frame.adventureMap ? Math.max(state.adventureBeaconPulse || 0, state.adventureBeaconReadTimer > 0 ? 0.34 : 0) : 0;
     ctx.save();
     const lowerShade = ctx.createLinearGradient(0, top, 0, state.height);
     lowerShade.addColorStop(0, "rgba(6, 18, 24, 0)");
@@ -11478,6 +11648,18 @@
     ctx.fillStyle = rail;
     roundRect(16, railY - 8 * playScale(), state.width - 32, 16 * playScale(), 9 * playScale());
     ctx.fill();
+    if (adventureBeacon > 0.01 || adventureBeaconPulse > 0.01) {
+      const beaconY = railY - 24 * playScale();
+      const beaconBand = ctx.createLinearGradient(0, beaconY, state.width, beaconY);
+      beaconBand.addColorStop(0, "rgba(245, 200, 75, 0)");
+      beaconBand.addColorStop(0.22, `rgba(245, 200, 75, ${0.035 + adventureBeacon * 0.07 + adventureBeaconPulse * 0.08})`);
+      beaconBand.addColorStop(0.5, `rgba(255, 248, 232, ${0.022 + adventureBeacon * 0.05})`);
+      beaconBand.addColorStop(0.78, `rgba(91, 222, 212, ${0.03 + adventureBeacon * 0.06 + adventureBeaconPulse * 0.07})`);
+      beaconBand.addColorStop(1, "rgba(245, 200, 75, 0)");
+      ctx.fillStyle = beaconBand;
+      roundRect(24, beaconY - 4 * playScale(), state.width - 48, 8 * playScale(), 5 * playScale());
+      ctx.fill();
+    }
     if (greenWave > 0.01 || greenPulse > 0.01) {
       const greenY = railY - 20 * playScale();
       const greenBand = ctx.createLinearGradient(0, greenY, state.width, greenY);
@@ -12507,6 +12689,94 @@
     ctx.restore();
   }
 
+  function drawAdventureBeaconLane() {
+    const active = adventureBeaconActive();
+    const pulseValue = state.adventureBeaconPulse || 0;
+    const readActive = state.adventureBeaconReadTimer > 0;
+    if (!active && pulseValue <= 0 && !readActive && (state.adventureBeaconCharge || 0) <= 0) return;
+    const s = playScale();
+    const lane = adventureBeaconLaneInfo();
+    const contract = lane.contract || adventureContractForStage();
+    const color = contract && contract.color ? contract.color : "#f5c84b";
+    const progress = clamp((state.adventureBeaconCharge || 0) / 100, 0, 1);
+    const pulse = Math.max(pulseValue, readActive ? 0.3 : 0);
+    const inLane = active && Math.abs(hero.y - lane.center) <= lane.half + hero.radiusY * 0.22;
+    const eventOverlap = adventureCurrentActive();
+    const alpha = ((active ? (inLane ? 0.24 : 0.15) : 0.08) + progress * 0.08 + pulse * 0.09) * (eventOverlap ? 0.62 : 1);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const band = ctx.createLinearGradient(0, lane.center - lane.half, state.width, lane.center + lane.half);
+    band.addColorStop(0, canvasRgba(color, alpha * 0.46));
+    band.addColorStop(0.5, `rgba(255, 248, 232, ${alpha * 0.18})`);
+    band.addColorStop(1, `rgba(91, 222, 212, ${alpha * 0.28})`);
+    ctx.fillStyle = band;
+    ctx.fillRect(0, lane.center - lane.half, state.width, lane.half * 2);
+
+    ctx.strokeStyle = inLane ? "rgba(255, 248, 232, 0.74)" : canvasRgba(color, 0.42 + progress * 0.12 + pulse * 0.12);
+    ctx.lineWidth = Math.max(1, (1.5 + progress * 0.5 + pulse * 0.45) * s);
+    ctx.setLineDash([12 * s, 11 * s, 4 * s, 9 * s]);
+    ctx.lineDashOffset = -state.scroll * 0.11;
+    ctx.beginPath();
+    ctx.moveTo(0, lane.center - lane.half);
+    ctx.lineTo(state.width, lane.center - lane.half);
+    ctx.moveTo(0, lane.center + lane.half);
+    ctx.lineTo(state.width, lane.center + lane.half);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const glyphCount = isSmoothQuality() ? 4 : 6;
+    ctx.globalAlpha = (eventOverlap ? 0.42 : 0.62) + progress * 0.12 + pulse * 0.12;
+    for (let i = 0; i < glyphCount; i += 1) {
+      const x = state.width - ((state.scroll * 0.58 + i * 132 * s) % (state.width + 142 * s));
+      const y = lane.center + Math.sin(state.time * 1.75 + i * 1.18) * lane.half * 0.44;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.sin(state.time * 0.9 + i) * 0.2);
+      ctx.strokeStyle = i % 2 ? "rgba(255, 248, 232, 0.78)" : canvasRgba(color, 0.76);
+      ctx.fillStyle = i % 2 ? "rgba(91, 222, 212, 0.28)" : canvasRgba(color, 0.26);
+      ctx.lineWidth = Math.max(1, 1.45 * s);
+      ctx.beginPath();
+      ctx.arc(0, 0, (10 + Math.sin(state.time * 4.6 + i) * 1.2) * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-11 * s, 0);
+      ctx.lineTo(0, -14 * s);
+      ctx.lineTo(11 * s, 0);
+      ctx.lineTo(0, 14 * s);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const barW = Math.min(150 * s, state.width * 0.25);
+    const barH = Math.max(4 * s, 3);
+    const bx = clamp(hero.x - barW * 0.32, 16 * s, state.width - barW - 16 * s);
+    const by = clamp(lane.center + lane.half + 7 * s, playTop() + 8 * s, playBottom() - 18 * s);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = eventOverlap ? 0.56 : 0.78;
+    ctx.fillStyle = "rgba(8, 24, 28, 0.52)";
+    roundRect(bx, by, barW, barH, barH * 0.5);
+    ctx.fill();
+    const fill = barW * progress;
+    if (fill > 1) {
+      const grad = ctx.createLinearGradient(bx, by, bx + barW, by);
+      grad.addColorStop(0, color);
+      grad.addColorStop(0.56, "#fff8e8");
+      grad.addColorStop(1, "#5bded4");
+      ctx.fillStyle = grad;
+      roundRect(bx, by, fill, barH, barH * 0.5);
+      ctx.fill();
+    }
+    if (state.adventureBeaconReadTimer > 0) {
+      const readW = barW * clamp(state.adventureBeaconReadTimer / 6.4, 0, 1);
+      ctx.fillStyle = "rgba(223, 255, 122, 0.56)";
+      roundRect(bx, by + barH + 3 * s, readW, Math.max(2, 2.2 * s), 2 * s);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function drawMysteryRouteLane() {
     if (!mysteryLaneActive() && state.mysteryPulse <= 0) return;
     const s = playScale();
@@ -12959,7 +13229,7 @@
     if (state.mode !== "playing" || hazards.length === 0) return;
     const s = playScale();
     const windowStart = state.width + 12 * s;
-    const readAssist = state.classicPatrolReadTimer > 0 || state.deepValveReadTimer > 0;
+    const readAssist = state.classicPatrolReadTimer > 0 || state.deepValveReadTimer > 0 || state.adventureBeaconReadTimer > 0;
     const windowEnd = state.width + (isLandscapePlay() ? (readAssist ? 270 : 190) : (readAssist ? 225 : 150)) * s;
     const visible = groupedThreatWarnings(windowStart, windowEnd, s);
     if (visible.length === 0) return;
@@ -16119,7 +16389,13 @@
     ctx.fillText(ready ? "航图完成" : `航图 ${percent}%`, barX, y + (compact ? 7 : 9));
     ctx.fillStyle = "rgba(255, 248, 232, 0.82)";
     ctx.font = `700 ${compact ? 9 : 12}px Microsoft YaHei, Arial`;
-    ctx.fillText(`线索 ${Math.floor(route.intel)}/${route.target.intel} · 货箱 ${Math.floor(route.cargo)}/${route.target.cargo}`, barX, y + (compact ? 22 : 27));
+    const beaconActive = adventureBeaconActive();
+    const beaconText = state.adventureBeaconReadTimer > 0
+      ? `信标读线 ${Math.ceil(state.adventureBeaconReadTimer)}s`
+      : beaconActive
+        ? `信标 ${Math.floor(clamp((state.adventureBeaconCharge || 0) / 100, 0, 1) * 100)}% · 导航`
+        : "";
+    ctx.fillText(beaconText || `线索 ${Math.floor(route.intel)}/${route.target.intel} · 货箱 ${Math.floor(route.cargo)}/${route.target.cargo}`, barX, y + (compact ? 22 : 27));
     ctx.fillStyle = "rgba(255, 248, 232, 0.16)";
     roundRect(barX, barY, barW, barH, barH * 0.5);
     ctx.fill();
@@ -17557,13 +17833,17 @@
           ? `奇遇航线 ${Math.floor(state.mysteryLaneCharge || 0)}%`
           : adventureCurrentActive()
             ? `云海顺流 ${Math.floor(state.adventureCurrentCharge || 0)}%`
-            : starTrailActive()
-              ? `星轨蓄能 ${Math.floor(state.starTrailCharge || 0)}%`
-              : mirrorCurrentActive()
-                ? `镜流蓄能 ${Math.floor(state.mirrorCharge || 0)}%`
-                : auroraForgeActive()
-                  ? `铸炉热量 ${Math.floor(state.forgeHeat || 0)}%`
-                  : "";
+            : state.adventureBeaconReadTimer > 0
+              ? `信标读线 ${Math.ceil(state.adventureBeaconReadTimer)}s`
+              : adventureBeaconActive()
+                ? `远征信标 ${Math.floor(state.adventureBeaconCharge || 0)}%`
+                : starTrailActive()
+                  ? `星轨蓄能 ${Math.floor(state.starTrailCharge || 0)}%`
+                  : mirrorCurrentActive()
+                    ? `镜流蓄能 ${Math.floor(state.mirrorCharge || 0)}%`
+                    : auroraForgeActive()
+                      ? `铸炉热量 ${Math.floor(state.forgeHeat || 0)}%`
+                      : "";
     if (state.specialTimer > 0) {
       powerText.textContent = `黄金便便 ${Math.ceil(state.specialTimer)}s`;
     } else if (state.shieldTimer > 0) {
@@ -18346,6 +18626,7 @@
         addChip("线索", `${routeTargets.intel}`);
         addChip("货箱", `${routeTargets.cargo}`);
         if (contract) addChip("契约", `${contract.short} ${contract.target} · ${contract.hint || contract.desc}`, ["alert", "wide"]);
+        addChip("远征信标", "贴线补航图/契约 · 早预警", ["reward", "wide"]);
         addChip("支援", "航图/契约里程碑触发补给", ["wide"]);
         addChip(stage.bossStage ? "现身" : "通关", stage.bossStage ? "三目标完成后出 Boss" : "分数 + 航图 + 契约", stage.bossStage ? "boss" : "");
       } else if (stage.bossStage) {
