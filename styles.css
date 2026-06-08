@@ -1728,6 +1728,62 @@ button:focus-visible {
   color: rgba(255, 248, 232, 0.82);
 }
 
+.redeem-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  margin: 0 0 9px;
+  padding: 8px;
+  border: 1px solid rgba(157, 232, 255, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(84, 208, 255, 0.12), rgba(245, 200, 75, 0.08)),
+    rgba(17, 27, 34, 0.46);
+}
+
+.redeem-panel input {
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 248, 232, 0.22);
+  border-radius: 8px;
+  outline: 0;
+  background: rgba(6, 15, 22, 0.58);
+  color: #fff8e8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.redeem-panel input:focus {
+  border-color: rgba(245, 200, 75, 0.68);
+  box-shadow: 0 0 0 2px rgba(245, 200, 75, 0.16);
+}
+
+.redeem-panel button {
+  min-width: 72px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.redeem-status {
+  grid-column: 1 / -1;
+  min-height: 15px;
+  color: rgba(255, 248, 232, 0.72);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.redeem-status.is-error {
+  color: rgba(255, 180, 160, 0.96);
+}
+
+.redeem-status.is-success {
+  color: rgba(223, 255, 122, 0.96);
+}
+
 .shop-icon {
   width: min(62px, 18vw);
   aspect-ratio: 1;

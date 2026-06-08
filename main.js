@@ -104,6 +104,10 @@
   const buyReviveButton = document.getElementById("buyReviveButton");
   const buyStormButton = document.getElementById("buyStormButton");
   const buyWingButton = document.getElementById("buyWingButton");
+  const redeemForm = document.getElementById("redeemForm");
+  const redeemCodeInput = document.getElementById("redeemCodeInput");
+  const redeemCodeButton = document.getElementById("redeemCodeButton");
+  const redeemCodeStatus = document.getElementById("redeemCodeStatus");
   const pauseButton = document.getElementById("pauseButton");
   const endRunButton = document.getElementById("endRunButton");
   const muteButton = document.getElementById("muteButton");
@@ -529,6 +533,13 @@
   const BOSS_ATTACK_RATE_SCALE = 0.5625;
   const BOSS_PROJECTILE_DENSITY_SCALE = 0.9;
   const HAZARD_SPAWN_INTERVAL_SCALE = 1.12;
+  const REDEEM_CODES = [
+    {
+      id: "pc_reward_20260608_a",
+      hash: "dd7363ad94ad6737fb7994daec4de0e03c388176089e5f96c14714fec0b82300",
+      reward: { poopCoins: 10000 },
+    },
+  ];
   const PICKUP_SIZE_SCALE = 1.3;
   const SCREEN_SHAKE_ENABLED = false;
   const SCENE_TRANSITION_DURATION = 0.92;
@@ -1368,6 +1379,7 @@
     mail: { lastSyncDate: "", claimedTotal: 0, messages: [] },
     signIn: { lastDate: "", streak: 0 },
     dailyChallenge: { date: "", rewardedDamage: 0, bossDefeated: false },
+    redeemedCodes: {},
     endlessStoneClaims: [],
     heroStoneClaims: heroProfiles.reduce((map, profile) => {
       map[profile.key] = [];
@@ -1557,6 +1569,7 @@
     dragLastX: 170,
     dragLastY: 360,
     audio: null,
+    bgm: null,
   };
 
   const hero = {
@@ -1891,6 +1904,7 @@
         mail: normalizeMail(saved && saved.mail),
         signIn: { ...metaDefaults.signIn, ...((saved && saved.signIn) || {}) },
         dailyChallenge: { ...metaDefaults.dailyChallenge, ...((saved && saved.dailyChallenge) || {}) },
+        redeemedCodes: { ...metaDefaults.redeemedCodes, ...((saved && saved.redeemedCodes) || {}) },
         heroStoneClaims: { ...metaDefaults.heroStoneClaims, ...((saved && saved.heroStoneClaims) || {}) },
         cleared: { ...((saved && saved.cleared) || {}) },
         adventureCleared: { ...((saved && saved.adventureCleared) || {}) },
@@ -1953,6 +1967,7 @@
       loaded.dailyChallenge.date = String(loaded.dailyChallenge.date || "");
       loaded.dailyChallenge.rewardedDamage = Math.max(0, Math.floor(Number(loaded.dailyChallenge.rewardedDamage) || 0));
       loaded.dailyChallenge.bossDefeated = !!loaded.dailyChallenge.bossDefeated;
+      if (!loaded.redeemedCodes || typeof loaded.redeemedCodes !== "object" || Array.isArray(loaded.redeemedCodes)) loaded.redeemedCodes = {};
       loaded.activeTitle = String(loaded.activeTitle || "");
       loaded.coins = Math.max(0, Math.floor(Number(loaded.coins) || 0));
       loaded.materials = Math.max(0, Math.floor(Number(loaded.materials) || 0));
@@ -6015,6 +6030,74 @@
     }, options.duration || 2600);
   }
 
+  function setRedeemStatus(message, tone = "") {
+    if (!redeemCodeStatus) return;
+    redeemCodeStatus.textContent = message || "每个兑换码仅可使用一次。";
+    redeemCodeStatus.classList.toggle("is-error", tone === "error");
+    redeemCodeStatus.classList.toggle("is-success", tone === "success");
+  }
+
+  function normalizeRedeemCodeInput(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, "")
+      .toLocaleLowerCase("zh-CN");
+  }
+
+  async function sha256Hex(value) {
+    const cryptoApi = window.crypto && window.crypto.subtle;
+    if (!cryptoApi || !window.TextEncoder) throw new Error("digest-unavailable");
+    const bytes = new TextEncoder().encode(value);
+    const hash = await cryptoApi.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(hash))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  async function redeemCode(event) {
+    if (event) event.preventDefault();
+    if (!redeemCodeInput || !redeemCodeButton) return;
+    const normalized = normalizeRedeemCodeInput(redeemCodeInput.value);
+    if (!normalized) {
+      setRedeemStatus("请输入兑换码。", "error");
+      beep(150, 0.06, "sawtooth", 0.03);
+      return;
+    }
+    redeemCodeButton.disabled = true;
+    redeemCodeInput.value = "";
+    try {
+      const digest = await sha256Hex(normalized);
+      const entry = REDEEM_CODES.find((item) => item.hash === digest);
+      if (!entry) {
+        setRedeemStatus("兑换码无效。", "error");
+        beep(150, 0.07, "sawtooth", 0.032);
+        return;
+      }
+      if (meta.redeemedCodes && meta.redeemedCodes[entry.id]) {
+        setRedeemStatus("这个兑换码已使用。", "error");
+        beep(180, 0.06, "square", 0.026);
+        return;
+      }
+      const poopCoins = Math.max(0, Math.floor(Number(entry.reward && entry.reward.poopCoins) || 0));
+      if (!meta.redeemedCodes || typeof meta.redeemedCodes !== "object" || Array.isArray(meta.redeemedCodes)) meta.redeemedCodes = {};
+      meta.redeemedCodes[entry.id] = todayKey();
+      meta.poopCoins = (meta.poopCoins || 0) + poopCoins;
+      saveMeta();
+      refreshShopCards();
+      redeemCodeInput.value = "";
+      setRedeemStatus(`兑换成功，便便币 +${poopCoins}。`, "success");
+      showRewardToast([{ type: "poopCoin", amount: poopCoins }], { duration: 2800 });
+      beep(980, 0.08, "triangle", 0.045);
+      setTimeout(() => beep(1320, 0.07, "sine", 0.034), 80);
+    } catch {
+      setRedeemStatus("当前浏览器暂不支持兑换校验。", "error");
+      beep(150, 0.08, "sawtooth", 0.032);
+    } finally {
+      redeemCodeButton.disabled = false;
+    }
+  }
+
   function reportRuntimeIssue() {
     showSystemToast("加载异常，已尝试恢复；请切换横屏或刷新。", { duration: 3200 });
   }
@@ -7308,6 +7391,7 @@
   }
 
   function showMenu(copy, startLabel, restartVisible = false, options = {}) {
+    stopBgm(true);
     const pauseOpen = !!options.pause;
     const resultOpen = !pauseOpen && (state.mode === "gameover" || state.mode === "stageclear");
     menuPanel.hidden = false;
@@ -7336,6 +7420,7 @@
     menuPanel.classList.remove("pause-open");
     menuPanel.classList.remove("result-open");
     if (homeButton) homeButton.hidden = true;
+    if (state.mode === "playing") startBgm();
   }
 
   function gameOver() {
@@ -7537,6 +7622,7 @@
     if (state.mode !== "playing") return;
 
     state.time += dt;
+    updateBgm();
     if (state.gameMode === "daily") {
       state.dailyTimeLeft = Math.max(0, state.dailyTimeLeft - dt);
       if (state.dailyTimeLeft <= 0) {
@@ -17270,6 +17356,7 @@
     }
     if (target === "shop") {
       const selectedShopKey = shopDetail && shopDetail.dataset.shopKey ? shopDetail.dataset.shopKey : "shield";
+      setRedeemStatus();
       refreshShopCards();
       showShopDetail(selectedShopKey);
     }
@@ -17598,6 +17685,163 @@
     osc.stop(audio.currentTime + duration);
   }
 
+  function ensureBgm(audio = ensureAudio()) {
+    if (!audio) return null;
+    if (state.bgm && state.bgm.master) return state.bgm;
+    const master = audio.createGain();
+    master.gain.value = 0.0001;
+    master.connect(audio.destination);
+    state.bgm = {
+      master,
+      active: false,
+      step: 0,
+      nextStepTime: 0,
+      mode: "",
+    };
+    return state.bgm;
+  }
+
+  function bgmMode() {
+    if (boss) return "boss";
+    if (state.feverTimer > 0 || state.comboSurgeTimer > 0) return "fever";
+    if (state.eventTimer > 0 && state.eventKind) return "event";
+    if (state.gameMode === "daily") return "daily";
+    return state.gameMode === "adventure" ? "adventure" : "run";
+  }
+
+  function bgmBpm(mode = bgmMode()) {
+    return mode === "boss" ? 172 : mode === "fever" ? 176 : mode === "daily" ? 168 : mode === "event" ? 164 : 156;
+  }
+
+  function bgmTargetVolume(mode = bgmMode()) {
+    return mode === "boss" ? 0.062 : mode === "fever" ? 0.066 : mode === "event" ? 0.058 : 0.052;
+  }
+
+  function startBgm() {
+    if (state.muted || !["playing", "perkchoice"].includes(state.mode)) return;
+    const audio = ensureAudio();
+    if (!audio) return;
+    if (audio.state === "suspended") audio.resume();
+    const bgm = ensureBgm(audio);
+    if (!bgm) return;
+    const now = audio.currentTime;
+    const mode = bgmMode();
+    bgm.active = true;
+    bgm.mode = mode;
+    if (!bgm.nextStepTime || bgm.nextStepTime < now) bgm.nextStepTime = now + 0.04;
+    bgm.master.gain.cancelScheduledValues(now);
+    bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), now);
+    bgm.master.gain.linearRampToValueAtTime(bgmTargetVolume(mode), now + 0.45);
+  }
+
+  function stopBgm(fade = true) {
+    const bgm = state.bgm;
+    if (!bgm || !bgm.master || !state.audio) return;
+    const now = state.audio.currentTime;
+    bgm.active = false;
+    bgm.master.gain.cancelScheduledValues(now);
+    bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), now);
+    bgm.master.gain.linearRampToValueAtTime(0.0001, now + (fade ? 0.38 : 0.04));
+  }
+
+  function scheduleBgmTone(freq, time, duration, type, gainValue, detune = 0) {
+    const audio = state.audio;
+    const bgm = state.bgm;
+    if (!audio || !bgm || !bgm.master || freq <= 0) return;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, time);
+    if (detune) osc.detune.setValueAtTime(detune, time);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, gainValue), time + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.025, duration));
+    osc.connect(gain);
+    gain.connect(bgm.master);
+    osc.start(time);
+    osc.stop(time + duration + 0.03);
+  }
+
+  function scheduleBgmNoise(time, duration, gainValue, filterType = "highpass", frequency = 2200) {
+    const audio = state.audio;
+    const bgm = state.bgm;
+    if (!audio || !bgm || !bgm.master) return;
+    const buffer = audio.createBuffer(1, Math.max(1, Math.floor(audio.sampleRate * duration)), audio.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = random(-1, 1) * (1 - i / data.length);
+    const source = audio.createBufferSource();
+    const filter = audio.createBiquadFilter();
+    const gain = audio.createGain();
+    source.buffer = buffer;
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(frequency, time);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, gainValue), time + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(bgm.master);
+    source.start(time);
+    source.stop(time + duration + 0.02);
+  }
+
+  function noteFreq(base, semitone) {
+    return base * (2 ** (semitone / 12));
+  }
+
+  function scheduleBgmStep(step, time, stepDuration, mode) {
+    const heavy = mode === "boss" || mode === "fever";
+    const root = mode === "adventure" ? 61.74 : mode === "boss" ? 51.91 : 55;
+    const bassPattern = mode === "boss"
+      ? [0, 0, 7, 0, 6, 0, 10, 7, 0, 0, 7, 0, 13, 10, 7, 6]
+      : [0, 0, 7, 0, 10, 7, 5, 7, 0, 0, 7, 0, 12, 10, 7, 5];
+    const leadPattern = mode === "boss"
+      ? [24, 19, 22, 18, 24, 19, 25, 22, 24, 19, 22, 18, 27, 25, 22, 19]
+      : [19, 15, 17, 12, 19, 15, 22, 17, 19, 15, 17, 12, 24, 22, 19, 17];
+    const bassNote = bassPattern[step % bassPattern.length];
+    if (step % 4 === 0 || (heavy && step % 8 === 6)) scheduleBgmTone(72, time, stepDuration * 1.1, "sine", heavy ? 0.045 : 0.036, -900);
+    if (step % 8 === 4 || step % 16 === 12) scheduleBgmNoise(time, 0.08, heavy ? 0.026 : 0.02, "bandpass", 1800);
+    if (step % 2 === 1 || heavy) scheduleBgmNoise(time, 0.028, heavy ? 0.012 : 0.008, "highpass", 5200);
+    if ([0, 3, 6, 8, 11, 14].includes(step % 16)) {
+      scheduleBgmTone(noteFreq(root, bassNote), time, stepDuration * 1.6, "sawtooth", heavy ? 0.025 : 0.019, -5);
+    }
+    if (step % 4 === 0) {
+      scheduleBgmTone(noteFreq(root * 2, bassNote + 12), time, stepDuration * 2.6, "triangle", mode === "boss" ? 0.014 : 0.011);
+      scheduleBgmTone(noteFreq(root * 2, bassNote + 19), time, stepDuration * 2.4, "triangle", mode === "boss" ? 0.01 : 0.008);
+    }
+    if ((heavy && step % 2 === 0) || (!heavy && [2, 5, 10, 13].includes(step % 16))) {
+      const lead = leadPattern[step % leadPattern.length];
+      scheduleBgmTone(noteFreq(root * 2, lead), time, stepDuration * 0.82, mode === "boss" ? "square" : "sawtooth", heavy ? 0.014 : 0.01, step % 4 === 0 ? 4 : -4);
+    }
+  }
+
+  function updateBgm() {
+    if (state.muted || !["playing", "perkchoice"].includes(state.mode)) {
+      stopBgm(true);
+      return;
+    }
+    startBgm();
+    const audio = state.audio;
+    const bgm = state.bgm;
+    if (!audio || !bgm || !bgm.active) return;
+    const mode = bgmMode();
+    const now = audio.currentTime;
+    if (mode !== bgm.mode) {
+      bgm.mode = mode;
+      bgm.master.gain.cancelScheduledValues(now);
+      bgm.master.gain.setValueAtTime(Math.max(0.0001, bgm.master.gain.value), now);
+      bgm.master.gain.linearRampToValueAtTime(bgmTargetVolume(mode), now + 0.24);
+    }
+    let safety = 0;
+    while (bgm.nextStepTime < now + 0.26 && safety < 24) {
+      const stepDuration = 60 / bgmBpm(mode) / 4;
+      scheduleBgmStep(bgm.step % 16, bgm.nextStepTime, stepDuration, mode);
+      bgm.step += 1;
+      bgm.nextStepTime += stepDuration;
+      safety += 1;
+    }
+  }
+
   function hitEllipseRect(cx, cy, rx, ry, x, y, w, h) {
     return rectVsEllipse(x - w * 0.5, y - h * 0.5, w, h, cx, cy, rx, ry);
   }
@@ -17916,6 +18160,7 @@
   if (buyReviveButton) buyReviveButton.addEventListener("click", () => buyShopItem("revive", buyReviveCore));
   if (buyStormButton) buyStormButton.addEventListener("click", () => buyShopItem("storm", () => buyItem("storm")));
   if (buyWingButton) buyWingButton.addEventListener("click", () => buyShopItem("wing", () => buyItem("wing")));
+  if (redeemForm) redeemForm.addEventListener("submit", redeemCode);
   if (sellWeakEquipmentButton) sellWeakEquipmentButton.addEventListener("click", () => sellEquipmentBatch("weak"));
   if (sellAllEquipmentButton) sellAllEquipmentButton.addEventListener("click", () => sellEquipmentBatch("all"));
   useShieldButton.addEventListener("click", () => useInventoryItem("shield"));
@@ -17938,6 +18183,8 @@
   muteButton.addEventListener("click", () => {
     state.muted = !state.muted;
     muteButton.textContent = state.muted ? "静音" : "声音";
+    if (state.muted) stopBgm(false);
+    else startBgm();
   });
 
   for (const key of Object.keys(assets)) {

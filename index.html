@@ -180,6 +180,11 @@
           </div>
         </div>
         <div id="shopPage" class="progress-page shop-page" hidden aria-label="商店页面">
+          <form id="redeemForm" class="redeem-panel" aria-label="兑换码">
+            <input id="redeemCodeInput" type="password" autocomplete="off" spellcheck="false" placeholder="输入兑换码" aria-label="兑换码">
+            <button id="redeemCodeButton" type="submit">兑换</button>
+            <div id="redeemCodeStatus" class="redeem-status" aria-live="polite">每个兑换码仅可使用一次。</div>
+          </form>
           <div id="shopDetail" class="shop-detail" aria-live="polite">点击商品查看作用，再点购买放入背包。</div>
           <div class="shop-grid">
             <div class="shop-card" data-shop-key="shield">
@@ -356,6 +361,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260606-stability-visuals"></script>
+  <script src="main.js?v=20260608-redeem-bgm"></script>
 </body>
 </html>
