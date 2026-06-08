@@ -1022,16 +1022,17 @@
     const forecastInfo = classicRouteForecastInfo();
     const forecast = classicRouteForecastText(forecastInfo);
     const greenWave = classicGreenWaveActive() && !forecast ? ` · 绿波 ${Math.floor(clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) * 100)}%` : "";
+    const deepValve = deepPurgeValveActive() && !forecast ? ` · 深阀 ${Math.floor(clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) * 100)}%` : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}航线稳定${boost}${focus}${greenWave} · ${forecast || classicRouteBiasText(profile)}`;
+      return `${profile.short}航线稳定${boost}${focus}${greenWave}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}航线${focus}${greenWave} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
+      return `${profile.short}航线${focus}${greenWave}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}航线${focus}${greenWave} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}航线${focus}${greenWave}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
   }
 
   function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
@@ -1188,6 +1189,133 @@
       state.classicGreenWaveCharge = Math.max(0, (state.classicGreenWaveCharge || 0) - dt * (near ? 4 : 10));
     }
     if ((state.classicGreenWaveCharge || 0) >= 100) triggerClassicGreenWaveReward(lane, profile);
+  }
+
+  function deepPurgeValveActive() {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || !isStageMode()) return false;
+    const stage = activeStage();
+    return !!(stage && stage.map === "deep");
+  }
+
+  function deepPurgeValveLaneInfo(profile = classicStageProfile()) {
+    const s = playScale();
+    const top = playTop();
+    const bottom = playBottom();
+    const playable = Math.max(90 * s, bottom - top);
+    let half = clamp(playable * 0.13, 25 * s, 44 * s);
+    const margin = Math.max(hero.radiusY + half + 9 * s, 40 * s);
+    let min = top + margin;
+    let max = bottom - margin;
+    if (min > max) {
+      half = clamp(playable * 0.15, 22 * s, 38 * s);
+      min = top + half + hero.radiusY * 0.58;
+      max = bottom - half - hero.radiusY * 0.58;
+    }
+    const ratio = {
+      clean: 0.55,
+      supply: 0.45,
+      combo: 0.38,
+      threat: 0.62,
+      bossPrep: 0.5,
+    }[profile.key] || 0.52;
+    const base = min <= max ? min + (max - min) * ratio : (top + bottom) * 0.5;
+    const sweep = min <= max ? Math.max(0, (max - min) * 0.28) : 0;
+    const phase = (state.classicLanePhase || 0) + 4.1;
+    const forecast = classicRouteForecastInfo();
+    let forecastNudge = 0;
+    if (forecast && Number.isFinite(forecast.y)) {
+      const away = forecast.y < (top + bottom) * 0.5 ? 1 : -1;
+      forecastNudge = away * Math.min(playable * (forecast.severe ? 0.24 : 0.15), (forecast.severe ? 84 : 52) * s);
+    }
+    const drift = Math.sin(state.time * 0.5 + phase) * sweep
+      + Math.sin(state.time * 0.84 + phase * 0.46) * sweep * 0.2;
+    return {
+      center: clamp(base + forecastNudge + drift, top + half, bottom - half),
+      half,
+      top,
+      bottom,
+      progress: clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1),
+    };
+  }
+
+  function triggerDeepPurgeValveReward(lane, profile = classicStageProfile()) {
+    if (!deepPurgeValveActive()) return;
+    const s = playScale();
+    let softened = 0;
+    let purged = 0;
+    for (const h of hazards) {
+      if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+      const hx = (h.x || 0) + (h.w || 0) * 0.5;
+      if (hx < hero.x - 72 * s || hx > state.width + 150 * s) continue;
+      const hy = Number.isFinite(h.y) ? h.y : lane.center;
+      const maxDim = Math.max(h.w || 0, h.h || 0, 44 * s);
+      const nearValve = Math.abs(hy - lane.center) <= lane.half + maxDim * 0.54 + 22 * s;
+      const corrosive = h.type === "acidGeyser" || h.type === "stinkCloud" || h.type === "sludgeBarrel" || h.type === "soapBubble";
+      if (!nearValve && !corrosive) continue;
+      const strength = corrosive ? 1.18 : 0.86;
+      h.slow = Math.max(h.slow || 0, strength);
+      h.hit = Math.max(h.hit || 0, corrosive ? 0.2 : 0.13);
+      if (corrosive) purged += 1;
+      if (!h.deepValveTouched) {
+        h.deepValveTouched = true;
+        softened += 1;
+      }
+    }
+    if (boss) {
+      boss.hit = Math.max(boss.hit || 0, 0.16);
+      boss.controlFlash = Math.max(boss.controlFlash || 0, 0.18);
+      addBossBreakPressure(bossBreakGain("glance") * 0.2, boss.x - boss.w * 0.18, boss.y);
+    }
+    state.deepPurgeValveCharge = 18;
+    state.deepPurgeValvePulse = 1;
+    state.deepPurgeValveReliefTimer = Math.max(state.deepPurgeValveReliefTimer || 0, 5.2);
+    state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.42);
+    state.shieldTimer = Math.max(state.shieldTimer || 0, state.health < state.maxHealth * 0.52 ? 1.1 : 0.42);
+    state.energy = clamp(state.energy + 13 + state.level * 0.24, 0, state.maxEnergy);
+    if (state.health < state.maxHealth * 0.48) state.health = clamp(state.health + state.maxHealth * 0.045, 0, state.maxHealth);
+    state.combo += 1;
+    state.comboTimer = Math.max(state.comboTimer, 2.9);
+    recordRunStat("maxCombo", state.combo);
+    addClassicDistrictProgress(5 + Math.min(4, Math.floor((state.classicDistrictTarget || 70) * 0.028)), "deepValve");
+    addRoundedScore((190 + softened * 30 + purged * 22 + state.combo * 10) * state.scoreBonus * styleMultiplier());
+    gainXp(34 + softened * 4 + purged * 3, false);
+    gainStyle(18 + Math.min(14, softened * 1.7 + purged), "深层净化阀", "#8ff7ff");
+    if (Math.random() < 0.5 || purged >= 2 || state.health < state.maxHealth * 0.5) {
+      spawnClassicDistrictPickup(state.health < state.maxHealth * 0.5 ? "shield" : "focusOrb", 0, 1, 1.12);
+    }
+    spawnClassicEventParticles(hero.x + 64 * s, lane.center, "#8ff7ff", 16);
+    pop(hero.x + 64 * s, lane.center, "#8ff7ff", 20 + Math.min(12, softened + purged));
+    state.eventName = purged > 0 ? `深层净化 x${purged}` : softened > 0 ? `深层阀门 x${softened}` : "深层净化阀";
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.12);
+    beep(760, 0.055, "triangle", 0.038);
+    setTimeout(() => beep(1160, 0.055, "sine", 0.03), 70);
+  }
+
+  function updateDeepPurgeValve(dt, profile = classicStageProfile()) {
+    state.deepPurgeValvePulse = Math.max(0, (state.deepPurgeValvePulse || 0) - dt * 0.82);
+    state.deepPurgeValveReliefTimer = Math.max(0, (state.deepPurgeValveReliefTimer || 0) - dt);
+    if (!deepPurgeValveActive()) {
+      state.deepPurgeValveCharge = Math.max(0, (state.deepPurgeValveCharge || 0) - dt * 13);
+      return;
+    }
+    const s = playScale();
+    const lane = deepPurgeValveLaneInfo(profile);
+    const distance = Math.abs(hero.y - lane.center);
+    const inside = distance <= lane.half + hero.radiusY * 0.25;
+    const near = distance <= lane.half + hero.radiusY * 0.86;
+    if (inside) {
+      const profileBoost = profile.key === "threat" ? 3.8 : profile.key === "bossPrep" ? 3.2 : profile.key === "supply" ? 2 : 0;
+      const gain = 23 + Math.min(12, state.level * 0.36) + profileBoost;
+      state.deepPurgeValveCharge = clamp((state.deepPurgeValveCharge || 0) + dt * gain, 0, 100);
+      state.energy = clamp(state.energy + dt * 0.72, 0, state.maxEnergy);
+      if (state.health < state.maxHealth * 0.4) state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.2);
+      state.styleTimer = Math.max(state.styleTimer, 0.34);
+      state.deepPurgeValvePulse = Math.max(state.deepPurgeValvePulse || 0, 0.14);
+      if (Math.random() < dt * (isSmoothQuality() ? 3 : 5)) spawnClassicEventParticles(hero.x - 10 * s, hero.y, "#8ff7ff", 1);
+    } else {
+      state.deepPurgeValveCharge = Math.max(0, (state.deepPurgeValveCharge || 0) - dt * (near ? 4 : 9));
+    }
+    if ((state.deepPurgeValveCharge || 0) >= 100) triggerDeepPurgeValveReward(lane, profile);
   }
 
   function classicDistrictMilestoneCount(progress, target) {
@@ -1627,6 +1755,9 @@
     classicGreenWaveCharge: 0,
     classicGreenWavePulse: 0,
     classicGreenWaveReliefTimer: 0,
+    deepPurgeValveCharge: 0,
+    deepPurgeValvePulse: 0,
+    deepPurgeValveReliefTimer: 0,
     goldRushCharge: 0,
     draftLaneCharge: 0,
     mysteryLaneCharge: 0,
@@ -5006,6 +5137,7 @@
 
   function updateClassicEvents(dt) {
     updateClassicGreenWave(dt);
+    updateDeepPurgeValve(dt);
     state.classicEventPulse = Math.max(0, (state.classicEventPulse || 0) - dt * 0.9);
     state.mysteryPulse = Math.max(0, (state.mysteryPulse || 0) - dt * 0.9);
     if (!classicEventActive("goldRush")) {
@@ -6942,7 +7074,8 @@
     const adventureSupportRelief = state.adventureSupportTimer > 0 ? 0.075 : 0;
     const classicRelief = state.gameMode === "stage" ? (classicStageProfile(activeStage()).pressureRelief || 0) : 0;
     const classicGreenRelief = state.classicGreenWaveReliefTimer > 0 ? 0.045 : 0;
-    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief - classicGreenRelief, 0, 0.78);
+    const deepValveRelief = state.deepPurgeValveReliefTimer > 0 ? 0.055 : 0;
+    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief - classicGreenRelief - deepValveRelief, 0, 0.78);
   }
 
   function pickupGenerosity() {
@@ -6952,6 +7085,7 @@
     if (state.energy < state.maxEnergy * 0.32) value += 0.18;
     if (state.eventKind === "cleanWind") value += 0.28;
     if (state.classicGreenWaveReliefTimer > 0) value += 0.08;
+    if (state.deepPurgeValveReliefTimer > 0) value += 0.1;
     if (state.eventKind === "goldRush") value += 0.36;
     if (state.eventKind === "draftGate") value += 0.14;
     if (state.eventKind === "paperRain") value += 0.22;
@@ -7449,6 +7583,9 @@
     state.classicGreenWaveCharge = 0;
     state.classicGreenWavePulse = 0;
     state.classicGreenWaveReliefTimer = 0;
+    state.deepPurgeValveCharge = 0;
+    state.deepPurgeValvePulse = 0;
+    state.deepPurgeValveReliefTimer = 0;
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -10624,6 +10761,7 @@
     if (!isSmoothQuality() && !transitioningScene) drawParallaxRibbons();
     if (!isSmoothQuality() && !transitioningScene) drawFloaters();
     drawClassicGreenWaveLane();
+    drawDeepPurgeValveLane();
     drawClassicEventLane();
     drawAdventureCurrentLane();
     drawMysteryRouteLane();
@@ -10792,6 +10930,8 @@
     const routePulse = profile && state.classicRouteFocusTimer > 0 && state.classicRouteFocusKey === profile.key ? (state.classicRouteFocusPulse || 0) : 0;
     const greenWave = profile && frame.cityMap && state.mode === "playing" ? clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) : 0;
     const greenPulse = profile && frame.cityMap ? (state.classicGreenWavePulse || 0) : 0;
+    const deepValve = profile && frame.deepMap && state.mode === "playing" ? clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) : 0;
+    const deepPulse = profile && frame.deepMap ? (state.deepPurgeValvePulse || 0) : 0;
     ctx.save();
     const lowerShade = ctx.createLinearGradient(0, top, 0, state.height);
     lowerShade.addColorStop(0, "rgba(6, 18, 24, 0)");
@@ -10803,7 +10943,7 @@
     ctx.fillStyle = frame.deepMap ? "rgba(10, 15, 26, 0.22)" : "rgba(255, 248, 232, 0.08)";
     roundRect(10, top + 20, state.width - 20, bottom - top - 40, 18);
     ctx.fill();
-    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18 + routePulse * 0.14 + greenPulse * 0.08;
+    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18 + routePulse * 0.14 + greenPulse * 0.08 + deepPulse * 0.1;
     const railY = laneY + 34 * playScale();
     const rail = ctx.createLinearGradient(0, railY, state.width, railY);
     rail.addColorStop(0, canvasRgba(color, 0));
@@ -10824,6 +10964,18 @@
       greenBand.addColorStop(1, "rgba(91, 222, 212, 0)");
       ctx.fillStyle = greenBand;
       roundRect(22, greenY - 5 * playScale(), state.width - 44, 10 * playScale(), 6 * playScale());
+      ctx.fill();
+    }
+    if (deepValve > 0.01 || deepPulse > 0.01) {
+      const valveY = railY + 20 * playScale();
+      const valveBand = ctx.createLinearGradient(0, valveY, state.width, valveY);
+      valveBand.addColorStop(0, "rgba(143, 247, 255, 0)");
+      valveBand.addColorStop(0.22, `rgba(143, 247, 255, ${0.04 + deepValve * 0.08 + deepPulse * 0.08})`);
+      valveBand.addColorStop(0.5, `rgba(196, 93, 255, ${0.035 + deepValve * 0.07 + deepPulse * 0.08})`);
+      valveBand.addColorStop(0.78, `rgba(255, 248, 232, ${0.025 + deepValve * 0.05})`);
+      valveBand.addColorStop(1, "rgba(143, 247, 255, 0)");
+      ctx.fillStyle = valveBand;
+      roundRect(22, valveY - 5 * playScale(), state.width - 44, 10 * playScale(), 6 * playScale());
       ctx.fill();
     }
     if (routePulse > 0.01) {
@@ -11367,6 +11519,92 @@
       grad.addColorStop(0, "#5bded4");
       grad.addColorStop(0.58, "#fff8e8");
       grad.addColorStop(1, "#dfff7a");
+      ctx.fillStyle = grad;
+      roundRect(bx, by, fill, barH, barH * 0.5);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawDeepPurgeValveLane() {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || !isStageMode()) return;
+    const stage = activeStage();
+    if (!stage || stage.map !== "deep") return;
+    const s = playScale();
+    const profile = classicStageProfile(stage);
+    const lane = deepPurgeValveLaneInfo(profile);
+    const progress = clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1);
+    const pulse = state.deepPurgeValvePulse || 0;
+    const inLane = Math.abs(hero.y - lane.center) <= lane.half + hero.radiusY * 0.25;
+    const eventOverlap = classicEventActive("cleanWind") || classicEventActive("goldRush") || classicEventActive("draftGate") || mysteryLaneActive();
+    const alphaBase = (inLane ? 0.22 : 0.14) + progress * 0.11 + pulse * 0.1;
+    const alpha = alphaBase * (eventOverlap ? 0.52 : 1);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const band = ctx.createLinearGradient(0, lane.center - lane.half, state.width, lane.center + lane.half);
+    band.addColorStop(0, `rgba(143, 247, 255, ${alpha * 0.48})`);
+    band.addColorStop(0.48, `rgba(196, 93, 255, ${alpha * 0.28})`);
+    band.addColorStop(1, `rgba(255, 248, 232, ${alpha * 0.2})`);
+    ctx.fillStyle = band;
+    ctx.fillRect(0, lane.center - lane.half, state.width, lane.half * 2);
+
+    ctx.strokeStyle = inLane ? "rgba(255, 248, 232, 0.7)" : "rgba(143, 247, 255, 0.42)";
+    ctx.lineWidth = Math.max(1, (1.6 + progress * 0.8 + pulse * 0.5) * s);
+    ctx.setLineDash([10 * s, 8 * s, 20 * s, 8 * s]);
+    ctx.lineDashOffset = state.scroll * 0.07;
+    ctx.beginPath();
+    ctx.moveTo(0, lane.center - lane.half);
+    ctx.lineTo(state.width, lane.center - lane.half);
+    ctx.moveTo(0, lane.center + lane.half);
+    ctx.lineTo(state.width, lane.center + lane.half);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const glyphCount = isSmoothQuality() ? 4 : 7;
+    const wheel = Math.sin(state.time * 7.8) * 0.5 + 0.5;
+    ctx.globalAlpha = (eventOverlap ? 0.32 : 0.54) + progress * 0.16 + pulse * 0.14;
+    for (let i = 0; i < glyphCount; i += 1) {
+      const x = state.width - ((state.scroll * 0.68 + i * 122 * s) % (state.width + 132 * s));
+      const y = lane.center + Math.sin(state.time * 1.85 + i * 1.24) * lane.half * 0.42;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(state.time * 0.35 + i * 0.7);
+      ctx.strokeStyle = i % 2 ? "rgba(255, 248, 232, 0.8)" : "rgba(143, 247, 255, 0.82)";
+      ctx.fillStyle = i % 2 ? "rgba(196, 93, 255, 0.28)" : "rgba(143, 247, 255, 0.24)";
+      ctx.lineWidth = Math.max(1, 1.55 * s);
+      ctx.beginPath();
+      ctx.arc(0, 0, (10 + wheel * 2) * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      for (let spoke = 0; spoke < 4; spoke += 1) {
+        const a = spoke * Math.PI * 0.5 + wheel * 0.22;
+        ctx.moveTo(Math.cos(a) * 3 * s, Math.sin(a) * 3 * s);
+        ctx.lineTo(Math.cos(a) * 13 * s, Math.sin(a) * 13 * s);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(223, 255, 122, 0.68)";
+      ctx.beginPath();
+      ctx.arc(0, 0, (4 + wheel) * s, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const barW = Math.min(158 * s, state.width * 0.27);
+    const barH = Math.max(5 * s, 4);
+    const bx = clamp(hero.x - barW * 0.38, 16 * s, state.width - barW - 16 * s);
+    const by = clamp(lane.center - lane.half - 13 * s, playTop() + 8 * s, playBottom() - 22 * s);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = eventOverlap ? 0.56 : 0.8;
+    ctx.fillStyle = "rgba(8, 14, 28, 0.52)";
+    roundRect(bx, by, barW, barH, barH * 0.5);
+    ctx.fill();
+    const fill = barW * progress;
+    if (fill > 1) {
+      const grad = ctx.createLinearGradient(bx, by, bx + barW, by);
+      grad.addColorStop(0, "#8ff7ff");
+      grad.addColorStop(0.52, "#c45dff");
+      grad.addColorStop(1, "#fff8e8");
       ctx.fillStyle = grad;
       roundRect(bx, by, fill, barH, barH * 0.5);
       ctx.fill();
@@ -12645,7 +12883,7 @@
   }
 
   function drawFeverAura() {
-    const classicAura = state.eventKind === "cleanWind" || state.eventKind === "goldRush" || state.eventKind === "draftGate" || state.eventKind === "mysteryRoute" || state.classicEventPulse > 0 || state.mysteryPulse > 0 || state.classicGreenWavePulse > 0;
+    const classicAura = state.eventKind === "cleanWind" || state.eventKind === "goldRush" || state.eventKind === "draftGate" || state.eventKind === "mysteryRoute" || state.classicEventPulse > 0 || state.mysteryPulse > 0 || state.classicGreenWavePulse > 0 || state.deepPurgeValvePulse > 0;
     if (state.feverTimer <= 0 && state.nearMissTimer <= 0 && state.draftTimer <= 0 && state.comboSurgeTimer <= 0 && state.elementSurgeTimer <= 0 && state.elementSurgePulse <= 0 && state.purificationPulse <= 0 && state.starTrailPulse <= 0 && !starTrailActive() && state.mirrorPulse <= 0 && state.mirrorGuardTimer <= 0 && !mirrorCurrentActive() && state.forgePulse <= 0 && state.forgeTempoTimer <= 0 && !auroraForgeActive() && state.adventurePulse <= 0 && state.adventureBoostTimer <= 0 && state.adventureContractPulse <= 0 && state.adventureContractBoostTimer <= 0 && state.adventureSupportTimer <= 0 && state.adventureSupportPulse <= 0 && !adventureCurrentActive() && state.counterTimer <= 0 && state.counterPulse <= 0 && !classicAura) return;
     const s = playScale();
     ctx.save();
@@ -12678,9 +12916,9 @@
     }
     if (classicAura) {
       const pulse = Math.sin(state.time * 8.4) * 0.5 + 0.5;
-      const color = state.eventKind === "goldRush" ? "#f5c84b" : state.eventKind === "draftGate" ? "#9de8ff" : state.eventKind === "mysteryRoute" ? "#c45dff" : state.classicGreenWavePulse > state.classicEventPulse ? "#5bded4" : "#dfff7a";
+      const color = state.eventKind === "goldRush" ? "#f5c84b" : state.eventKind === "draftGate" ? "#9de8ff" : state.eventKind === "mysteryRoute" ? "#c45dff" : state.deepPurgeValvePulse > Math.max(state.classicEventPulse || 0, state.classicGreenWavePulse || 0) ? "#8ff7ff" : state.classicGreenWavePulse > state.classicEventPulse ? "#5bded4" : "#dfff7a";
       ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = Math.min(0.36, 0.14 + (state.classicEventPulse || 0) * 0.16 + (state.mysteryPulse || 0) * 0.14 + (state.classicGreenWavePulse || 0) * 0.12 + pulse * 0.04);
+      ctx.globalAlpha = Math.min(0.36, 0.14 + (state.classicEventPulse || 0) * 0.16 + (state.mysteryPulse || 0) * 0.14 + (state.classicGreenWavePulse || 0) * 0.12 + (state.deepPurgeValvePulse || 0) * 0.13 + pulse * 0.04);
       ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(2, 2.7 * s);
       ctx.beginPath();
@@ -14978,6 +15216,8 @@
     const color = profile.districtColor || "#5bded4";
     const greenActive = classicGreenWaveActive();
     const greenProgress = clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1);
+    const deepActive = deepPurgeValveActive();
+    const deepProgress = clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1);
     const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
     const x = compact ? 12 : 18;
@@ -14994,7 +15234,8 @@
     ctx.fill();
     ctx.strokeStyle = forecast && forecast.severe
       ? canvasRgba("#ff8d54", 0.62 + pulse * 0.16)
-      : focusActive ? canvasRgba(color, 0.68 + focusPulse * 0.22) : ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
+      : deepActive ? canvasRgba("#8ff7ff", 0.58 + (state.deepPurgeValvePulse || 0) * 0.2)
+        : focusActive ? canvasRgba(color, 0.68 + focusPulse * 0.22) : ready ? "rgba(223, 255, 122, 0.82)" : canvasRgba(color, 0.52 + pulse * 0.28);
     ctx.lineWidth = 1.4 + pulse * 1.1 + focusPulse * 0.8;
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -15007,7 +15248,7 @@
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
       ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
-      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
     ctx.fillText(hint, barX, y + (compact ? 18 : 27), textMaxW);
     drawClassicRouteRadar(x + w - (compact ? 14 : 18), y + (compact ? 14 : 20), compact ? 8 : 11, forecast, color);
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
