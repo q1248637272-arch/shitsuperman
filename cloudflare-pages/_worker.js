@@ -1,6 +1,6 @@
 const SAVE_BINDING = "SHIT_SUPERMAN_SAVES";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 60;
-const PASSWORD_ITERATIONS = 120000;
+const PASSWORD_ITERATIONS = 100000;
 const MAX_SAVE_BYTES = 768 * 1024;
 const encoder = new TextEncoder();
 
