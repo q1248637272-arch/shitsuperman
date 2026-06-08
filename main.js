@@ -1017,17 +1017,19 @@
     const target = state.classicDistrictTarget || classicDistrictTarget(stage);
     const progress = clamp(state.classicDistrictProgress || 0, 0, target);
     const focus = state.classicRouteFocusTimer > 0 ? ` · ${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s` : "";
-    const forecast = classicRouteForecastText();
+    const forecastInfo = classicRouteForecastInfo();
+    const forecast = classicRouteForecastText(forecastInfo);
+    const greenWave = classicGreenWaveActive() && !forecast ? ` · 绿波 ${Math.floor(clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) * 100)}%` : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}航线稳定${boost}${focus} · ${forecast || classicRouteBiasText(profile)}`;
+      return `${profile.short}航线稳定${boost}${focus}${greenWave} · ${forecast || classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}航线${focus} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
+      return `${profile.short}航线${focus}${greenWave} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · 稳定 ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}航线${focus} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}航线${focus}${greenWave} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
   }
 
   function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
@@ -1065,6 +1067,125 @@
         boss.breakMeter = clamp((boss.breakMeter || 0) + bossBreakGain("glance") * dt * 0.035, 0, bossBreakThreshold());
       }
     }
+  }
+
+  function classicGreenWaveActive() {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || !isStageMode()) return false;
+    const stage = activeStage();
+    return !!(stage && stage.map === "city");
+  }
+
+  function classicGreenWaveLaneInfo(profile = classicStageProfile()) {
+    const s = playScale();
+    const top = playTop();
+    const bottom = playBottom();
+    const playable = Math.max(86 * s, bottom - top);
+    let half = clamp(playable * 0.12, 24 * s, 42 * s);
+    const margin = Math.max(hero.radiusY + half + 8 * s, 38 * s);
+    let min = top + margin;
+    let max = bottom - margin;
+    if (min > max) {
+      half = clamp(playable * 0.15, 22 * s, 36 * s);
+      min = top + half + hero.radiusY * 0.56;
+      max = bottom - half - hero.radiusY * 0.56;
+    }
+    const ratio = {
+      clean: 0.46,
+      supply: 0.54,
+      combo: 0.4,
+      threat: 0.6,
+      bossPrep: 0.5,
+    }[profile.key] || 0.5;
+    const base = min <= max ? min + (max - min) * ratio : (top + bottom) * 0.5;
+    const sweep = min <= max ? Math.max(0, (max - min) * 0.24) : 0;
+    const phase = (state.classicLanePhase || 0) + 2.4;
+    const forecast = classicRouteForecastInfo();
+    let forecastNudge = 0;
+    if (forecast && Number.isFinite(forecast.y)) {
+      const away = forecast.y < (top + bottom) * 0.5 ? 1 : -1;
+      forecastNudge = away * Math.min(playable * (forecast.severe ? 0.22 : 0.13), (forecast.severe ? 78 : 44) * s);
+    }
+    const drift = Math.sin(state.time * 0.62 + phase) * sweep
+      + Math.sin(state.time * 0.36 + phase * 0.7) * sweep * 0.24;
+    return {
+      center: clamp(base + forecastNudge + drift, top + half, bottom - half),
+      half,
+      top,
+      bottom,
+      progress: clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1),
+    };
+  }
+
+  function triggerClassicGreenWaveReward(lane, profile = classicStageProfile()) {
+    if (!classicGreenWaveActive()) return;
+    const s = playScale();
+    let softened = 0;
+    for (const h of hazards) {
+      if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+      const hx = (h.x || 0) + (h.w || 0) * 0.5;
+      if (hx < hero.x - 60 * s || hx > state.width + 120 * s) continue;
+      const hy = Number.isFinite(h.y) ? h.y : lane.center;
+      const maxDim = Math.max(h.w || 0, h.h || 0, 42 * s);
+      if (Math.abs(hy - lane.center) > lane.half + maxDim * 0.46 + 18 * s) continue;
+      h.slow = Math.max(h.slow || 0, 0.82);
+      h.hit = Math.max(h.hit || 0, 0.14);
+      if (!h.greenWaveTouched) {
+        h.greenWaveTouched = true;
+        softened += 1;
+      }
+    }
+    if (boss) {
+      boss.hit = Math.max(boss.hit || 0, 0.12);
+      boss.controlFlash = Math.max(boss.controlFlash || 0, 0.12);
+      addBossBreakPressure(bossBreakGain("glance") * 0.16, boss.x - boss.w * 0.18, boss.y);
+    }
+    state.classicGreenWaveCharge = 20;
+    state.classicGreenWavePulse = 1;
+    state.classicGreenWaveReliefTimer = Math.max(state.classicGreenWaveReliefTimer || 0, 4.2);
+    state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.34);
+    state.energy = clamp(state.energy + 12 + state.level * 0.2, 0, state.maxEnergy);
+    if (state.health < state.maxHealth * 0.55) state.health = clamp(state.health + state.maxHealth * 0.035, 0, state.maxHealth);
+    state.combo += 1;
+    state.comboTimer = Math.max(state.comboTimer, 2.7);
+    recordRunStat("maxCombo", state.combo);
+    addClassicDistrictProgress(4 + Math.min(3, Math.floor((state.classicDistrictTarget || 60) * 0.025)), "greenWave");
+    addRoundedScore((170 + softened * 26 + state.combo * 9) * state.scoreBonus * styleMultiplier());
+    gainXp(28 + softened * 3, false);
+    gainStyle(15 + Math.min(10, softened * 1.6), "旧城绿波", "#5bded4");
+    if (Math.random() < 0.46 || state.energy < state.maxEnergy * 0.45 || state.health < state.maxHealth * 0.45) {
+      spawnClassicDistrictPickup(state.health < state.maxHealth * 0.45 ? "shield" : "energy", 0, 1, 1.08);
+    }
+    spawnClassicEventParticles(hero.x + 58 * s, lane.center, "#5bded4", 14);
+    pop(hero.x + 58 * s, lane.center, "#5bded4", 18 + Math.min(10, softened));
+    state.eventName = softened > 0 ? `旧城绿波 x${softened}` : "旧城绿波";
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.05);
+    beep(980, 0.055, "triangle", 0.038);
+  }
+
+  function updateClassicGreenWave(dt, profile = classicStageProfile()) {
+    state.classicGreenWavePulse = Math.max(0, (state.classicGreenWavePulse || 0) - dt * 0.9);
+    state.classicGreenWaveReliefTimer = Math.max(0, (state.classicGreenWaveReliefTimer || 0) - dt);
+    if (!classicGreenWaveActive()) {
+      state.classicGreenWaveCharge = Math.max(0, (state.classicGreenWaveCharge || 0) - dt * 14);
+      return;
+    }
+    const s = playScale();
+    const lane = classicGreenWaveLaneInfo(profile);
+    const distance = Math.abs(hero.y - lane.center);
+    const inside = distance <= lane.half + hero.radiusY * 0.24;
+    const near = distance <= lane.half + hero.radiusY * 0.8;
+    if (inside) {
+      const profileBoost = profile.key === "clean" ? 4 : profile.key === "supply" ? 2.5 : profile.key === "threat" ? 1.5 : 0;
+      const gain = 26 + Math.min(10, state.level * 0.38) + profileBoost;
+      state.classicGreenWaveCharge = clamp((state.classicGreenWaveCharge || 0) + dt * gain, 0, 100);
+      state.energy = clamp(state.energy + dt * 0.85, 0, state.maxEnergy);
+      state.styleTimer = Math.max(state.styleTimer, 0.32);
+      state.classicGreenWavePulse = Math.max(state.classicGreenWavePulse || 0, 0.12);
+      if (Math.random() < dt * (isSmoothQuality() ? 3 : 5)) spawnClassicEventParticles(hero.x - 8 * s, hero.y, "#5bded4", 1);
+    } else {
+      state.classicGreenWaveCharge = Math.max(0, (state.classicGreenWaveCharge || 0) - dt * (near ? 4 : 10));
+    }
+    if ((state.classicGreenWaveCharge || 0) >= 100) triggerClassicGreenWaveReward(lane, profile);
   }
 
   function classicDistrictMilestoneCount(progress, target) {
@@ -1501,6 +1622,9 @@
     classicRouteClearPulse: 0,
     classicRouteClearStreak: 0,
     classicRouteLastClearGroup: "",
+    classicGreenWaveCharge: 0,
+    classicGreenWavePulse: 0,
+    classicGreenWaveReliefTimer: 0,
     goldRushCharge: 0,
     draftLaneCharge: 0,
     mysteryLaneCharge: 0,
@@ -4879,6 +5003,7 @@
   }
 
   function updateClassicEvents(dt) {
+    updateClassicGreenWave(dt);
     state.classicEventPulse = Math.max(0, (state.classicEventPulse || 0) - dt * 0.9);
     state.mysteryPulse = Math.max(0, (state.mysteryPulse || 0) - dt * 0.9);
     if (!classicEventActive("goldRush")) {
@@ -6814,7 +6939,8 @@
     const contractRelief = state.adventureContractBoostTimer > 0 ? 0.055 : 0;
     const adventureSupportRelief = state.adventureSupportTimer > 0 ? 0.075 : 0;
     const classicRelief = state.gameMode === "stage" ? (classicStageProfile(activeStage()).pressureRelief || 0) : 0;
-    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief, 0, 0.78);
+    const classicGreenRelief = state.classicGreenWaveReliefTimer > 0 ? 0.045 : 0;
+    return clamp(stagePressure + endlessPressure + timePressure + comboPressure + feverPressure + (runModifier().danger || 0) - recoveryRelief - healthRelief - energyRelief - eventRelief - sigilRelief - draftRelief - contractRelief - adventureSupportRelief - classicRelief - classicGreenRelief, 0, 0.78);
   }
 
   function pickupGenerosity() {
@@ -6823,6 +6949,7 @@
     if (state.health < state.maxHealth * 0.42) value += 0.28;
     if (state.energy < state.maxEnergy * 0.32) value += 0.18;
     if (state.eventKind === "cleanWind") value += 0.28;
+    if (state.classicGreenWaveReliefTimer > 0) value += 0.08;
     if (state.eventKind === "goldRush") value += 0.36;
     if (state.eventKind === "draftGate") value += 0.14;
     if (state.eventKind === "paperRain") value += 0.22;
@@ -7317,6 +7444,9 @@
     state.classicRouteClearPulse = 0;
     state.classicRouteClearStreak = 0;
     state.classicRouteLastClearGroup = "";
+    state.classicGreenWaveCharge = 0;
+    state.classicGreenWavePulse = 0;
+    state.classicGreenWaveReliefTimer = 0;
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -10491,6 +10621,7 @@
     if ((!isSmoothQuality() || state.feverTimer > 0) && !transitioningScene) drawAtmosphere();
     if (!isSmoothQuality() && !transitioningScene) drawParallaxRibbons();
     if (!isSmoothQuality() && !transitioningScene) drawFloaters();
+    drawClassicGreenWaveLane();
     drawClassicEventLane();
     drawAdventureCurrentLane();
     drawMysteryRouteLane();
@@ -10657,6 +10788,8 @@
     const profile = state.gameMode === "stage" ? classicStageProfile(activeStage()) : null;
     const color = profile ? profile.districtColor : frame.deepMap ? "#c45dff" : "#5bded4";
     const routePulse = profile && state.classicRouteFocusTimer > 0 && state.classicRouteFocusKey === profile.key ? (state.classicRouteFocusPulse || 0) : 0;
+    const greenWave = profile && frame.cityMap && state.mode === "playing" ? clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) : 0;
+    const greenPulse = profile && frame.cityMap ? (state.classicGreenWavePulse || 0) : 0;
     ctx.save();
     const lowerShade = ctx.createLinearGradient(0, top, 0, state.height);
     lowerShade.addColorStop(0, "rgba(6, 18, 24, 0)");
@@ -10668,17 +10801,29 @@
     ctx.fillStyle = frame.deepMap ? "rgba(10, 15, 26, 0.22)" : "rgba(255, 248, 232, 0.08)";
     roundRect(10, top + 20, state.width - 20, bottom - top - 40, 18);
     ctx.fill();
-    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18 + routePulse * 0.14;
+    ctx.globalAlpha = 0.72 + (state.classicDistrictPulse || 0) * 0.18 + routePulse * 0.14 + greenPulse * 0.08;
     const railY = laneY + 34 * playScale();
     const rail = ctx.createLinearGradient(0, railY, state.width, railY);
     rail.addColorStop(0, canvasRgba(color, 0));
-    rail.addColorStop(0.18, canvasRgba(color, 0.22 + routePulse * 0.14));
-    rail.addColorStop(0.5, canvasRgba(color, 0.1 + routePulse * 0.18));
-    rail.addColorStop(0.82, canvasRgba(color, 0.22 + routePulse * 0.14));
+    rail.addColorStop(0.18, canvasRgba(color, 0.22 + routePulse * 0.14 + greenWave * 0.08));
+    rail.addColorStop(0.5, canvasRgba(color, 0.1 + routePulse * 0.18 + greenWave * 0.12));
+    rail.addColorStop(0.82, canvasRgba(color, 0.22 + routePulse * 0.14 + greenWave * 0.08));
     rail.addColorStop(1, canvasRgba(color, 0));
     ctx.fillStyle = rail;
     roundRect(16, railY - 8 * playScale(), state.width - 32, 16 * playScale(), 9 * playScale());
     ctx.fill();
+    if (greenWave > 0.01 || greenPulse > 0.01) {
+      const greenY = railY - 20 * playScale();
+      const greenBand = ctx.createLinearGradient(0, greenY, state.width, greenY);
+      greenBand.addColorStop(0, "rgba(91, 222, 212, 0)");
+      greenBand.addColorStop(0.24, `rgba(91, 222, 212, ${0.04 + greenWave * 0.08 + greenPulse * 0.08})`);
+      greenBand.addColorStop(0.5, `rgba(255, 248, 232, ${0.025 + greenWave * 0.06})`);
+      greenBand.addColorStop(0.76, `rgba(223, 255, 122, ${0.035 + greenWave * 0.08 + greenPulse * 0.06})`);
+      greenBand.addColorStop(1, "rgba(91, 222, 212, 0)");
+      ctx.fillStyle = greenBand;
+      roundRect(22, greenY - 5 * playScale(), state.width - 44, 10 * playScale(), 6 * playScale());
+      ctx.fill();
+    }
     if (routePulse > 0.01) {
       const focusBand = ctx.createLinearGradient(0, railY - 18 * playScale(), state.width, railY + 18 * playScale());
       focusBand.addColorStop(0, canvasRgba(color, 0));
@@ -11142,6 +11287,87 @@
           ctx.fill();
         }
       }
+    }
+    ctx.restore();
+  }
+
+  function drawClassicGreenWaveLane() {
+    if (state.gameMode !== "stage" || state.mode !== "playing" || !isStageMode()) return;
+    const stage = activeStage();
+    if (!stage || stage.map !== "city") return;
+    const s = playScale();
+    const profile = classicStageProfile(stage);
+    const lane = classicGreenWaveLaneInfo(profile);
+    const progress = clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1);
+    const pulse = state.classicGreenWavePulse || 0;
+    const inLane = Math.abs(hero.y - lane.center) <= lane.half + hero.radiusY * 0.24;
+    const eventOverlap = classicEventActive("cleanWind") || classicEventActive("goldRush") || classicEventActive("draftGate") || mysteryLaneActive();
+    const alphaBase = (inLane ? 0.2 : 0.13) + progress * 0.1 + pulse * 0.08;
+    const alpha = alphaBase * (eventOverlap ? 0.52 : 1);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const band = ctx.createLinearGradient(0, lane.center - lane.half, state.width, lane.center + lane.half);
+    band.addColorStop(0, `rgba(91, 222, 212, ${alpha * 0.5})`);
+    band.addColorStop(0.48, `rgba(255, 248, 232, ${alpha * 0.18})`);
+    band.addColorStop(1, `rgba(223, 255, 122, ${alpha * 0.32})`);
+    ctx.fillStyle = band;
+    ctx.fillRect(0, lane.center - lane.half, state.width, lane.half * 2);
+
+    ctx.strokeStyle = inLane ? "rgba(255, 248, 232, 0.66)" : "rgba(91, 222, 212, 0.36)";
+    ctx.lineWidth = Math.max(1, (1.5 + progress * 0.7 + pulse * 0.4) * s);
+    ctx.setLineDash([18 * s, 12 * s, 4 * s, 12 * s]);
+    ctx.lineDashOffset = -state.scroll * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(0, lane.center - lane.half);
+    ctx.lineTo(state.width, lane.center - lane.half);
+    ctx.moveTo(0, lane.center + lane.half);
+    ctx.lineTo(state.width, lane.center + lane.half);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const glyphCount = isSmoothQuality() ? 5 : 8;
+    const wave = Math.sin(state.time * 8.4) * 0.5 + 0.5;
+    ctx.globalAlpha = (eventOverlap ? 0.3 : 0.5) + progress * 0.16 + pulse * 0.12;
+    for (let i = 0; i < glyphCount; i += 1) {
+      const x = state.width - ((state.scroll * 0.78 + i * 108 * s) % (state.width + 120 * s));
+      const y = lane.center + Math.sin(state.time * 2.05 + i * 1.38) * lane.half * 0.42;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.sin(state.time * 1.2 + i) * 0.2);
+      ctx.strokeStyle = i % 2 ? "rgba(255, 248, 232, 0.78)" : "rgba(91, 222, 212, 0.82)";
+      ctx.fillStyle = i % 2 ? "rgba(223, 255, 122, 0.3)" : "rgba(91, 222, 212, 0.28)";
+      ctx.lineWidth = Math.max(1, 1.55 * s);
+      ctx.beginPath();
+      ctx.moveTo(-13 * s, -6 * s);
+      ctx.quadraticCurveTo(-2 * s, -13 * s, 10 * s, -4 * s);
+      ctx.lineTo(14 * s, 0);
+      ctx.lineTo(9 * s, 5 * s);
+      ctx.quadraticCurveTo(-2 * s, 12 * s, -13 * s, 6 * s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(-1 * s, 0, (5 + wave * 2) * s, (3.2 + wave) * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    const barW = Math.min(156 * s, state.width * 0.27);
+    const barH = Math.max(5 * s, 4);
+    const bx = clamp(hero.x - barW * 0.38, 16 * s, state.width - barW - 16 * s);
+    const by = clamp(lane.center - lane.half - 13 * s, playTop() + 8 * s, playBottom() - 22 * s);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = eventOverlap ? 0.56 : 0.78;
+    ctx.fillStyle = "rgba(8, 24, 28, 0.48)";
+    roundRect(bx, by, barW, barH, barH * 0.5);
+    ctx.fill();
+    const fill = barW * progress;
+    if (fill > 1) {
+      const grad = ctx.createLinearGradient(bx, by, bx + barW, by);
+      grad.addColorStop(0, "#5bded4");
+      grad.addColorStop(0.58, "#fff8e8");
+      grad.addColorStop(1, "#dfff7a");
+      ctx.fillStyle = grad;
+      roundRect(bx, by, fill, barH, barH * 0.5);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -12417,7 +12643,7 @@
   }
 
   function drawFeverAura() {
-    const classicAura = state.eventKind === "cleanWind" || state.eventKind === "goldRush" || state.eventKind === "draftGate" || state.eventKind === "mysteryRoute" || state.classicEventPulse > 0 || state.mysteryPulse > 0;
+    const classicAura = state.eventKind === "cleanWind" || state.eventKind === "goldRush" || state.eventKind === "draftGate" || state.eventKind === "mysteryRoute" || state.classicEventPulse > 0 || state.mysteryPulse > 0 || state.classicGreenWavePulse > 0;
     if (state.feverTimer <= 0 && state.nearMissTimer <= 0 && state.draftTimer <= 0 && state.comboSurgeTimer <= 0 && state.elementSurgeTimer <= 0 && state.elementSurgePulse <= 0 && state.purificationPulse <= 0 && state.starTrailPulse <= 0 && !starTrailActive() && state.mirrorPulse <= 0 && state.mirrorGuardTimer <= 0 && !mirrorCurrentActive() && state.forgePulse <= 0 && state.forgeTempoTimer <= 0 && !auroraForgeActive() && state.adventurePulse <= 0 && state.adventureBoostTimer <= 0 && state.adventureContractPulse <= 0 && state.adventureContractBoostTimer <= 0 && state.adventureSupportTimer <= 0 && state.adventureSupportPulse <= 0 && !adventureCurrentActive() && state.counterTimer <= 0 && state.counterPulse <= 0 && !classicAura) return;
     const s = playScale();
     ctx.save();
@@ -12450,9 +12676,9 @@
     }
     if (classicAura) {
       const pulse = Math.sin(state.time * 8.4) * 0.5 + 0.5;
-      const color = state.eventKind === "goldRush" ? "#f5c84b" : state.eventKind === "draftGate" ? "#9de8ff" : state.eventKind === "mysteryRoute" ? "#c45dff" : "#dfff7a";
+      const color = state.eventKind === "goldRush" ? "#f5c84b" : state.eventKind === "draftGate" ? "#9de8ff" : state.eventKind === "mysteryRoute" ? "#c45dff" : state.classicGreenWavePulse > state.classicEventPulse ? "#5bded4" : "#dfff7a";
       ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = Math.min(0.36, 0.14 + (state.classicEventPulse || 0) * 0.16 + (state.mysteryPulse || 0) * 0.14 + pulse * 0.04);
+      ctx.globalAlpha = Math.min(0.36, 0.14 + (state.classicEventPulse || 0) * 0.16 + (state.mysteryPulse || 0) * 0.14 + (state.classicGreenWavePulse || 0) * 0.12 + pulse * 0.04);
       ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(2, 2.7 * s);
       ctx.beginPath();
@@ -14748,6 +14974,8 @@
     const focusPulse = focusActive ? (state.classicRouteFocusPulse || 0) : 0;
     const forecast = classicRouteForecastInfo();
     const color = profile.districtColor || "#5bded4";
+    const greenActive = classicGreenWaveActive();
+    const greenProgress = clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1);
     const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
     const x = compact ? 12 : 18;
@@ -14777,7 +15005,7 @@
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
       ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
-      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
     ctx.fillText(hint, barX, y + (compact ? 18 : 27), textMaxW);
     drawClassicRouteRadar(x + w - (compact ? 14 : 18), y + (compact ? 14 : 20), compact ? 8 : 11, forecast, color);
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
