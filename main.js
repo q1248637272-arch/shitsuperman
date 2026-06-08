@@ -6878,6 +6878,34 @@
     return { key: "critical", label: "绝境", ratio, tip: "用道具打弱点" };
   }
 
+  function bossAttackTellInfo(attackKey = "") {
+    return {
+      poopVolley: { name: "便弹齐射", cue: "横向多弹", dodge: "贴蓝色安全带", color: "#f5c84b" },
+      plungerCharge: { name: "皮搋冲锋", cue: "直线冲撞", dodge: "提前换层", color: "#ff5650" },
+      stinkLab: { name: "臭气实验", cue: "毒雾封路", dodge: "离开绿雾中心", color: "#a7f04a" },
+      bubbleStorm: { name: "泡泡风暴", cue: "慢速包围", dodge: "从空隙穿过", color: "#9de8ff" },
+      sewerBarrage: { name: "下水道压线", cue: "管道夹击", dodge: "守住安全带", color: "#5bded4" },
+      demonRain: { name: "魔王弹雨", cue: "高压连段", dodge: "先找安全带", color: "#f5c84b" },
+      toxicPump: { name: "毒泵喷涌", cue: "酸桶抛射", dodge: "远离落点", color: "#a7f04a" },
+      mixerBlade: { name: "搅拌横扫", cue: "路障横切", dodge: "换层穿缝", color: "#ff8d54" },
+      wasteCore: { name: "废都核心波", cue: "复合弹幕", dodge: "贴安全带等空隙", color: "#c45dff" },
+      cycloneClog: { name: "云塞旋涡", cue: "旋转塞击", dodge: "避开中线", color: "#b77a34" },
+      slimeCourt: { name: "黏液庭院", cue: "污泥封路", dodge: "绕开厚区", color: "#a7f04a" },
+      leviathanWave: { name: "龙潮波", cue: "水泡浪线", dodge: "顺着安全带滑", color: "#5bded4" },
+      aimedArc: { name: "锁定抛射", cue: "锁定落点", dodge: "离开红圈", color: "#ff5650" },
+      orbBurst: { name: "能量环爆", cue: "圆环扩散", dodge: "贴近空隙", color: "#9de8ff" },
+      splitFan: { name: "分裂扇面", cue: "多线夹击", dodge: "守中间安全带", color: "#c45dff" },
+    }[attackKey] || { name: "Boss 招式", cue: "预警", dodge: "观察安全带", color: "#ff8d54" };
+  }
+
+  function resetBossTellRead() {
+    if (!boss) return;
+    boss.tellReadCharge = 0;
+    boss.tellReadReady = false;
+    boss.tellReadRewarded = false;
+    boss.tellReadPulse = 0;
+  }
+
   function currentBossBattleRating() {
     if (!boss) return null;
     const bossPower = boss.daily ? syncDailyBossPower() : boss.power || bossCombatPower(boss);
@@ -9917,6 +9945,10 @@
       breakTimer: 0,
       breakCooldown: 0,
       breakCount: 0,
+      tellReadCharge: 0,
+      tellReadReady: false,
+      tellReadRewarded: false,
+      tellReadPulse: 0,
       poisonTimer: 0,
       stunTimer: 0,
       paralyzeTimer: 0,
@@ -9927,6 +9959,8 @@
       hit: 0,
       attackStep: 0,
       nextAttack: "",
+      aimTargetX: null,
+      aimTargetY: null,
       previewSafeLane: null,
       attackControlDelayCooldown: 0,
     };
@@ -10086,6 +10120,65 @@
     return true;
   }
 
+  function bossTellReadSatisfied() {
+    if (!boss || !boss.warning) return false;
+    const s = playScale();
+    const attack = boss.nextAttack || (boss.profile && boss.profile.attack) || "";
+    if (attack === "aimedArc") {
+      const targetX = Number.isFinite(boss.aimTargetX) ? boss.aimTargetX : hero.x;
+      const targetY = Number.isFinite(boss.aimTargetY) ? boss.aimTargetY : hero.y;
+      const escapeRadius = Math.max(hero.radiusY + 22 * s, 38 * s);
+      return Math.hypot(hero.x - targetX, hero.y - targetY) > escapeRadius;
+    }
+    const safe = boss.previewSafeLane || bossSafeLane();
+    return Math.abs(hero.y - safe.center) <= safe.half + hero.radiusY * 0.36;
+  }
+
+  function updateBossTellRead(dt) {
+    if (!boss) return;
+    boss.tellReadPulse = Math.max(0, (boss.tellReadPulse || 0) - dt * 1.15);
+    if (!boss.warning || bossHardControlActive()) {
+      if (!boss.warning) boss.tellReadCharge = Math.max(0, (boss.tellReadCharge || 0) - dt * 92);
+      return;
+    }
+    const inside = bossTellReadSatisfied();
+    if (inside) {
+      const gain = 155 + Math.min(34, bossAttackLevel() * 2.4);
+      boss.tellReadCharge = clamp((boss.tellReadCharge || 0) + dt * gain, 0, 100);
+      boss.tellReadPulse = Math.max(boss.tellReadPulse || 0, 0.18);
+      state.styleTimer = Math.max(state.styleTimer, 0.3);
+    } else {
+      boss.tellReadCharge = Math.max(0, (boss.tellReadCharge || 0) - dt * 42);
+    }
+    if ((boss.tellReadCharge || 0) >= 100) boss.tellReadReady = true;
+  }
+
+  function triggerBossTellReadReward(profile) {
+    if (!boss || boss.tellReadRewarded) return false;
+    const info = bossAttackTellInfo(boss.nextAttack || (profile && profile.attack) || "");
+    const s = playScale();
+    boss.tellReadRewarded = true;
+    boss.tellReadReady = true;
+    boss.tellReadPulse = 1;
+    boss.hit = Math.max(boss.hit || 0, 0.12);
+    boss.controlFlash = Math.max(boss.controlFlash || 0, 0.16);
+    const pressure = bossBreakGain("glance") * (0.38 + runPerkLevel("weakbreaker") * 0.04);
+    addBossBreakPressure(pressure, boss.x - boss.w * 0.22, boss.y);
+    state.energy = clamp(state.energy + state.maxEnergy * 0.055 + 5, 0, state.maxEnergy);
+    state.combo += 1;
+    state.comboTimer = Math.max(state.comboTimer, 2.6);
+    recordRunStat("maxCombo", state.combo);
+    addRoundedScore((150 + bossAttackLevel() * 12 + state.combo * 7) * state.scoreBonus * styleMultiplier());
+    gainXp(26 + Math.min(20, bossAttackLevel() * 2), false);
+    gainStyle(14 + Math.min(10, bossAttackLevel()), `看破：${info.name}`, info.color);
+    if (state.health < state.maxHealth * 0.42) state.shieldTimer = Math.max(state.shieldTimer || 0, 0.72);
+    state.eventName = `看破：${info.name}`;
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.1);
+    pop(hero.x + 28 * s, hero.y, info.color, 16);
+    beep(1060, 0.05, "triangle", 0.034);
+    return true;
+  }
+
   function updateBoss(dt) {
     if (!boss) return;
     const s = playScale();
@@ -10163,14 +10256,26 @@
     const softControlActive = bossControlActive() && !hardControlActive;
     boss.attackTimer -= dt * (hardControlActive ? (breakActive ? 0.24 : 0.46) : softControlActive ? 0.72 : 1);
     if (hardControlActive) boss.attackTimer = Math.max(boss.attackTimer, breakActive ? 0.34 : 0.18);
-    boss.warning = !hardControlActive && boss.attackTimer <= 0.5;
+    const warningWindow = boss.daily ? 0.86 : isLandscapePlay() ? 0.74 : 0.68;
+    boss.warning = !hardControlActive && boss.attackTimer <= warningWindow;
     if (boss.warning) {
-      if (!boss.nextAttack) boss.nextAttack = chooseBossAttack(profile);
+      if (!boss.nextAttack) {
+        boss.nextAttack = chooseBossAttack(profile);
+        resetBossTellRead();
+        if (boss.nextAttack === "aimedArc") {
+          boss.aimTargetX = clamp(hero.x, heroXBounds().left, heroXBounds().right);
+          boss.aimTargetY = clamp(hero.y, playTop() + hero.radiusY, playBottom() - hero.radiusY);
+        } else {
+          boss.aimTargetX = null;
+          boss.aimTargetY = null;
+        }
+      }
       if (!boss.previewSafeLane) boss.previewSafeLane = bossSafeLane();
     } else {
       boss.previewSafeLane = null;
       if (hardControlActive) boss.nextAttack = "";
     }
+    updateBossTellRead(dt);
     if (!hardControlActive && boss.attackTimer <= 0) {
       if (bossThreatCount() >= bossThreatBudget()) {
         trimBossThreatOverflow();
@@ -10188,10 +10293,15 @@
       const minCadence = boss.daily ? (isLandscapePlay() ? 1.28 : 1.12) : (isLandscapePlay() ? 0.78 : 0.64);
       boss.attackTimer = bossAttackInterval(Math.max(minCadence, (profile.cadence + 0.34 + landscapeCadenceRelief + dailyCadenceRelief - levelCadencePressure) * (boss.cadenceScale || 1)));
       boss.currentSafeLane = boss.previewSafeLane || bossSafeLane();
+      const readReward = boss.tellReadReady || (boss.tellReadCharge || 0) >= 76;
+      if (readReward && triggerBossTellReadReward(profile)) boss.attackTimer += boss.daily ? 0.42 : 0.28;
       fireBossAttack(profile, bossAttackScale(), boss.nextAttack);
       boss.currentSafeLane = null;
       boss.previewSafeLane = null;
       boss.nextAttack = "";
+      boss.aimTargetX = null;
+      boss.aimTargetY = null;
+      resetBossTellRead();
       boss.attackStep = (boss.attackStep || 0) + 1;
     }
 
@@ -10238,10 +10348,12 @@
     const bossSpeedEase = (landscape ? 0.82 : 1) * dailyEase;
     const laneEase = landscape ? 0.72 : 1;
     if (profile.attack === "aimedArc") {
+      const targetX = Number.isFinite(boss.aimTargetX) ? boss.aimTargetX : hero.x;
+      const targetY = Number.isFinite(boss.aimTargetY) ? boss.aimTargetY : hero.y;
       pushBossPoop(0, 0, -(220 + level * 24) * s, 0, profile.color, 1.08, {
         arc: true,
-        targetX: hero.x,
-        targetY: hero.y,
+        targetX,
+        targetY,
         ignoreSafeLane: true,
       });
       if (level >= 9 && !landscape) {
@@ -12551,8 +12663,8 @@
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     if (attack === "aimedArc") {
-      const x = clamp(hero.x, heroXBounds().left, heroXBounds().right);
-      const y = clamp(hero.y, playTop() + hero.radiusY, playBottom() - hero.radiusY);
+      const x = clamp(Number.isFinite(boss.aimTargetX) ? boss.aimTargetX : hero.x, heroXBounds().left, heroXBounds().right);
+      const y = clamp(Number.isFinite(boss.aimTargetY) ? boss.aimTargetY : hero.y, playTop() + hero.radiusY, playBottom() - hero.radiusY);
       const radius = Math.max(hero.radiusY + 18 * s, 34 * s) * (1 + pulse * 0.08);
       ctx.strokeStyle = `rgba(255, 86, 80, ${0.42 + pulse * 0.28})`;
       ctx.lineWidth = Math.max(2, 3 * s);
@@ -12572,6 +12684,12 @@
       ctx.moveTo(boss.x - boss.w * 0.42, boss.y);
       ctx.quadraticCurveTo((boss.x + x) * 0.5, Math.max(playTop() + 24 * s, y - 145 * s), x, y);
       ctx.stroke();
+      if (bossTellReadSatisfied()) {
+        ctx.fillStyle = `rgba(223, 255, 122, ${0.18 + pulse * 0.14})`;
+        ctx.beginPath();
+        ctx.arc(hero.x, hero.y, Math.max(hero.radiusY + 12 * s, 24 * s), 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else {
       const safe = boss.previewSafeLane || bossSafeLane();
       const left = Math.max(0, hero.x - 58 * s);
@@ -12593,6 +12711,32 @@
       ctx.moveTo(left, top + height);
       ctx.lineTo(state.width, top + height);
       ctx.stroke();
+    }
+    const read = clamp((boss.tellReadCharge || 0) / 100, 0, 1);
+    if (read > 0.01) {
+      const info = bossAttackTellInfo(attack || (boss.profile && boss.profile.attack));
+      const barW = Math.min(150 * s, state.width * 0.24);
+      const barH = Math.max(5 * s, 4);
+      const bx = clamp(hero.x - barW * 0.34, 18 * s, state.width - barW - 18 * s);
+      const by = clamp(hero.y - hero.radiusY - 20 * s, playTop() + 8 * s, playBottom() - 18 * s);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.82;
+      ctx.fillStyle = "rgba(8, 18, 26, 0.58)";
+      roundRect(bx, by, barW, barH, barH * 0.5);
+      ctx.fill();
+      const grad = ctx.createLinearGradient(bx, by, bx + barW, by);
+      grad.addColorStop(0, info.color);
+      grad.addColorStop(0.65, "#fff8e8");
+      grad.addColorStop(1, boss.tellReadReady ? "#dfff7a" : "#9de8ff");
+      ctx.fillStyle = grad;
+      roundRect(bx, by, barW * read, barH, barH * 0.5);
+      ctx.fill();
+      if (boss.tellReadReady) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = `rgba(223, 255, 122, ${0.44 + pulse * 0.22})`;
+        ctx.lineWidth = Math.max(1, 1.5 * s);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -17055,16 +17199,21 @@
           : boss.breakMeter > 0
             ? ` · 破防 ${Math.floor((boss.breakMeter / Math.max(1, bossBreakThreshold())) * 100)}%`
             : "";
-        bossPressureText.textContent = `${rating.label} · 我方 ${formatCombatPower(heroPower)} · ${rating.tip}${breakText}`;
+        const tellInfo = boss.warning ? bossAttackTellInfo(boss.nextAttack || (boss.profile && boss.profile.attack)) : null;
+        const tellText = tellInfo
+          ? `预警 ${tellInfo.name} · ${tellInfo.dodge} · 看破 ${Math.floor(clamp((boss.tellReadCharge || 0) / 100, 0, 1) * 100)}%`
+          : `${rating.label} · 我方 ${formatCombatPower(heroPower)} · ${rating.tip}${breakText}`;
+        bossPressureText.textContent = tellText;
       }
       if (bossHud) {
-        bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break");
+        bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break", "is-warning");
         bossHud.classList.add(boss.breakTimer > 0 ? "rating-break" : `rating-${rating.key}`);
+        bossHud.classList.toggle("is-warning", !!boss.warning);
       }
       bossBar.style.width = `${clamp((boss.hp / boss.maxHp) * 100, 0, 100)}%`;
     } else {
       bossHud.hidden = true;
-      if (bossHud) bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break");
+      if (bossHud) bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break", "is-warning");
     }
     updateMissionHud();
     updateItemButtons();

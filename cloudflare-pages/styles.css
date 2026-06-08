@@ -312,6 +312,29 @@ button:focus-visible {
   transition: width 120ms ease;
 }
 
+.boss-hud.is-warning {
+  border-color: rgba(255, 141, 84, 0.68);
+  background:
+    linear-gradient(180deg, rgba(17, 27, 34, 0.86), rgba(17, 27, 34, 0.72)),
+    radial-gradient(circle at 50% 48%, rgba(255, 86, 80, 0.18), transparent 58%),
+    url("assets/boss-tell-panel.png") center / cover;
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.24),
+    0 0 28px rgba(255, 86, 80, 0.18);
+}
+
+.boss-hud.is-warning span {
+  color: #fff1a6;
+}
+
+.boss-hud.is-warning small {
+  color: #fff8e8;
+}
+
+.boss-hud.is-warning b {
+  background: linear-gradient(90deg, #ff5650, #fff1a6, #9de8ff);
+}
+
 .boss-hud.rating-crush,
 .boss-hud.rating-advantage {
   border-color: rgba(107, 220, 123, 0.48);
@@ -3393,6 +3416,10 @@ button:focus-visible {
     padding: 5px 8px 6px;
   }
 
+  .boss-hud.is-warning {
+    width: min(370px, 54vw);
+  }
+
   .mission-hud {
     top: max(86px, calc(env(safe-area-inset-top) + 80px));
     width: min(430px, 56vw);
@@ -3417,6 +3444,11 @@ button:focus-visible {
     margin-bottom: 3px;
     font-size: 9px;
     max-height: 20px;
+  }
+
+  .boss-hud.is-warning small {
+    max-height: 28px;
+    line-height: 1.12;
   }
 
   .reward-toast {
