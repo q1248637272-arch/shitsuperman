@@ -526,7 +526,9 @@
   const DAILY_BOSS_POWER_MULTIPLIER = 20;
   const BOSS_SIZE_SCALE = 0.68;
   const BOSS_ATTACK_SPEED_SCALE = 0.72;
-  const BOSS_ATTACK_RATE_SCALE = 0.75;
+  const BOSS_ATTACK_RATE_SCALE = 0.5625;
+  const BOSS_PROJECTILE_DENSITY_SCALE = 0.9;
+  const HAZARD_SPAWN_INTERVAL_SCALE = 1.12;
   const PICKUP_SIZE_SCALE = 1.3;
   const SCREEN_SHAKE_ENABLED = false;
   const SCENE_TRANSITION_DURATION = 0.92;
@@ -6270,6 +6272,10 @@
     return Math.max(0.01, seconds) / BOSS_ATTACK_RATE_SCALE;
   }
 
+  function bossPatternCount(count, min = 1) {
+    return clamp(Math.floor(count * BOSS_PROJECTILE_DENSITY_SCALE), min, count);
+  }
+
   function bossCombatPower(bossData) {
     const profile = bossData.profile || bossProfiles[0];
     const level = Math.max(1, Number(bossData.level) || 1);
@@ -8181,7 +8187,7 @@
     const calmDelay = state.eventKind === "cleanWind" ? 0.26 : state.eventKind === "adventureCurrent" ? 0.18 : state.eventKind === "purificationTide" ? 0.18 : state.eventKind === "supplyDrop" ? 0.16 : state.eventKind === "mirrorCurrent" ? 0.16 : state.eventKind === "auroraForge" ? 0.14 : state.eventKind === "starTrail" ? 0.14 : state.eventKind === "mountTrial" ? 0.12 : 0;
     const landscapeDelay = isLandscapePlay() ? 0.12 + landscapeTightness() * 0.12 : 0;
     const interval = clamp(1.92 - state.time * 0.006 - pressure * 0.64 - eventBoost + recoveryDelay + calmDelay + landscapeDelay, isLandscapePlay() ? 0.92 : 0.82, 2.22);
-    state.spawnTimer = interval + random(0.14, 0.48);
+    state.spawnTimer = (interval + random(0.14, 0.48)) * HAZARD_SPAWN_INTERVAL_SCALE;
     const roll = Math.random();
     if (state.eventKind === "stink" && roll < 0.36) {
       hazards.push({
@@ -9285,11 +9291,11 @@
 
   function bossThreatBudget() {
     const budget = effectBudget().hazards;
-    if (!isLandscapePlay()) return Math.max(18, Math.floor(budget * 0.72));
+    if (!isLandscapePlay()) return Math.max(16, Math.floor(budget * 0.72 * BOSS_PROJECTILE_DENSITY_SCALE));
     const tight = landscapeTightness();
     const dailyEase = boss && boss.daily ? 0.72 : 1;
     const compactEase = state.height <= 430 ? 0.6 : 0.72;
-    return Math.max(boss && boss.daily ? 10 : 12, Math.floor(budget * compactEase * dailyEase - tight * 4));
+    return Math.max(boss && boss.daily ? 9 : 11, Math.floor((budget * compactEase * dailyEase - tight * 4) * BOSS_PROJECTILE_DENSITY_SCALE));
   }
 
   function trimBossThreatOverflow() {
@@ -9559,7 +9565,7 @@
         pushBossEnergyBall(-26 * s, 42 * s, -(150 + level * 10) * s, 52 * s, profile.color, 0.84);
       }
     } else if (profile.attack === "orbBurst") {
-      const count = landscape ? 6 : 8;
+      const count = bossPatternCount(landscape ? 6 : 8, landscape ? 4 : 5);
       const speed = (132 + level * 9) * s * BOSS_ATTACK_SPEED_SCALE * speedScale * bossSpeedEase;
       const phase = (boss.attackStep || 0) * 0.37;
       for (let i = 0; i < count; i += 1) {
@@ -9578,12 +9584,12 @@
       }
       pushBossEnergyBall(-18 * s, 0, -(118 + level * 8) * s, 0, "#c45dff", 0.92);
     } else if (profile.attack === "poopVolley") {
-      const volley = Math.min(landscape ? 4 : 5, 2 + Math.floor(level / (landscape ? 3 : 2)));
+      const volley = bossPatternCount(Math.min(landscape ? 4 : 5, 2 + Math.floor(level / (landscape ? 3 : 2))), 2);
       for (let i = 0; i < volley; i += 1) {
         pushBossPoop(-i * 30 * s, (i - (volley - 1) / 2) * 22 * s * laneEase, -(230 + level * 34) * s, (i - (volley - 1) / 2) * 42 * s * laneEase, profile.color, 1.05);
       }
     } else if (profile.attack === "plungerCharge") {
-      const count = Math.min(landscape ? 3 : 4, 2 + Math.floor(level / (landscape ? 4 : 3)));
+      const count = bossPatternCount(Math.min(landscape ? 3 : 4, 2 + Math.floor(level / (landscape ? 4 : 3))), 2);
       for (let i = 0; i < count; i += 1) {
         pushBossHazard({
           type: "plunger",
@@ -9610,7 +9616,7 @@
       pushBossPoop(-28 * s, -28 * s * laneEase, -(210 + level * 28) * s, -70 * s * laneEase, profile.color, 0.95);
       pushBossPoop(-28 * s, 28 * s * laneEase, -(210 + level * 28) * s, 70 * s * laneEase, profile.color, 0.95);
     } else if (profile.attack === "bubbleStorm") {
-      const count = Math.min(landscape ? 4 : 5, 3 + Math.floor(level / (landscape ? 4 : 3)));
+      const count = bossPatternCount(Math.min(landscape ? 4 : 5, 3 + Math.floor(level / (landscape ? 4 : 3))), 2);
       for (let i = 0; i < count; i += 1) {
         pushBossHazard({
           type: "soapBubble",
@@ -9650,7 +9656,7 @@
       pushBossPoop(-28 * s, -34 * s * laneEase, -(220 + level * 30) * s, -90 * s * laneEase, profile.color, 1.12);
       pushBossPoop(-34 * s, 30 * s * laneEase, -(205 + level * 26) * s, 80 * s * laneEase, "#c45dff", 1.02);
     } else if (profile.attack === "mixerBlade") {
-      const count = Math.min(landscape ? 4 : 5, 2 + Math.floor(level / (landscape ? 3 : 2)));
+      const count = bossPatternCount(Math.min(landscape ? 4 : 5, 2 + Math.floor(level / (landscape ? 3 : 2))), 2);
       for (let i = 0; i < count; i += 1) {
         pushBossHazard({
           type: "barricade",
@@ -9733,7 +9739,7 @@
         bossSpeed: (82 + level * 8) * BOSS_ATTACK_SPEED_SCALE * speedScale * bossSpeedEase,
       });
     } else {
-      const count = Math.min(landscape ? 5 : 7, 4 + Math.floor(level / (landscape ? 3 : 2)));
+      const count = bossPatternCount(Math.min(landscape ? 5 : 7, 4 + Math.floor(level / (landscape ? 3 : 2))), landscape ? 3 : 4);
       for (let i = 0; i < count; i += 1) {
         const offset = (i - (count - 1) / 2) * 26 * s * laneEase;
         pushBossPoop(-i * 18 * s, offset, -(270 + level * 42) * s, offset * 1.5, i % 2 ? "#f5c84b" : "#ff8d54", 1.35);
