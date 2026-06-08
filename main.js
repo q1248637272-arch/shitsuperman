@@ -1428,6 +1428,7 @@
     styleTimer: 0,
     draftTimer: 0,
     spawnTimer: 0,
+    lastHazardPatternKey: "",
     pickupTimer: 0,
     scroll: 0,
     speed: 185,
@@ -7170,6 +7171,7 @@
     state.styleTimer = 0;
     state.draftTimer = 0;
     state.spawnTimer = state.gameMode === "daily" ? 4.2 : 2.7;
+    state.lastHazardPatternKey = "";
     state.pickupTimer = 0.8;
     state.scroll = 0;
     state.speed = 185;
@@ -8166,6 +8168,53 @@
     }
   }
 
+  function hazardPatternKey(hazard) {
+    if (!hazard) return "";
+    if (hazard.type === "pipeTop" || hazard.type === "pipeBottom") return "pipePair";
+    return hazard.type || "";
+  }
+
+  function hazardPatternIsStackedNearSpawn(pattern) {
+    if (!pattern) return false;
+    const s = playScale();
+    const left = state.width - 90 * s;
+    const right = state.width + 230 * s;
+    return hazards.some((hazard) => hazardPatternKey(hazard) === pattern && hazard.x >= left && hazard.x <= right);
+  }
+
+  function hazardPatternBlocked(pattern) {
+    return !!pattern && (state.lastHazardPatternKey === pattern || hazardPatternIsStackedNearSpawn(pattern));
+  }
+
+  function hazardPatternPool() {
+    const pool = ["toilet", "pipePair", "plunger", "barricade", "sludgeBarrel", "acidGeyser"];
+    if (state.eventKind === "stink") pool.unshift("stinkCloud");
+    if (state.eventKind === "bubble") pool.unshift("soapBubble");
+    return [...new Set(pool)];
+  }
+
+  function preferredHazardPattern(roll) {
+    if (state.eventKind === "stink" && roll < 0.36) return "stinkCloud";
+    if (state.eventKind === "bubble" && roll < 0.38) return "soapBubble";
+    if (roll < (state.eventKind === "treasureRun" ? 0.55 : 0.4)) return "toilet";
+    if (roll < 0.62) return "pipePair";
+    if (roll < 0.78) return "plunger";
+    if (roll < 0.87) return "barricade";
+    if (roll < 0.95) return "sludgeBarrel";
+    return "acidGeyser";
+  }
+
+  function chooseHazardPattern(roll) {
+    const preferred = preferredHazardPattern(roll);
+    if (!hazardPatternBlocked(preferred)) return preferred;
+    const options = hazardPatternPool().filter((pattern) => pattern !== preferred && !hazardPatternBlocked(pattern));
+    return options.length ? options[Math.floor(Math.random() * options.length)] : preferred;
+  }
+
+  function rememberHazardPattern(pattern) {
+    state.lastHazardPatternKey = pattern || "";
+  }
+
   function spawnHazards(dt) {
     if (boss) return;
     if (state.gameMode === "daily" && state.time > 0.4) return;
@@ -8188,8 +8237,9 @@
     const landscapeDelay = isLandscapePlay() ? 0.12 + landscapeTightness() * 0.12 : 0;
     const interval = clamp(1.92 - state.time * 0.006 - pressure * 0.64 - eventBoost + recoveryDelay + calmDelay + landscapeDelay, isLandscapePlay() ? 0.92 : 0.82, 2.22);
     state.spawnTimer = (interval + random(0.14, 0.48)) * HAZARD_SPAWN_INTERVAL_SCALE;
-    const roll = Math.random();
-    if (state.eventKind === "stink" && roll < 0.36) {
+    const pattern = chooseHazardPattern(Math.random());
+    rememberHazardPattern(pattern);
+    if (pattern === "stinkCloud") {
       hazards.push({
         type: "stinkCloud",
         x: state.width + 96 * s,
@@ -8199,7 +8249,7 @@
         phase: random(0, 6.28),
         slow: 0,
       });
-    } else if (state.eventKind === "bubble" && roll < 0.38) {
+    } else if (pattern === "soapBubble") {
       hazards.push({
         type: "soapBubble",
         x: state.width + 84 * s,
@@ -8208,7 +8258,7 @@
         h: random(44, 60) * hs,
         phase: random(0, 6.28),
       });
-    } else if (roll < (state.eventKind === "treasureRun" ? 0.55 : 0.4)) {
+    } else if (pattern === "toilet") {
       const progressStage = isStageMode() ? activeStage().number : state.selectedStage;
       const eliteChance = state.eventKind === "eliteWave"
         ? 0.58
@@ -8234,7 +8284,7 @@
         hp: (state.time > 32 ? 3 : 2) + (elite ? 3 + Math.floor(pressure * 4) : 0) + (treasure ? 2 + Math.floor(state.level / 8) : 0),
         hit: 0,
       });
-    } else if (roll < 0.62) {
+    } else if (pattern === "pipePair") {
       const gap = isLandscapePlay() ? random(playable * 0.76, playable * 0.88) : random(300, 360);
       const minCenter = top + gap * 0.55;
       const maxCenter = bottom - gap * 0.55;
@@ -8242,7 +8292,7 @@
       const pipeW = (isLandscapePlay() ? 50 : 58) * hs;
       hazards.push({ type: "pipeTop", x: state.width + 96 * s, y: 0, w: pipeW, h: Math.max(0, center - gap * 0.5) });
       hazards.push({ type: "pipeBottom", x: state.width + 96 * s, y: center + gap * 0.5, w: pipeW, h: Math.max(0, state.height - (center + gap * 0.5)) });
-    } else if (roll < 0.78) {
+    } else if (pattern === "plunger") {
       hazards.push({
         type: "plunger",
         x: state.width + 90 * s,
@@ -8251,7 +8301,7 @@
         h: 24 * hs,
         spin: random(0, 6.28),
       });
-    } else if (roll < 0.87) {
+    } else if (pattern === "barricade") {
       hazards.push({
         type: "barricade",
         x: state.width + 104 * s,
@@ -8260,7 +8310,7 @@
         h: 45 * hs,
         phase: random(0, 6.28),
       });
-    } else if (roll < 0.95) {
+    } else if (pattern === "sludgeBarrel") {
       hazards.push({
         type: "sludgeBarrel",
         x: state.width + 96 * s,
@@ -9395,8 +9445,23 @@
     return hazard;
   }
 
+  function bossSolidHazardOverlapsSameType(candidate) {
+    if (!candidate || candidate.type === "bossPoop" || candidate.type === "energyBall") return false;
+    const key = hazardPatternKey(candidate);
+    const w = candidate.w || 42 * playScale();
+    const h = candidate.h || w;
+    return hazards.some((hazard) => {
+      if (!hazard || hazardPatternKey(hazard) !== key) return false;
+      const otherW = hazard.w || 42 * playScale();
+      const otherH = hazard.h || otherW;
+      return Math.abs((hazard.x || 0) - (candidate.x || 0)) < Math.max(w, otherW) * 0.72
+        && Math.abs((hazard.y || 0) - (candidate.y || 0)) < Math.max(h, otherH) * 0.72;
+    });
+  }
+
   function pushBossHazard(hazard) {
     protectBossDodgeLane(hazard);
+    if (bossSolidHazardOverlapsSameType(hazard)) return false;
     if (bossThreatCount() >= bossThreatBudget()) return false;
     hazards.push(hazard);
     return true;
