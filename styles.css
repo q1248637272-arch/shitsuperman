@@ -1920,6 +1920,20 @@ button:focus-visible {
   gap: 9px;
 }
 
+.compendium-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.compendium-section h3 {
+  margin: 0;
+  color: var(--gold);
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: left;
+}
+
 .compendium-card {
   display: grid;
   grid-template-columns: 74px minmax(0, 1fr);
@@ -1978,6 +1992,145 @@ button:focus-visible {
 }
 
 .icon-purification {
+  background-position: 100% 100%;
+}
+
+.icon-pickup-paper,
+.icon-pickup-shield,
+.icon-pickup-magnet,
+.icon-pickup-energy,
+.icon-skill-core,
+.icon-break-core-card,
+.icon-mystery-capsule,
+.icon-counter-seal-card,
+.icon-mount-badge,
+.icon-combo-altar,
+.icon-element-core,
+.icon-mirror-shard-card,
+.icon-aurora-forge,
+.icon-golden-trail,
+.icon-wind-gate,
+.icon-cloud-current {
+  background-image: url("assets/compendium-pickups.webp");
+  background-size: 400% 400%;
+}
+
+.icon-pickup-paper {
+  background-position: 0 0;
+}
+
+.icon-pickup-shield {
+  background-position: 33.333% 0;
+}
+
+.icon-pickup-magnet {
+  background-position: 66.666% 0;
+}
+
+.icon-pickup-energy {
+  background-position: 100% 0;
+}
+
+.icon-skill-core {
+  background-position: 0 33.333%;
+}
+
+.icon-break-core-card {
+  background-position: 33.333% 33.333%;
+}
+
+.icon-mystery-capsule {
+  background-position: 66.666% 33.333%;
+}
+
+.icon-counter-seal-card {
+  background-position: 100% 33.333%;
+}
+
+.icon-mount-badge {
+  background-position: 0 66.666%;
+}
+
+.icon-combo-altar {
+  background-position: 33.333% 66.666%;
+}
+
+.icon-element-core {
+  background-position: 66.666% 66.666%;
+}
+
+.icon-mirror-shard-card {
+  background-position: 100% 66.666%;
+}
+
+.icon-aurora-forge {
+  background-position: 0 100%;
+}
+
+.icon-golden-trail {
+  background-position: 33.333% 100%;
+}
+
+.icon-wind-gate {
+  background-position: 66.666% 100%;
+}
+
+.icon-cloud-current {
+  background-position: 100% 100%;
+}
+
+.icon-system-endless,
+.icon-system-stage,
+.icon-system-adventure,
+.icon-system-daily,
+.icon-system-warning,
+.icon-boss-warning-card,
+.icon-boss-weak-card,
+.icon-daily-boss-card,
+.icon-system-mission,
+.icon-system-achievement,
+.icon-system-equipment,
+.icon-system-mail {
+  background-image: url("assets/compendium-systems.webp");
+  background-size: 300% 300%;
+}
+
+.icon-system-endless {
+  background-position: 0 0;
+}
+
+.icon-system-stage {
+  background-position: 50% 0;
+}
+
+.icon-system-adventure {
+  background-position: 100% 0;
+}
+
+.icon-system-daily,
+.icon-daily-boss-card {
+  background-position: 0 50%;
+}
+
+.icon-system-warning,
+.icon-boss-warning-card,
+.icon-boss-weak-card {
+  background-position: 50% 50%;
+}
+
+.icon-system-mission {
+  background-position: 100% 50%;
+}
+
+.icon-system-achievement {
+  background-position: 0 100%;
+}
+
+.icon-system-equipment {
+  background-position: 50% 100%;
+}
+
+.icon-system-mail {
   background-position: 100% 100%;
 }
 

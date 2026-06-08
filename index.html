@@ -14,7 +14,9 @@
   <link rel="preload" as="image" href="assets/adventure-route-compass.png">
   <link rel="preload" as="image" href="assets/stage-contract-badge.png">
   <link rel="preload" as="image" href="assets/compendium-icons.webp">
-  <link rel="stylesheet" href="styles.css?v=20260608-compendium">
+  <link rel="preload" as="image" href="assets/compendium-pickups.webp">
+  <link rel="preload" as="image" href="assets/compendium-systems.webp">
+  <link rel="stylesheet" href="styles.css?v=20260608-compendium-full">
 </head>
 <body class="menu-open">
   <main class="game-shell" aria-label="大便超人">
@@ -263,7 +265,92 @@
           <div id="achievementGrid" class="achievement-grid"></div>
         </div>
         <div id="compendiumPage" class="progress-page compendium-page" hidden aria-label="游戏图鉴">
-          <div class="compendium-grid">
+          <section class="compendium-section" aria-label="基础拾取和战斗资源">
+            <h3>基础拾取</h3>
+            <div class="compendium-grid">
+              <article class="compendium-card">
+                <div class="compendium-icon icon-pickup-paper" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>纸卷</strong>
+                  <span>基础收集物，提供分数、少量回能和连击节奏；黄金航道会蓄出奖励纸卷。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-pickup-shield" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>护盾</strong>
+                  <span>抵消一次高压失误或削掉护盾时间；Boss 战前和低血时价值最高。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-pickup-magnet" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>磁铁</strong>
+                  <span>吸附纸卷和补给，适合黄金纸潮、补给密集区和移动压力较高的局面。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-pickup-energy" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>能量瓶</strong>
+                  <span>补充能量，帮助释放强化攻击和大招；高压 Boss 局优先级很高。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-skill-core" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>技能核心</strong>
+                  <span>补能、缩短大招冷却，并短暂强化攻击节奏，是反打窗口的启动器。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-break-core-card" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>破防核心</strong>
+                  <span>Boss 破防后掉落；拾取会延长压制、补充能量，并追加 Boss 伤害。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mystery-capsule" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>奇遇胶囊</strong>
+                  <span>可能触发天赋盲盒、黄金喷泉、冲击波、时空滑流或弱点雷达。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-counter-seal-card" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>闪反徽印</strong>
+                  <span>进入闪反窗口，连续贴身极限闪避可触发冲击，清近身威胁并压制 Boss。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-skill-core" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>大招</strong>
+                  <span>消耗 65% 最大能量释放 3 秒英雄爆发；留给 Boss 弱点、破防或弹幕高压段更赚。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-equipment" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>背包道具</strong>
+                  <span>每局最多自动携带 3 种可用道具；护盾、磁铁、能量、臭弹和羽翼都只触发一次。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-golden-trail" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>稀有货币</strong>
+                  <span>便便币主要来自签到、节日邮件、每日首杀和极低概率 Boss 掉落，用于高阶门槛。</span>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="compendium-section" aria-label="障碍敌人和 Boss 威胁">
+            <h3>威胁读法</h3>
+            <div class="compendium-grid">
             <article class="compendium-card">
               <div class="compendium-icon icon-pipe" aria-hidden="true"></div>
               <div class="compendium-copy">
@@ -314,6 +401,89 @@
               </div>
             </article>
             <article class="compendium-card">
+              <div class="compendium-icon icon-boss-warning-card" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>Boss 预警</strong>
+                <span>红圈、弹道线和 HUD 文案会提示下一招；提前离开危险区可积累看破收益。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-boss-weak-card" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>弱点与破防</strong>
+                <span>弱点期集中输出会加快破防；破防后 Boss 出招变慢，是吃核心和打爆发的窗口。</span>
+              </div>
+            </article>
+            <article class="compendium-card">
+              <div class="compendium-icon icon-daily-boss-card" aria-hidden="true"></div>
+              <div class="compendium-copy">
+                <strong>每日 Boss</strong>
+                <span>战力按实时战力 10 倍同步，带百分比伤害；目标是在 60 秒内尽量打高伤害。</span>
+              </div>
+            </article>
+            </div>
+          </section>
+
+          <section class="compendium-section" aria-label="航道事件和高级玩法">
+            <h3>航道事件</h3>
+            <div class="compendium-grid">
+              <article class="compendium-card">
+                <div class="compendium-icon icon-golden-trail" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>黄金纸潮</strong>
+                  <span>贴着黄金航道飞行会蓄能，蓄满后产出奖励纸卷，适合冲分和连击。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-wind-gate" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>顺风门阵</strong>
+                  <span>穿过顺风航道可补能、延长顺风，并软化前方威胁，给手机操作留余量。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-cloud-current" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>云海顺流</strong>
+                  <span>冒险中的移动顺流航线；贴线蓄能，拾取贝壳可加速，满后触发冲流爆发。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-cloud-current" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>清风补给</strong>
+                  <span>贴着清风航道会持续恢复并减压，适合低血、低能量或弹幕密度刚升高时稳住局面。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-wind-gate" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>战场态势</strong>
+                  <span>开局随机获得顺风、赏金、污泥、能量过载或精英巡逻等局势，决定本局优先策略。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-combo-altar" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>狂热模式</strong>
+                  <span>连续收集、击破和极限闪避会进入狂热，分数和节奏更强，但受伤会打断收益。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mystery-capsule" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>奇遇航线</strong>
+                  <span>紫色航道会蓄出额外胶囊或技能核心，适合在安全段贴线拿节奏奖励。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-element-core" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>五行裂隙</strong>
+                  <span>拾取五行灵核获得木、火、土、金、水短时效果，分别偏续航、爆发、护盾、破甲和回能控场。</span>
+                </div>
+              </article>
+            <article class="compendium-card">
               <div class="compendium-icon icon-startrail" aria-hidden="true"></div>
               <div class="compendium-copy">
                 <strong>星轨试炼</strong>
@@ -327,7 +497,168 @@
                 <span>拾取后冲洗周围弹幕、补能护盾，并给 Boss 施加破防压力，是高压局的救场点。</span>
               </div>
             </article>
-          </div>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mirror-shard-card" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>镜流回廊</strong>
+                  <span>贴着镜流蓄能，碎片提供短护身；满能后折返脉冲会清弹并保护走位。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-aurora-forge" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>极光铸炉</strong>
+                  <span>贴热流积攒热量，符印补能护盾并提攻速；热量满后释放铸炉波。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-combo-altar" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>连击祭坛</strong>
+                  <span>拾取祭印进入连击冲刺，维持连击更稳、技巧收益更高，但节奏也会更紧。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mount-badge" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>坐骑试炼</strong>
+                  <span>拾取坐骑徽章可快速积攒坐骑能量、缩短冷却，并短暂减轻弹幕压力。</span>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="compendium-section" aria-label="模式目标和养成系统">
+            <h3>模式与成长</h3>
+            <div class="compendium-grid">
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-endless" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>无尽模式</strong>
+                  <span>持续冲分，后段切入深层废都；每个英雄达到分数里程碑可拿专属进化石。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-stage" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>闯关模式</strong>
+                  <span>普通关冲目标分，Boss 关击败 Boss；后续关卡会加入受击限制和旧城稳定度。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-adventure" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>冒险航图</strong>
+                  <span>分数、航图和契约都要推进；目标未完成时会继续探索，Boss 也会延后现身。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-daily" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>每日挑战</strong>
+                  <span>每天刷新百分比伤害 Boss；首次击败有额外便便币，未击败也按伤害结算。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-mission" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>悬赏任务</strong>
+                  <span>每局随机 3 个目标，完成后立刻给金币、材料、经验和分数，全清会触发大奖。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mystery-capsule" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>本局天赋</strong>
+                  <span>等级节点会刷随机天赋，例如疾射、厚皮、拾荒、大招蓄能和僚机信标。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-achievement" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>成就</strong>
+                  <span>记录纸卷、击破、闪避、通关、Boss、装备和事件目标，奖励称号与资源。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-equipment" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>装备</strong>
+                  <span>长期战力的重要来源；可穿戴头盔、衣服、靴子、武器、项链，也可出售背包装备。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-element-core" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>英雄进化</strong>
+                  <span>长期成长核心，进化会强化攻击形态；无尽分数里程碑会给对应英雄专属进化石。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mount-badge" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>坐骑</strong>
+                  <span>局外解锁升级，局内通过闪避、拾取和重击充能，满能后自动触发专属技能。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-skill-core" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>僚机</strong>
+                  <span>选择后还需要局内拿到僚机信标天赋才会出战，用来补输出或提供特殊节奏。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-mail" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>邮箱与签到</strong>
+                  <span>签到解锁阶段奖励和英雄坐骑；邮箱会投放周末、节假日和特别节日补给。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-mount-badge" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>试用权</strong>
+                  <span>高难英雄和坐骑可每日免费试用，也能花少量便便币购买当日试用次数。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-stage" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>旧城稳定度</strong>
+                  <span>旧城区关卡会推进稳定度，35%/70%/100% 触发航线支援和结算小奖励。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-adventure" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>冒险契约</strong>
+                  <span>侦察、护送、讨伐和遗迹四类契约会鼓励不同跑法，并推动航图进度。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-equipment" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>商店补给</strong>
+                  <span>金币商品会显示余额、库存和差额；复活心核消耗便便币，购买前要看携带位。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-warning" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>战力评级</strong>
+                  <span>战力会拆分输出和生存；Boss 战力还会折算弹幕密度、百分比伤害和致死压力。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-equipment" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>操作与画质</strong>
+                  <span>移动可选按住飞行或滑动角色；画质自动调节，也可手动切流畅减少高密度特效。</span>
+                </div>
+              </article>
+            </div>
+          </section>
         </div>
         <div id="rulesPage" class="progress-page rules-page" hidden>
       <div class="rules-card" aria-label="游戏规则">
@@ -430,6 +761,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260608-compendium"></script>
+  <script src="main.js?v=20260608-compendium-full"></script>
 </body>
 </html>
