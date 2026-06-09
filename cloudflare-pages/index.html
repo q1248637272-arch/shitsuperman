@@ -9,6 +9,7 @@
   <link rel="preload" as="image" href="assets/background-city-patrol.png">
   <link rel="preload" as="image" href="assets/menu-hero-refit.png" fetchpriority="high">
   <link rel="preload" as="image" href="assets/background-deep-valve.png">
+  <link rel="preload" as="image" href="assets/boss-warning-panel-refit.png">
   <link rel="preload" as="image" href="assets/background-adventure-beacon.png">
   <link rel="preload" as="image" href="assets/mount-atlas.png">
   <link rel="preload" as="image" href="assets/mail-festival-seal.png">
@@ -18,7 +19,7 @@
   <link rel="preload" as="image" href="assets/compendium-icons.webp">
   <link rel="preload" as="image" href="assets/compendium-pickups.webp">
   <link rel="preload" as="image" href="assets/compendium-systems.webp">
-  <link rel="stylesheet" href="styles.css?v=20260609-city-chain">
+  <link rel="stylesheet" href="styles.css?v=20260610-boss-read">
 </head>
 <body class="menu-open">
   <main class="game-shell" aria-label="大便超人">
@@ -419,7 +420,7 @@
               <div class="compendium-icon icon-boss-warning-card" aria-hidden="true"></div>
               <div class="compendium-copy">
                 <strong>Boss 预警</strong>
-                <span>红圈、弹道线和 HUD 文案会提示下一招；提前离开危险区可积累看破收益。</span>
+                <span>红圈、弹道线和 HUD 文案会提示下一招；站进安全带或离开锁定圈可看破 Boss，获得短暂稳压减伤。</span>
               </div>
             </article>
             <article class="compendium-card">
@@ -734,7 +735,7 @@
           <li>中后段会出现闪反试炼，拾取闪反徽印后进入短暂窗口，连续 3 次贴身极限闪避会自动触发闪反冲击，清理近身威胁并压制 Boss。</li>
           <li>高难获取英雄和坐骑可在主菜单试用；试用每日免费 3 局，也可花少量便便币购买当日试用权。试用英雄只能体验基础形态，正式拥有后才能升级和进化。</li>
           <li>坐骑可在主菜单解锁、升级、试用和切换；局内会通过闪避、拾取和重击充能，满能量后自动触发专属技能。</li>
-          <li>连击达到关键段位会刷新额外补给；无尽 Boss 成长更快，闯关目标分与 Boss 战力全面上调，BOSS 出招前会出现红色预警圈，看到预警就准备躲弹道。</li>
+          <li>连击达到关键段位会刷新额外补给；无尽 Boss 成长更快，闯关目标分与 Boss 战力全面上调。BOSS 出招前会出现红色预警圈，站进安全带或离开锁定圈会积累看破，看破后获得数秒稳压减伤，深层废都和深阀预警会强化这个窗口。</li>
           <li>Boss 破防后会掉落破防核心，拾取后进入短暂反击节奏，补充能量、延长压制并对 Boss 追加伤害；是否冒险去吃核心会影响后续输出窗口。</li>
           <li>局内会随机出现“奇遇胶囊”，拾取后可能触发天赋盲盒、黄金喷泉、冲击波、时空滑流或弱点雷达；奇遇航线已翻新为可见紫色航道，贴着航道飞行可蓄出额外胶囊或技能核心。</li>
           <li>冒险模式现在需要同时满足分数、航图目标和本关契约；通过事件、云海顺流、补给空投、遗迹、极限闪避、精英和宝藏击破来积累探索、线索、货箱和契约进度，目标未完成时会继续探索，BOSS 关也会等航图和契约完成后才现身。</li>
@@ -745,7 +746,7 @@
           <li>中后段会出现星轨试炼，场景切入星轨战场；贴着移动星轨飞行会蓄能，蓄满后自动触发星辉爆发，清理弹幕并压制 Boss。</li>
           <li>中后段新增净化潮汐事件，场景切入净化战场；拾取净化核心会冲洗周围弹幕、补能护盾，并对 Boss 施加破防压力。</li>
           <li>更后段会出现镜流回廊事件，场景切入镜流战场；贴着移动镜流飞行可蓄能，拾取镜流碎片会获得短护身并加速蓄能，蓄满后自动释放折返脉冲。</li>
-          <li>深层废都地图已翻新为排压阀主题；深层关贴着深阀航道蓄能，满阀后会提前标记威胁、净化腐蚀障碍，并开启短暂低压窗口。</li>
+          <li>深层废都地图已翻新为排压阀主题；深层关贴着深阀航道蓄能，满阀后会提前标记威胁、净化腐蚀障碍，并开启短暂低压窗口。低压或深阀读线期间看破 Boss，会额外充阀并获得更强稳压。</li>
           <li>更后段新增极光铸炉事件，场景切入极光铸炉战场；贴着移动热流飞行可积攒热量，拾取铸炉符印会补能护盾并提高短时攻速，热量蓄满后自动释放铸炉波。</li>
           <li>中期会出现坐骑试炼，拾取坐骑徽章可快速积攒坐骑能量、缩短冷却并短暂减轻弹幕压力。</li>
           <li>中后段会出现连击祭坛，拾取连击祭印后进入短暂的连击冲刺状态，维持连击更稳、技巧收益更高，但场面节奏也更紧。</li>
@@ -801,6 +802,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260609-city-chain"></script>
+  <script src="main.js?v=20260610-boss-read"></script>
 </body>
 </html>

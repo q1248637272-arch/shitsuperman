@@ -1,0 +1,8 @@
+{
+  "model": "gpt-image-2",
+  "sourceBase": "boss-tell-panel.png",
+  "file": "boss-warning-panel-refit.png",
+  "generatedAt": "2026-06-09T17:22:03Z",
+  "note": "gpt-image-2 gateway returned 429 Too many requests, then dropped the retry connection during this iteration; this enhanced panel is composited from the existing gpt-image-2 boss-tell-panel asset with local warning/readability paint layers.",
+  "failedPrompt": "Game UI background panel for a side-scrolling cartoon arcade boss warning HUD, red-orange danger glow, cyan safe-lane scanner accents, golden weak-point sparks, no text."
+}

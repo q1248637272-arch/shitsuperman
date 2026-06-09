@@ -2192,6 +2192,8 @@
     bossLevel: 1,
     nextBossScore: 700,
     bossRewardTimer: 0,
+    bossReadShieldTimer: 0,
+    bossReadShieldPulse: 0,
     shieldTimer: 0,
     magnetTimer: 0,
     eventTimer: 0,
@@ -8904,6 +8906,8 @@
     state.deepPurgeValveReliefTimer = 0;
     state.deepValvePressureTimer = 0;
     state.deepValveReadTimer = 0;
+    state.bossReadShieldTimer = 0;
+    state.bossReadShieldPulse = 0;
     state.goldRushCharge = 0;
     state.draftLaneCharge = 0;
     state.mysteryLaneCharge = 0;
@@ -9260,6 +9264,8 @@
     updateMount(dt);
     state.specialTimer = Math.max(0, state.specialTimer - dt);
     state.bossRewardTimer = Math.max(0, state.bossRewardTimer - dt);
+    state.bossReadShieldTimer = Math.max(0, (state.bossReadShieldTimer || 0) - dt);
+    state.bossReadShieldPulse = Math.max(0, (state.bossReadShieldPulse || 0) - dt * 0.92);
     state.shieldTimer = Math.max(0, state.shieldTimer - dt);
     state.magnetTimer = Math.max(0, state.magnetTimer - dt);
     state.eventTimer = Math.max(0, state.eventTimer - dt);
@@ -11518,6 +11524,7 @@
     if (!boss || boss.tellReadRewarded) return false;
     const info = bossAttackTellInfo(boss.nextAttack || (profile && profile.attack) || "");
     const s = playScale();
+    const deepRead = activeMap() === "deep" || state.deepValvePressureTimer > 0 || state.deepValveReadTimer > 0;
     boss.tellReadRewarded = true;
     boss.tellReadReady = true;
     boss.tellReadPulse = 1;
@@ -11526,14 +11533,24 @@
     const pressure = bossBreakGain("glance") * (0.38 + runPerkLevel("weakbreaker") * 0.04);
     addBossBreakPressure(pressure, boss.x - boss.w * 0.22, boss.y);
     state.energy = clamp(state.energy + state.maxEnergy * 0.055 + 5, 0, state.maxEnergy);
+    state.bossReadShieldTimer = Math.max(state.bossReadShieldTimer || 0, deepRead ? 5.6 : 3.8);
+    state.bossReadShieldPulse = 1;
+    if (deepRead) {
+      state.deepPurgeValveCharge = clamp((state.deepPurgeValveCharge || 0) + 13, 0, 100);
+      state.deepPurgeValvePulse = Math.max(state.deepPurgeValvePulse || 0, 0.48);
+      state.deepPurgeValveReliefTimer = Math.max(state.deepPurgeValveReliefTimer || 0, 2.4);
+      addClassicDistrictProgress(1.8, "deepValve");
+    } else if (state.gameMode === "stage" && activeStage() && activeStage().map === "city") {
+      addClassicSignalChain(1.15, "briefing");
+    }
     state.combo += 1;
     state.comboTimer = Math.max(state.comboTimer, 2.6);
     recordRunStat("maxCombo", state.combo);
     addRoundedScore((150 + bossAttackLevel() * 12 + state.combo * 7) * state.scoreBonus * styleMultiplier());
     gainXp(26 + Math.min(20, bossAttackLevel() * 2), false);
-    gainStyle(14 + Math.min(10, bossAttackLevel()), `看破：${info.name}`, info.color);
+    gainStyle(14 + Math.min(10, bossAttackLevel()) + (deepRead ? 3 : 0), deepRead ? `深层看破：${info.name}` : `看破：${info.name}`, info.color);
     if (state.health < state.maxHealth * 0.42) state.shieldTimer = Math.max(state.shieldTimer || 0, 0.72);
-    state.eventName = `看破：${info.name}`;
+    state.eventName = deepRead ? `深层看破：${info.name}` : `看破：${info.name}`;
     state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.1);
     pop(hero.x + 28 * s, hero.y, info.color, 16);
     beep(1060, 0.05, "triangle", 0.034);
@@ -14387,6 +14404,24 @@
         ctx.stroke();
       }
     }
+    if (boss.tellReadReady || bossTellReadSatisfied()) {
+      const deepRead = activeMap() === "deep" || state.deepValvePressureTimer > 0 || state.deepValveReadTimer > 0;
+      const halo = Math.max(hero.radiusY + 16 * s, 28 * s) * (1 + pulse * 0.08);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.62;
+      ctx.strokeStyle = deepRead ? `rgba(143, 247, 255, ${0.38 + pulse * 0.2})` : `rgba(223, 255, 122, ${0.34 + pulse * 0.22})`;
+      ctx.lineWidth = Math.max(2, 2.5 * s);
+      ctx.setLineDash([9 * s, 8 * s]);
+      ctx.beginPath();
+      ctx.ellipse(hero.x + 4 * s, hero.y, halo * 1.18, halo * 0.72, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.16 + pulse * 0.1;
+      ctx.fillStyle = deepRead ? "rgba(143, 247, 255, 0.9)" : "rgba(223, 255, 122, 0.9)";
+      ctx.beginPath();
+      ctx.ellipse(hero.x + 4 * s, hero.y, halo * 1.02, halo * 0.62, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -14450,6 +14485,33 @@
       ctx.beginPath();
       ctx.ellipse(4 * s, 0, 68 * s, 46 * s, 0, 0, Math.PI * 2);
       ctx.stroke();
+    }
+    if (state.bossReadShieldTimer > 0 || state.bossReadShieldPulse > 0) {
+      const deepRead = activeMap() === "deep" || state.deepValvePressureTimer > 0 || state.deepValveReadTimer > 0;
+      const pulse = Math.sin(state.time * 12) * 0.5 + 0.5;
+      const timerAlpha = clamp((state.bossReadShieldTimer || 0) / (deepRead ? 5.6 : 3.8), 0, 1);
+      const burst = clamp(state.bossReadShieldPulse || 0, 0, 1);
+      const auraAlpha = Math.max(0.2, timerAlpha * 0.34 + burst * 0.2);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = auraAlpha;
+      ctx.strokeStyle = deepRead ? "#8ff7ff" : "#dfff7a";
+      ctx.lineWidth = (2.6 + burst * 2.4) * s;
+      ctx.setLineDash([12 * s, 7 * s]);
+      ctx.beginPath();
+      ctx.ellipse(4 * s, 0, (74 + pulse * 6 + burst * 10) * s, (50 + pulse * 4 + burst * 7) * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = Math.min(0.22, auraAlpha * 0.62);
+      const grad = ctx.createRadialGradient(4 * s, 0, 10 * s, 4 * s, 0, (82 + burst * 12) * s);
+      grad.addColorStop(0, deepRead ? "rgba(143, 247, 255, 0.05)" : "rgba(223, 255, 122, 0.06)");
+      grad.addColorStop(0.55, deepRead ? "rgba(143, 247, 255, 0.42)" : "rgba(223, 255, 122, 0.38)");
+      grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(4 * s, 0, (82 + burst * 12) * s, (56 + burst * 8) * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -18868,6 +18930,16 @@
       amount = Math.max(amount, state.maxHealth * basePercent * ramp * percentScale);
     }
     amount *= 1 - Math.min(0.36, stats.guard * 0.006);
+    if (boss && state.bossReadShieldTimer > 0) {
+      const deepRead = activeMap() === "deep" || state.deepValvePressureTimer > 0 || state.deepValveReadTimer > 0;
+      amount *= deepRead ? 0.5 : 0.62;
+      state.bossReadShieldTimer = Math.max(0, state.bossReadShieldTimer - (deepRead ? 0.9 : 1.25));
+      state.bossReadShieldPulse = 1;
+      state.eventName = deepRead ? "深层稳压" : "看破稳压";
+      state.eventLabelTimer = Math.max(state.eventLabelTimer, 0.9);
+      gainStyle(deepRead ? 10 : 7, state.eventName, deepRead ? "#8ff7ff" : "#dfff7a");
+      pop(hero.x + 12 * playScale(), hero.y, deepRead ? "#8ff7ff" : "#dfff7a", deepRead ? 14 : 10);
+    }
     recordRunStat("damageTaken", amount);
     if (isStageMode() && state.stageHitLimit > 0) {
       state.hitsTaken += 1;
@@ -19196,6 +19268,8 @@
       powerText.textContent = `净化潮汐 ${Math.ceil(state.eventTimer)}s`;
     } else if (state.recoveryTimer > 0) {
       powerText.textContent = `缓冲 ${Math.ceil(state.recoveryTimer)}s`;
+    } else if (state.bossReadShieldTimer > 0) {
+      powerText.textContent = `看破稳压 ${Math.ceil(state.bossReadShieldTimer)}s`;
     } else if (state.gameMode === "daily") {
       powerText.textContent = "每日伤害";
     } else if (state.gameMode === "adventure") {
@@ -19229,21 +19303,23 @@
           : boss.breakMeter > 0
             ? ` · 破防 ${Math.floor((boss.breakMeter / Math.max(1, bossBreakThreshold())) * 100)}%`
             : "";
+        const readShieldText = state.bossReadShieldTimer > 0 ? ` · 稳压 ${Math.ceil(state.bossReadShieldTimer)}s` : "";
         const tellInfo = boss.warning ? bossAttackTellInfo(boss.nextAttack || (boss.profile && boss.profile.attack)) : null;
         const tellText = tellInfo
-          ? `预警 ${tellInfo.name} · ${tellInfo.dodge} · 看破 ${Math.floor(clamp((boss.tellReadCharge || 0) / 100, 0, 1) * 100)}%`
-          : `${rating.label} · 我方 ${formatCombatPower(heroPower)} · ${rating.tip}${breakText}`;
+          ? `预警 ${tellInfo.name} · ${tellInfo.dodge} · 看破 ${Math.floor(clamp((boss.tellReadCharge || 0) / 100, 0, 1) * 100)}%${readShieldText}`
+          : `${rating.label} · 我方 ${formatCombatPower(heroPower)} · ${rating.tip}${breakText}${readShieldText}`;
         bossPressureText.textContent = tellText;
       }
       if (bossHud) {
-        bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break", "is-warning");
+        bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break", "is-warning", "is-read-ready");
         bossHud.classList.add(boss.breakTimer > 0 ? "rating-break" : `rating-${rating.key}`);
         bossHud.classList.toggle("is-warning", !!boss.warning);
+        bossHud.classList.toggle("is-read-ready", !!(boss.tellReadReady || state.bossReadShieldTimer > 0));
       }
       bossBar.style.width = `${clamp((boss.hp / boss.maxHp) * 100, 0, 100)}%`;
     } else {
       bossHud.hidden = true;
-      if (bossHud) bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break", "is-warning");
+      if (bossHud) bossHud.classList.remove("rating-crush", "rating-advantage", "rating-even", "rating-danger", "rating-critical", "rating-challenge", "rating-break", "is-warning", "is-read-ready");
     }
     updateMissionHud();
     updateItemButtons();
@@ -19943,6 +20019,7 @@
         addChip("远征信标", "贴线补航图/契约 · 早预警", ["reward", "wide"]);
         addChip("支援", "航图/契约里程碑触发补给", ["wide"]);
         addChip(stage.bossStage ? "现身" : "通关", stage.bossStage ? "三目标完成后出 Boss" : "分数 + 航图 + 契约", stage.bossStage ? "boss" : "");
+        if (stage.bossStage) addChip("看破", "预警读招 · 稳压减伤", ["reward", "wide"]);
       } else if (stage.bossStage) {
         if (classicProfile) {
           routeIntel = buildClassicRouteIntel();
@@ -19955,6 +20032,7 @@
           milestonePlan = buildMilestonePlan();
         }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
+        addChip("看破", stage.map === "deep" ? "安全带读招 · 深阀强化稳压" : "安全带读招 · 稳压减伤", ["reward", "wide"]);
       } else {
         if (classicProfile) {
           routeIntel = buildClassicRouteIntel();

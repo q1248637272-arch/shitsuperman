@@ -319,7 +319,7 @@ button:focus-visible {
   background:
     linear-gradient(180deg, rgba(17, 27, 34, 0.86), rgba(17, 27, 34, 0.72)),
     radial-gradient(circle at 50% 48%, rgba(255, 86, 80, 0.18), transparent 58%),
-    url("assets/boss-tell-panel.png") center / cover;
+    url("assets/boss-warning-panel-refit.png") center / cover;
   box-shadow:
     0 14px 34px rgba(0, 0, 0, 0.24),
     0 0 28px rgba(255, 86, 80, 0.18);
@@ -335,6 +335,18 @@ button:focus-visible {
 
 .boss-hud.is-warning b {
   background: linear-gradient(90deg, #ff5650, #fff1a6, #9de8ff);
+}
+
+.boss-hud.is-read-ready {
+  border-color: rgba(223, 255, 122, 0.72);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.24),
+    0 0 24px rgba(223, 255, 122, 0.2),
+    inset 0 0 0 1px rgba(223, 255, 122, 0.16);
+}
+
+.boss-hud.is-read-ready small {
+  color: #dfff7a;
 }
 
 .boss-hud.rating-crush,
