@@ -1,8 +1,8 @@
 {
   "model": "gpt-image-2",
-  "sourceBase": "boss-tell-panel.png",
+  "gateway": "https://freeapi.dgbmc.top",
   "file": "boss-warning-panel-refit.png",
-  "generatedAt": "2026-06-09T17:22:03Z",
-  "note": "gpt-image-2 gateway returned 429 Too many requests, then dropped the retry connection during this iteration; this enhanced panel is composited from the existing gpt-image-2 boss-tell-panel asset with local warning/readability paint layers.",
-  "failedPrompt": "Game UI background panel for a side-scrolling cartoon arcade boss warning HUD, red-orange danger glow, cyan safe-lane scanner accents, golden weak-point sparks, no text."
+  "generatedAt": "2026-06-09T18:37:00Z",
+  "prompt": "Square polished mobile game boss warning HUD background panel, red orange glow, dark readable center, no text.",
+  "note": "Generated successfully with gpt-image-2 through the configured image gateway, then resized to 512x512 PNG for the in-game boss warning HUD."
 }
