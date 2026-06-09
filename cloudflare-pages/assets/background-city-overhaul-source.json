@@ -1,0 +1,8 @@
+{
+  "model": "gpt-image-2",
+  "sourceBase": "background-city-patrol.png",
+  "file": "background-city-overhaul.png",
+  "generatedAt": "2026-06-09T04:46:54Z",
+  "note": "The configured gpt-image-2 gateway timed out during this iteration; this enhanced asset is composited from the existing gpt-image-2 city background and local signal-chain/readability paint layers.",
+  "failedPrompt": "Overhauled old toilet city district at heroic dusk with cyan patrol beacons, paper-roll air routes, signal chains, readable central gameplay corridor, no characters, no UI, no text."
+}

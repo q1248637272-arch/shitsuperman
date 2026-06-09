@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
   <title>大便超人</title>
-  <link rel="preload" as="image" href="assets/background-city-patrol.png" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/background-city-overhaul.png" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/background-city-patrol.png">
   <link rel="preload" as="image" href="assets/menu-hero-refit.png" fetchpriority="high">
   <link rel="preload" as="image" href="assets/background-deep-valve.png">
   <link rel="preload" as="image" href="assets/background-adventure-beacon.png">
@@ -17,7 +18,7 @@
   <link rel="preload" as="image" href="assets/compendium-icons.webp">
   <link rel="preload" as="image" href="assets/compendium-pickups.webp">
   <link rel="preload" as="image" href="assets/compendium-systems.webp">
-  <link rel="stylesheet" href="styles.css?v=20260609-cloud-save-hud">
+  <link rel="stylesheet" href="styles.css?v=20260609-city-chain">
 </head>
 <body class="menu-open">
   <main class="game-shell" aria-label="大便超人">
@@ -480,7 +481,14 @@
                 <div class="compendium-icon icon-system-stage" aria-hidden="true"></div>
                 <div class="compendium-copy">
                   <strong>旧城巡航</strong>
-                  <span>旧城区普通关会出现巡航灯塔，贴线校准满后提前标记下一波障碍，并短暂降低前方压力。</span>
+                  <span>旧城区普通关会出现巡航灯塔，贴线校准满后提前标记下一波障碍，并为信号链充能。</span>
+                </div>
+              </article>
+              <article class="compendium-card">
+                <div class="compendium-icon icon-system-mission" aria-hidden="true"></div>
+                <div class="compendium-copy">
+                  <strong>旧城信号链</strong>
+                  <span>连续清过障碍、完成巡航灯塔、绿波和路线委托会充能；满链后短暂减压、补能并投放航线补给。</span>
                 </div>
               </article>
               <article class="compendium-card">
@@ -577,7 +585,7 @@
                 <div class="compendium-icon icon-system-stage" aria-hidden="true"></div>
                 <div class="compendium-copy">
                   <strong>闯关模式</strong>
-                  <span>普通关冲目标分，Boss 关击败 Boss；后续关卡会加入受击限制和旧城稳定度。</span>
+                  <span>普通关冲目标分，Boss 关击败 Boss；后续关卡会加入受击限制、旧城稳定度和信号链。</span>
                 </div>
               </article>
               <article class="compendium-card">
@@ -661,7 +669,7 @@
                 <div class="compendium-icon icon-system-stage" aria-hidden="true"></div>
                 <div class="compendium-copy">
                   <strong>旧城稳定度</strong>
-                  <span>旧城区关卡会推进稳定度，35%/70%/100% 触发航线支援和结算小奖励。</span>
+                  <span>旧城区关卡会推进稳定度，35%/70%/100% 触发航线支援；信号链会加速稳定推进。</span>
                 </div>
               </article>
               <article class="compendium-card">
@@ -744,7 +752,7 @@
           <li>黄金纸潮、清风补给和顺风门阵已翻新为可见航道事件：贴着黄金航道飞行会蓄出奖励纸卷，清风航道会持续恢复并减压，顺风航道会补能、延长顺风并软化前方威胁。</li>
           <li>中后段会出现精英马桶潮；精英怪有更明显的扫描标记，更耐打但在精英潮中会掉落更好的补给。</li>
           <li>达到 3、5、7、15、25、35、50 级时，攻击方式会继续强化。</li>
-          <li>闯关模式共 60 关；每关目标分至少为上一关的 1.2 倍，普通关达到目标分数通关，BOSS 关需要击败 BOSS。第 10 王起设置阶段战力保底，20/30/40/50/60 王会按前一阶段 2-4 倍递进。旧城区关卡会显示城区稳定度、航线提示和路线委托；普通旧城关新增巡航灯塔，贴线校准后会提前读出并标记下一波障碍。事件、拾取与委托过程会推进稳定度，35%/70%/100% 会触发航线支援，完成后本局获得补血回能和结算小奖励。</li>
+          <li>闯关模式共 60 关；每关目标分至少为上一关的 1.2 倍，普通关达到目标分数通关，BOSS 关需要击败 BOSS。第 10 王起设置阶段战力保底，20/30/40/50/60 王会按前一阶段 2-4 倍递进。旧城区地图已翻新为巡航信号主题，会显示城区稳定度、航线提示、路线委托和信号链；普通旧城关的巡航灯塔贴线校准后会提前读出下一波障碍。连续清障、巡航、绿波和委托会推进信号链，满链后短暂减压、补能并投放航线补给；事件、拾取与委托过程会推进稳定度，35%/70%/100% 会触发航线支援，完成后本局获得补血回能和结算小奖励。</li>
           <li>冒险模式更重视探索节奏：分数、航图和契约都要推进，航图或契约跨过关键进度时会触发远征支援，短暂减压并投放补给。</li>
           <li>每日挑战会刷新 1 个百分比伤害 Boss，战力固定为玩家当前实时战力的 10 倍；60 秒内造成越多伤害，结算奖励越高，首次击败今日 Boss 会获得大额奖励并额外获得 5 枚便便币。</li>
           <li>金币可升级超人或购买背包道具；除复活心核外，商店道具每局最多可使用或触发 3 次，复活心核仍消耗便便币且每局只会自动触发 1 次。每局会自动从背包携带最多 3 种可用道具，未带入或未使用的库存会保留。</li>
@@ -793,6 +801,6 @@
     </section>
   </main>
 
-  <script src="main.js?v=20260609-cloud-save-hud"></script>
+  <script src="main.js?v=20260609-city-chain"></script>
 </body>
 </html>

@@ -140,6 +140,7 @@
 
   const assets = {
     background: loadImage("assets/background.png", true),
+    backgroundCityOverhaul: loadImage("assets/background-city-overhaul.png"),
     backgroundCityPatrol: loadImage("assets/background-city-patrol.png"),
     backgroundCityRefit: loadImage("assets/background-city-refit.png"),
     backgroundDeep: loadImage("assets/background-deep.png", true),
@@ -219,7 +220,7 @@
     stageContractBadge: loadImage("assets/stage-contract-badge.png", true),
   };
 
-  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityPatrol", "backgroundCityRefit", "background", "backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureBeacon", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
+  const MAP_WARMUP_ASSET_KEYS = ["backgroundCityOverhaul", "backgroundCityPatrol", "backgroundCityRefit", "background", "backgroundDeepValve", "backgroundDeepRefit", "backgroundDeep", "backgroundAdventureBeacon", "backgroundAdventureRefit", "backgroundAdventure", "adventureRouteCompass", "stageContractBadge", "backgroundElementRift", "backgroundStarTrail", "backgroundPurificationTide", "backgroundMirrorCurrent", "backgroundAuroraForge", "laneStarTrail", "laneMirrorCurrent", "laneForgeHeat", "iconMountCore", "iconComboSigil", "iconPurificationCore", "iconBreakCore", "iconStarTrail", "iconMirrorShard", "iconMirrorBurst", "iconForgeSigil", "iconForgeWave"];
   const BOSS_WARMUP_ASSET_KEYS = [
     "bossToiletKing",
     "bossPlungerGeneral",
@@ -1012,7 +1013,7 @@
 
   function classicRouteBriefingText(stage = activeStage(), profile = classicStageProfile(stage)) {
     const mechanicText = stage && stage.map === "deep" ? "深阀" : "绿波";
-    const patrolText = stage && stage.map === "city" ? "；旧城可继续跟住巡航灯塔，校准后提前读出下一波障碍" : "";
+    const patrolText = stage && stage.map === "city" ? "；旧城可继续跟住巡航灯塔，校准后提前读出下一波障碍，并让信号链更快成型" : "";
     const deepText = stage && stage.map === "deep" ? "；深层关满阀后会排压清障，短时扩大预警窗口" : "";
     return `入场 8 秒跟随情报航线，提前熟悉${mechanicText}节奏${patrolText}${deepText}。`;
   }
@@ -1097,7 +1098,7 @@
     const profile = classicStageProfile(stage);
     const target = state.classicDistrictTarget || classicDistrictTarget(stage);
     const progress = clamp(state.classicDistrictProgress || 0, 0, target);
-    return `${profile.short}稳定 ${Math.floor(progress)}/${target}`;
+    return `${profile.short}稳定 ${Math.floor(progress)}/${target}${classicSignalChainText()}`;
   }
 
   function classicDistrictNextMilestone(stage = activeStage()) {
@@ -1218,6 +1219,7 @@
     const patrol = classicPatrolBeaconActive() && !forecast ? (state.classicPatrolReadTimer > 0 ? ` · 巡航读线 ${Math.ceil(state.classicPatrolReadTimer)}s` : ` · 巡航 ${Math.floor(clamp((state.classicPatrolCharge || 0) / 100, 0, 1) * 100)}%`) : "";
     const briefing = classicRouteBriefingActive() && !forecast ? ` · 情报 ${Math.floor(clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1) * 100)}%` : "";
     const greenWave = classicGreenWaveActive() && !forecast ? ` · 绿波 ${Math.floor(clamp((state.classicGreenWaveCharge || 0) / 100, 0, 1) * 100)}%` : "";
+    const signalChain = !forecast ? classicSignalChainText() : "";
     const deepValve = deepPurgeValveActive() && !forecast
       ? state.deepValvePressureTimer > 0
         ? ` · 排压 ${Math.ceil(state.deepValvePressureTimer)}s`
@@ -1227,14 +1229,14 @@
       : "";
     if (state.classicDistrictClaimed) {
       const boost = state.classicDistrictBoostTimer > 0 ? ` · 增益 ${Math.ceil(state.classicDistrictBoostTimer)}s` : "";
-      return `${profile.short}${stability}${boost}${focus}${briefing}${greenWave}${patrol}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
+      return `${profile.short}${stability}${boost}${focus}${briefing}${greenWave}${patrol}${signalChain}${deepValve} · ${forecast || classicRouteBiasText(profile)}`;
     }
     if (state.eventTimer > 0 && state.eventName) {
-      return `${profile.short}${stability}${focus}${briefing}${greenWave}${patrol}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · ${Math.floor(progress)}/${target}`;
+      return `${profile.short}${stability}${focus}${briefing}${greenWave}${patrol}${signalChain}${deepValve} · ${forecast || `${state.eventName} ${Math.ceil(state.eventTimer)}s`} · ${Math.floor(progress)}/${target}`;
     }
     const next = classicDistrictNextMilestone(stage);
     const nextText = next ? `稳定下段 ${Math.round(next.ratio * 100)}% ${next.label}` : "完成稳定";
-    return `${profile.short}${stability}${focus}${briefing}${greenWave}${patrol}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
+    return `${profile.short}${stability}${focus}${briefing}${greenWave}${patrol}${signalChain}${deepValve} · ${forecast || nextText} · ${classicRouteBiasText(profile)}`;
   }
 
   function activateClassicRouteFocus(profile = classicStageProfile(), duration = 3.2) {
@@ -1243,6 +1245,94 @@
     state.classicRouteFocusTimer = Math.max(state.classicRouteFocusTimer || 0, duration);
     state.classicRouteFocusPulse = Math.max(state.classicRouteFocusPulse || 0, 0.55);
     state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.38);
+  }
+
+  function classicSignalChainActive(stage = activeStage()) {
+    return !!(stage && state.gameMode === "stage" && state.mode === "playing" && stage.map === "city");
+  }
+
+  function classicSignalChainText() {
+    if (!classicSignalChainActive() || (state.classicSignalChainTimer || 0) <= 0) return "";
+    const charge = clamp(state.classicSignalChainCharge || 0, 0, 12);
+    return ` · 信号链 ${Math.floor((charge / 12) * 100)}%`;
+  }
+
+  function triggerClassicSignalChainReward(level = 1, profile = classicStageProfile()) {
+    if (!classicSignalChainActive()) return;
+    const s = playScale();
+    const strong = level >= 2;
+    const color = strong ? "#dfff7a" : (profile.districtColor || "#5bded4");
+    state.classicSignalChainPulse = Math.max(state.classicSignalChainPulse || 0, strong ? 1 : 0.68);
+    state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, strong ? 0.62 : 0.4);
+    state.classicRouteClearPulse = Math.max(state.classicRouteClearPulse || 0, strong ? 0.7 : 0.48);
+    state.classicGreenWaveReliefTimer = Math.max(state.classicGreenWaveReliefTimer || 0, strong ? 3.2 : 1.6);
+    state.classicPatrolReliefTimer = Math.max(state.classicPatrolReliefTimer || 0, strong ? 3.6 : 1.8);
+    state.spawnTimer = Math.max(state.spawnTimer || 0, strong ? 0.36 : 0.18);
+    state.energy = clamp(state.energy + (strong ? 11 : 6) + state.level * 0.12, 0, state.maxEnergy);
+    if (strong && state.health < state.maxHealth * 0.72) {
+      state.health = clamp(state.health + state.maxHealth * 0.045, 0, state.maxHealth);
+      state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.75);
+    }
+    let slowed = 0;
+    for (const h of hazards) {
+      if (!h || h.type === "pipeTop" || h.type === "pipeBottom") continue;
+      if ((h.x || 0) < hero.x - 30 * s || (h.x || 0) > state.width + (strong ? 150 : 90) * s) continue;
+      h.slow = Math.max(h.slow || 0, strong ? 0.58 : 0.32);
+      h.routeReadMarked = Math.max(h.routeReadMarked || 0, strong ? 3.2 : 1.8);
+      h.hit = Math.max(h.hit || 0, 0.1);
+      slowed += 1;
+      if (!strong && slowed >= 3) break;
+    }
+    addClassicDistrictProgress(strong ? 3.8 : 2.1, strong ? "major" : "clear");
+    addRoundedScore((strong ? 280 : 150) * state.scoreBonus * styleMultiplier());
+    gainXp(strong ? 28 : 18, false);
+    gainStyle(strong ? 13 : 8, strong ? "旧城信号链" : "信号链校准", color);
+    if (strong) {
+      activateClassicRouteFocus(profile, 2.4);
+      spawnClassicDistrictPickup(classicRouteChainPickupType(profile), 0, 1, 1.1);
+      state.classicSignalChainCharge = Math.min(state.classicSignalChainCharge || 0, 6.2);
+      state.classicSignalChainTier = 1;
+      state.classicSignalChainCooldown = 0.9;
+    }
+    state.eventName = strong ? `${profile.short}信号链爆发` : `${profile.short}信号链 I`;
+    state.eventLabelTimer = Math.max(state.eventLabelTimer, strong ? 1.2 : 0.95);
+    spawnClassicEventParticles(hero.x + (strong ? 70 : 44) * s, hero.y, color, strong ? 20 : 12);
+    pop(hero.x + 36 * s, hero.y - 16 * s, color, strong ? 16 : 11);
+    beep(strong ? 1120 : 940, strong ? 0.065 : 0.045, "triangle", strong ? 0.04 : 0.032);
+  }
+
+  function addClassicSignalChain(amount, source = "clear") {
+    if (!classicSignalChainActive() || amount <= 0) return;
+    const sourceBoost = source === "patrol" ? 0.4 : source === "greenWave" ? 0.3 : source === "briefing" ? 0.55 : 0;
+    const before = state.classicSignalChainCharge || 0;
+    state.classicSignalChainCharge = clamp(before + amount + sourceBoost, 0, 12.5);
+    state.classicSignalChainTimer = Math.max(state.classicSignalChainTimer || 0, source === "clear" ? 6.2 : 7.6);
+    state.classicSignalChainPulse = Math.max(state.classicSignalChainPulse || 0, 0.24);
+    if ((state.classicSignalChainCooldown || 0) > 0) return;
+    if ((state.classicSignalChainTier || 0) < 1 && state.classicSignalChainCharge >= 6) {
+      state.classicSignalChainTier = 1;
+      triggerClassicSignalChainReward(1);
+    }
+    if (state.classicSignalChainCharge >= 12) {
+      triggerClassicSignalChainReward(2);
+    }
+  }
+
+  function updateClassicSignalChain(dt) {
+    state.classicSignalChainPulse = Math.max(0, (state.classicSignalChainPulse || 0) - dt * 0.86);
+    state.classicSignalChainCooldown = Math.max(0, (state.classicSignalChainCooldown || 0) - dt);
+    if (!classicSignalChainActive()) {
+      state.classicSignalChainTimer = 0;
+      state.classicSignalChainCharge = Math.max(0, (state.classicSignalChainCharge || 0) - dt * 5.8);
+      if (state.classicSignalChainCharge <= 0.05) state.classicSignalChainTier = 0;
+      return;
+    }
+    if ((state.classicSignalChainTimer || 0) > 0) {
+      state.classicSignalChainTimer = Math.max(0, state.classicSignalChainTimer - dt);
+    } else if ((state.classicSignalChainCharge || 0) > 0) {
+      state.classicSignalChainCharge = Math.max(0, state.classicSignalChainCharge - dt * 1.65);
+      if (state.classicSignalChainCharge < 5.2) state.classicSignalChainTier = 0;
+    }
   }
 
   function updateClassicRouteFocus(dt, profile = classicStageProfile()) {
@@ -1375,6 +1465,7 @@
     state.recoveryTimer = Math.max(state.recoveryTimer || 0, 0.46);
     state.energy = clamp(state.energy + 7 + state.level * 0.16, 0, state.maxEnergy);
     addClassicDistrictProgress(3 + Math.min(4, Math.floor((state.classicDistrictTarget || 60) * 0.022)), "patrol");
+    addClassicSignalChain(2.1 + Math.min(1.2, marked * 0.28), "patrol");
     if (marked > 0) addRoundedScore((130 + marked * 34 + state.combo * 8) * state.scoreBonus * styleMultiplier());
     gainXp(24 + marked * 3, false);
     gainStyle(14 + Math.min(10, marked * 2), "旧城巡航", color);
@@ -1448,6 +1539,7 @@
     state.comboTimer = Math.max(state.comboTimer, 2.7);
     recordRunStat("maxCombo", state.combo);
     addClassicDistrictProgress(4 + Math.min(3, Math.floor((state.classicDistrictTarget || 60) * 0.025)), "greenWave");
+    addClassicSignalChain(1.8 + Math.min(1, softened * 0.22), "greenWave");
     addRoundedScore((170 + softened * 26 + state.combo * 9) * state.scoreBonus * styleMultiplier());
     gainXp(28 + softened * 3, false);
     gainStyle(15 + Math.min(10, softened * 1.6), "旧城绿波", "#5bded4");
@@ -1652,6 +1744,7 @@
     state.spawnTimer = Math.max(state.spawnTimer || 0, 0.38);
     state.energy = clamp(state.energy + 8 + state.level * 0.14, 0, state.maxEnergy);
     addClassicDistrictProgress(6 + Math.min(5, Math.floor((state.classicDistrictTarget || 60) * 0.035)), "route");
+    addClassicSignalChain(2.6, "briefing");
     activateClassicRouteFocus(profile, 3.4);
     if (profile.key === "clean") {
       state.recoveryTimer = Math.max(state.recoveryTimer, 1.45);
@@ -2152,6 +2245,11 @@
     classicRouteClearPulse: 0,
     classicRouteClearStreak: 0,
     classicRouteLastClearGroup: "",
+    classicSignalChainCharge: 0,
+    classicSignalChainTimer: 0,
+    classicSignalChainTier: 0,
+    classicSignalChainPulse: 0,
+    classicSignalChainCooldown: 0,
     classicRouteBriefTimer: 0,
     classicRouteBriefCharge: 0,
     classicRouteBriefPulse: 0,
@@ -5147,6 +5245,7 @@
     const color = profile.districtColor || "#5bded4";
     const s = playScale();
     addClassicDistrictProgress(14 + Math.min(8, Math.floor((state.classicDistrictTarget || 60) * 0.08)), "major");
+    addClassicSignalChain(2.8, "briefing");
     activateClassicRouteFocus(profile, 4.2);
     state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, 0.82);
     if (profile.key === "clean") {
@@ -5233,7 +5332,13 @@
       missionHud.classList.add(`route-${classicStageProfile(activeStage()).key}`);
       const forecast = classicRouteForecastInfo();
       if (forecast) missionHud.classList.add(forecast.severe ? "route-pressure" : "route-read");
-      if ((state.classicRouteClearStreak || 0) >= 5) missionHud.classList.add("route-chain");
+      if (
+        (state.classicRouteClearStreak || 0) >= 5 ||
+        (state.classicSignalChainTimer || 0) > 0 ||
+        (state.classicSignalChainPulse || 0) > 0.05
+      ) {
+        missionHud.classList.add("route-chain");
+      }
     }
     const missionTextParts = missions.length > 0
       ? [`${runModifier().name}：${missions.map((mission) => `${mission.done ? "✓" : ""}${mission.label} ${missionValue(mission)}/${mission.target}`).join(" · ")}`]
@@ -8778,6 +8883,11 @@
     state.classicRouteClearPulse = 0;
     state.classicRouteClearStreak = 0;
     state.classicRouteLastClearGroup = "";
+    state.classicSignalChainCharge = 0;
+    state.classicSignalChainTimer = 0;
+    state.classicSignalChainTier = 0;
+    state.classicSignalChainPulse = 0;
+    state.classicSignalChainCooldown = 0;
     state.classicRouteBriefTimer = state.gameMode === "stage" ? 8.2 : 0;
     state.classicRouteBriefCharge = 0;
     state.classicRouteBriefPulse = 0;
@@ -9167,6 +9277,7 @@
     state.classicRouteFocusTimer = Math.max(0, (state.classicRouteFocusTimer || 0) - dt);
     state.classicRouteFocusPulse = Math.max(0, (state.classicRouteFocusPulse || 0) - dt * 0.92);
     state.classicRouteClearPulse = Math.max(0, (state.classicRouteClearPulse || 0) - dt * 1.15);
+    updateClassicSignalChain(dt);
     if (state.classicRouteFocusTimer <= 0) state.classicRouteFocusKey = "";
     state.purificationPulse = Math.max(0, (state.purificationPulse || 0) - dt * 0.88);
     if (state.counterTimer > 0) {
@@ -10980,6 +11091,7 @@
     const severe = threat.severe || pattern === "barricade" || pattern === "sludgeBarrel" || pattern === "acidGeyser";
     const value = pattern === "pipePair" ? 1.35 : severe ? 1.65 : 1.1;
     addClassicDistrictProgress(value, "clear");
+    addClassicSignalChain(severe ? 1.2 : 0.85, "clear");
     state.classicRouteClearPulse = Math.max(state.classicRouteClearPulse || 0, severe ? 0.52 : 0.34);
     state.classicDistrictPulse = Math.max(state.classicDistrictPulse || 0, severe ? 0.24 : 0.16);
     state.classicRouteClearStreak = (state.classicRouteClearStreak || 0) + 1;
@@ -12296,7 +12408,7 @@
   function mapBackgroundAssetKey(map) {
     if (map === "adventure") return imageReady(assets.backgroundAdventureBeacon) ? "backgroundAdventureBeacon" : imageReady(assets.backgroundAdventureRefit) ? "backgroundAdventureRefit" : "backgroundAdventure";
     if (map === "deep") return imageReady(assets.backgroundDeepValve) ? "backgroundDeepValve" : imageReady(assets.backgroundDeepRefit) ? "backgroundDeepRefit" : "backgroundDeep";
-    return imageReady(assets.backgroundCityPatrol) ? "backgroundCityPatrol" : imageReady(assets.backgroundCityRefit) ? "backgroundCityRefit" : "background";
+    return imageReady(assets.backgroundCityOverhaul) ? "backgroundCityOverhaul" : imageReady(assets.backgroundCityPatrol) ? "backgroundCityPatrol" : imageReady(assets.backgroundCityRefit) ? "backgroundCityRefit" : "background";
   }
 
   function desiredBackgroundFrame() {
@@ -12309,7 +12421,7 @@
     const starTrailMap = (state.eventKind === "starTrail" || state.starTrailPulse > 0) && !elementRiftMap && !purificationMap && !mirrorMap;
     const forgeMap = (state.eventKind === "auroraForge" || state.forgePulse > 0) && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap;
     const cityMap = !deepMap && !adventureMap && !elementRiftMap && !purificationMap && !mirrorMap && !starTrailMap && !forgeMap;
-    const cityRefitReady = imageReady(assets.backgroundCityPatrol) || imageReady(assets.backgroundCityRefit);
+    const cityRefitReady = imageReady(assets.backgroundCityOverhaul) || imageReady(assets.backgroundCityPatrol) || imageReady(assets.backgroundCityRefit);
     const deepRefitReady = imageReady(assets.backgroundDeepValve) || imageReady(assets.backgroundDeepRefit);
     const adventureRefitReady = imageReady(assets.backgroundAdventureBeacon) || imageReady(assets.backgroundAdventureRefit);
     let assetKey = mapBackgroundAssetKey(map);
@@ -12429,6 +12541,8 @@
     const greenPulse = profile && frame.cityMap ? (state.classicGreenWavePulse || 0) : 0;
     const patrolProgress = profile && frame.cityMap && state.mode === "playing" ? clamp((state.classicPatrolCharge || 0) / 100, 0, 1) : 0;
     const patrolPulse = profile && frame.cityMap ? Math.max(state.classicPatrolPulse || 0, state.classicPatrolReadTimer > 0 ? 0.38 : 0) : 0;
+    const signalProgress = profile && frame.cityMap && state.mode === "playing" ? clamp((state.classicSignalChainCharge || 0) / 12, 0, 1) : 0;
+    const signalPulse = profile && frame.cityMap ? (state.classicSignalChainPulse || 0) : 0;
     const deepValve = profile && frame.deepMap && state.mode === "playing" ? clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1) : 0;
     const deepPulse = profile && frame.deepMap ? Math.max(state.deepPurgeValvePulse || 0, state.deepValvePressureTimer > 0 ? 0.42 : state.deepValveReadTimer > 0 ? 0.28 : 0) : 0;
     const adventureBeacon = frame.adventureMap && state.mode === "playing" ? clamp((state.adventureBeaconCharge || 0) / 100, 0, 1) : 0;
@@ -12502,6 +12616,41 @@
         ctx.lineTo(x, patrolY - 10 * playScale());
         ctx.lineTo(x + 10 * playScale(), patrolY + 8 * playScale());
         ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (signalProgress > 0.01 || signalPulse > 0.01) {
+      const signalY = railY + 2 * playScale();
+      const chainBand = ctx.createLinearGradient(0, signalY, state.width, signalY);
+      chainBand.addColorStop(0, "rgba(223, 255, 122, 0)");
+      chainBand.addColorStop(0.2, `rgba(223, 255, 122, ${0.04 + signalProgress * 0.08 + signalPulse * 0.1})`);
+      chainBand.addColorStop(0.5, `rgba(91, 222, 212, ${0.035 + signalProgress * 0.08 + signalPulse * 0.08})`);
+      chainBand.addColorStop(0.8, `rgba(245, 200, 75, ${0.035 + signalProgress * 0.06 + signalPulse * 0.08})`);
+      chainBand.addColorStop(1, "rgba(223, 255, 122, 0)");
+      ctx.fillStyle = chainBand;
+      roundRect(30, signalY - 6 * playScale(), state.width - 60, 12 * playScale(), 7 * playScale());
+      ctx.fill();
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const spacing = Math.max(54 * playScale(), state.width / 12);
+      const offset = ((state.scroll * 0.88) % spacing);
+      const activeCount = Math.max(2, Math.ceil(12 * signalProgress + signalPulse * 4));
+      for (let i = 0, x = -offset + 28 * playScale(); x < state.width + spacing; x += spacing, i += 1) {
+        if (i > activeCount + 4) break;
+        const y = signalY + Math.sin((state.time || 0) * 1.8 + i * 0.75) * 5 * playScale();
+        const r = (2.4 + (i % 3) * 0.5 + signalPulse * 1.2) * playScale();
+        ctx.fillStyle = `rgba(223, 255, 122, ${0.18 + signalProgress * 0.28 + signalPulse * 0.22})`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (i % 3 === 1) {
+          ctx.strokeStyle = `rgba(91, 222, 212, ${0.16 + signalPulse * 0.22})`;
+          ctx.lineWidth = Math.max(1, 1.1 * playScale());
+          ctx.beginPath();
+          ctx.moveTo(x - 12 * playScale(), y);
+          ctx.lineTo(x + 12 * playScale(), y);
+          ctx.stroke();
+        }
       }
       ctx.restore();
     }
@@ -17090,6 +17239,10 @@
     const deepProgress = clamp((state.deepPurgeValveCharge || 0) / 100, 0, 1);
     const briefActive = classicRouteBriefingActive();
     const briefProgress = clamp((state.classicRouteBriefCharge || 0) / 100, 0, 1);
+    const signalProgress = classicSignalChainActive(stage) && (state.classicSignalChainTimer || 0) > 0
+      ? clamp((state.classicSignalChainCharge || 0) / 12, 0, 1)
+      : 0;
+    const signalPulse = state.classicSignalChainPulse || 0;
     const stability = classicRouteStabilityLabel(progress, target);
     const w = compact ? clamp(state.width * 0.26, 150, 186) : 246;
     const h = compact ? 38 : 58;
@@ -17121,7 +17274,7 @@
     ctx.font = `700 ${compact ? 8 : 12}px Microsoft YaHei, Arial`;
     const hint = focusActive
       ? `${classicRouteFocusLabel(profile)} ${Math.ceil(state.classicRouteFocusTimer)}s · ${compact ? "委托" : "委托支援"}`
-      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : state.deepValvePressureTimer > 0 ? `排压 ${Math.ceil(state.deepValvePressureTimer)}s · 低压` : state.deepValveReadTimer > 0 ? `深阀预警 ${Math.ceil(state.deepValveReadTimer)}s` : state.classicPatrolReadTimer > 0 ? `巡航读线 ${Math.ceil(state.classicPatrolReadTimer)}s · 早预警` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : briefActive ? `情报 ${Math.floor(briefProgress * 100)}% · 入航` : patrolActive ? `巡航 ${Math.floor(patrolProgress * 100)}% · 校准` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
+      : ready ? `增益 ${Math.ceil(state.classicDistrictBoostTimer || 0)}s` : state.deepValvePressureTimer > 0 ? `排压 ${Math.ceil(state.deepValvePressureTimer)}s · 低压` : state.deepValveReadTimer > 0 ? `深阀预警 ${Math.ceil(state.deepValveReadTimer)}s` : state.classicPatrolReadTimer > 0 ? `巡航读线 ${Math.ceil(state.classicPatrolReadTimer)}s · 早预警` : forecast && forecast.severe ? `${forecast.label} · ${forecast.distance}格` : briefActive ? `情报 ${Math.floor(briefProgress * 100)}% · 入航` : patrolActive ? `巡航 ${Math.floor(patrolProgress * 100)}% · 校准` : deepActive ? `深阀 ${Math.floor(deepProgress * 100)}% · 净化` : greenActive ? `绿波 ${Math.floor(greenProgress * 100)}% · 跟线` : signalProgress > 0.05 ? `信号链 ${Math.floor(signalProgress * 100)}% · 连清` : forecast ? `${forecast.label} · ${forecast.distance}格` : `${Math.floor(progress)}/${target} · 路况清晰`;
     ctx.fillText(hint, barX, y + (compact ? 18 : 27), textMaxW);
     drawClassicRouteRadar(x + w - (compact ? 14 : 18), y + (compact ? 14 : 20), compact ? 8 : 11, forecast, color);
     ctx.fillStyle = "rgba(255, 248, 232, 0.14)";
@@ -17140,6 +17293,17 @@
       const focusW = barW * clamp(state.classicRouteFocusTimer / 4.2, 0, 1);
       ctx.fillStyle = canvasRgba(color, 0.18 + focusPulse * 0.18);
       roundRect(barX, barY - (compact ? 5 : 7), focusW, compact ? 2 : 3, compact ? 1 : 1.5);
+      ctx.fill();
+    }
+    if (signalProgress > 0.01) {
+      const signalW = barW * signalProgress;
+      const signalY = barY - (compact ? 5 : 7);
+      const signalGrad = ctx.createLinearGradient(barX, signalY, barX + barW, signalY);
+      signalGrad.addColorStop(0, canvasRgba(color, 0.22 + signalPulse * 0.16));
+      signalGrad.addColorStop(0.62, "rgba(223, 255, 122, 0.34)");
+      signalGrad.addColorStop(1, "rgba(245, 200, 75, 0.2)");
+      ctx.fillStyle = signalGrad;
+      roundRect(barX, signalY, signalW, compact ? 2 : 3, compact ? 1 : 1.5);
       ctx.fill();
     }
     const pips = classicDistrictMilestonePlan(stage);
@@ -19756,7 +19920,7 @@
         flow.className = "stage-route-flow";
         [
           ["入航", classicRouteMechanicText(stage)],
-          ["清障", "5 组连携"],
+          ["清障", "信号链"],
           ["稳定", "三段支援"],
         ].forEach(([label, value]) => {
           const step = document.createElement("span");
@@ -19787,7 +19951,7 @@
           addChip("稳定", classicRouteStabilityText(stage), "reward");
           const routeMission = classicRouteMission(stage);
           if (routeMission) addChip("委托", `${routeMission.label} ${routeMission.target} · 完成推进稳定`, "reward");
-          addChip("连携", "连续清过 5 组障碍触发补能和稳定推进", "reward");
+          addChip("信号链", "连清障碍、巡航和绿波会充能，满链短暂减压并给补给", "reward");
           milestonePlan = buildMilestonePlan();
         }
         addChip("挑战", `达到目标分后迎战 ${bossProfileForStage(stage).name}`, "boss");
@@ -19799,7 +19963,7 @@
           addChip("稳定", classicRouteStabilityText(stage), "reward");
           const routeMission = classicRouteMission(stage);
           if (routeMission) addChip("委托", `${routeMission.label} ${routeMission.target} · 完成推进稳定`, "reward");
-          addChip("连携", "连续清过 5 组障碍触发补能和稳定推进", "reward");
+          addChip("信号链", "连清障碍、巡航和绿波会充能，满链短暂减压并给补给", "reward");
           addChip("倾向", classicStageRewardText(classicProfile), "reward");
           milestonePlan = buildMilestonePlan();
         }
