@@ -1263,7 +1263,7 @@ button:focus-visible {
 
 .hero-card {
   display: grid;
-  grid-template-rows: auto auto minmax(34px, 1fr) auto;
+  grid-template-rows: auto auto minmax(34px, auto) minmax(34px, 1fr) auto;
   align-items: start;
 }
 
@@ -1803,6 +1803,23 @@ button:focus-visible {
   align-items: center;
   justify-content: center;
   min-height: 34px;
+  overflow-wrap: anywhere;
+}
+
+.hero-card-ultimate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin: 0 0 7px;
+  padding: 5px 6px;
+  border: 1px solid rgba(157, 232, 255, 0.18);
+  border-radius: 7px;
+  background: rgba(157, 232, 255, 0.075);
+  color: rgba(223, 255, 122, 0.9);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.22;
   overflow-wrap: anywhere;
 }
 
@@ -4656,7 +4673,7 @@ button:focus-visible {
 
   body.menu-open .menu-panel.module-open .hero-card {
     padding: 6px 4px;
-    grid-template-rows: auto auto minmax(30px, 1fr) auto;
+    grid-template-rows: auto auto minmax(30px, auto) minmax(28px, 1fr) auto;
   }
 
   body.menu-open .menu-panel.module-open .hero-card-name {
@@ -4671,6 +4688,14 @@ button:focus-visible {
 
   body.menu-open .menu-panel.module-open .hero-card .hero-card-stat {
     min-height: 30px;
+  }
+
+  body.menu-open .menu-panel.module-open .hero-card-ultimate {
+    min-height: 28px;
+    margin-bottom: 5px;
+    padding: 4px 5px;
+    font-size: 8.8px;
+    line-height: 1.15;
   }
 
   body.menu-open .menu-panel.module-open .hero-card-paper .hero-card-stat {

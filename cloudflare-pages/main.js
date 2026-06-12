@@ -680,6 +680,9 @@
   const ULTIMATE_DURATION = 3;
   const ULTIMATE_COOLDOWN = 15;
   const ULTIMATE_ENERGY_RATIO = 0.65;
+  const ULTIMATE_HAZARD_SCAN_MIN = 18;
+  const ULTIMATE_HAZARD_SCAN_MAX = 46;
+  const ULTIMATE_POPS_PER_FRAME = 5;
   const SHOP_PRICE_MULTIPLIER = 50;
   const SHOP_COIN_PRICES = {
     shield: 120 * SHOP_PRICE_MULTIPLIER,
@@ -2304,6 +2307,9 @@
     ultimatePulse: 0,
     ultimateKind: "poop",
     ultimateBreakTick: 0,
+    ultimateHazardCursor: 0,
+    ultimateFramePopCount: 0,
+    ultimatePerfGuardTimer: 0,
     mountCharge: 0,
     mountCooldown: 0,
     mountSkillTimer: 0,
@@ -8360,27 +8366,30 @@
   function effectBudget() {
     const base = EFFECT_BUDGETS[state.effectiveQuality === "smooth" ? "smooth" : "normal"];
     const sceneScale = sceneTransitionActive() ? (state.effectiveQuality === "smooth" ? 0.7 : 0.6) : 1;
+    const ultimateScale = state.ultimateTimer > 0
+      ? state.ultimatePerfGuardTimer > 0 ? 0.56 : 0.82
+      : 1;
     if (!isLandscapePlay()) {
-      if (sceneScale >= 1) return base;
+      if (sceneScale >= 1 && ultimateScale >= 1) return base;
       return {
-        particles: Math.max(64, Math.floor(base.particles * sceneScale)),
+        particles: Math.max(64, Math.floor(base.particles * sceneScale * ultimateScale)),
         floaters: Math.max(3, Math.floor(base.floaters * sceneScale)),
         projectiles: base.projectiles,
         hazards: base.hazards,
-        pop: base.pop * sceneScale,
-        trail: base.trail * sceneScale,
+        pop: base.pop * sceneScale * ultimateScale,
+        trail: base.trail * sceneScale * ultimateScale,
       };
     }
     const tight = landscapeTightness();
     const compact = state.height <= 430 ? 0.84 : 0.92;
     const scale = clamp(compact - tight * 0.12, 0.68, 0.94);
     return {
-      particles: Math.max(70, Math.floor(base.particles * scale * sceneScale)),
+      particles: Math.max(70, Math.floor(base.particles * scale * sceneScale * ultimateScale)),
       floaters: Math.max(4, Math.floor(base.floaters * scale * sceneScale)),
       projectiles: Math.max(48, Math.floor(base.projectiles * scale)),
       hazards: Math.max(42, Math.floor(base.hazards * scale)),
-      pop: base.pop * scale * sceneScale,
-      trail: base.trail * scale * sceneScale,
+      pop: base.pop * scale * sceneScale * ultimateScale,
+      trail: base.trail * scale * sceneScale * ultimateScale,
     };
   }
 
@@ -8432,11 +8441,16 @@
     const frameMs = clamp(rawDt * 1000, 8, 80);
     state.frameAvg = state.frameAvg * 0.94 + frameMs * 0.06;
     state.qualityTimer = Math.max(0, state.qualityTimer - rawDt);
+    const compactLandscape = isLandscapePlay() && state.height <= 430;
+    if (state.ultimateTimer > 0 && frameMs > (compactLandscape ? 26 : 30)) {
+      state.ultimatePerfGuardTimer = Math.max(state.ultimatePerfGuardTimer || 0, 1.2);
+      state.qualityTimer = Math.max(state.qualityTimer, 4);
+      if (state.effectiveQuality !== "smooth") applyEffectiveQuality("smooth", true);
+    }
     if (state.qualityMode === "smooth") {
       applyEffectiveQuality("smooth", true);
       return;
     }
-    const compactLandscape = isLandscapePlay() && state.height <= 430;
     const activeObjects = projectiles.length + hazards.length;
     const heavyLoad = state.frameAvg > (compactLandscape ? 21 : 24) || particles.length > (compactLandscape ? 128 : 175) || activeObjects > (compactLandscape ? 88 : 118);
     const calmLoad = state.frameAvg < (compactLandscape ? 17.2 : 18.4) && particles.length < (compactLandscape ? 58 : 82) && activeObjects < (compactLandscape ? 48 : 64);
@@ -8953,6 +8967,9 @@
     state.ultimatePulse = 0;
     state.ultimateKind = heroProfile().ultimate || "poop";
     state.ultimateBreakTick = 0;
+    state.ultimateHazardCursor = 0;
+    state.ultimateFramePopCount = 0;
+    state.ultimatePerfGuardTimer = 0;
     state.mountCharge = 18 + effectiveMountLevel() * 1.6;
     state.mountCooldown = 2.2;
     state.mountSkillTimer = 0;
@@ -9213,6 +9230,8 @@
   function update(dt) {
     if (state.mode !== "playing") return;
 
+    state.ultimateFramePopCount = 0;
+    state.ultimatePerfGuardTimer = Math.max(0, (state.ultimatePerfGuardTimer || 0) - dt);
     state.time += dt;
     updateBgm();
     if (state.gameMode === "daily") {
@@ -10768,12 +10787,31 @@
     }[kind] || "黄金大便能量波";
   }
 
+  function ultimateSkillSummary(kind = state.ultimateKind || heroProfile().ultimate || "poop") {
+    return {
+      ikun: "轻快冲击，适合补刀清线",
+      jet: "高压直线，穿透前方威胁",
+      alchemist: "毒雾腐蚀，压低 Boss 节奏",
+      paper: "纸卷牵引，聚拢并拖慢敌群",
+      dragonWood: "藤域缠绕，破防并缓慢回血",
+      voidChef: "虚空锅炉，强控高压 Boss",
+      neonMedic: "急救护幕，回血回能保命",
+      tigerMetal: "庚金裂斩，高伤害高破防",
+      chronoPlumber: "时停慢域，控场并延缓出招",
+      rocketBao: "爆燃推进，快速破防爆发",
+      mirrorFox: "镜影折射，制造弱点窗口",
+      poop: "黄金波束，均衡清屏输出",
+    }[kind] || "黄金波束，均衡清屏输出";
+  }
+
   function addUltimateParticles(beam, dt) {
     const budget = effectBudget();
     const kind = state.ultimateKind;
     const smooth = isSmoothQuality();
+    const perfGuard = state.ultimatePerfGuardTimer > 0;
     const rate = kind === "dragonWood" ? 88 : kind === "voidChef" ? 84 : kind === "mirrorFox" ? 82 : kind === "neonMedic" ? 72 : kind === "chronoPlumber" ? 76 : kind === "rocketBao" ? 92 : kind === "tigerMetal" ? 96 : kind === "ikun" ? 54 : kind === "paper" ? 62 : kind === "alchemist" ? 56 : kind === "jet" ? 58 : 48;
-    const count = Math.min(smooth ? 6 : 11, Math.floor(dt * rate + Math.random() * 2.4));
+    const maxBurst = perfGuard ? (smooth ? 3 : 5) : (smooth ? 6 : 11);
+    const count = Math.min(maxBurst, Math.floor(dt * rate * (perfGuard ? 0.46 : 1) + Math.random() * (perfGuard ? 1.4 : 2.4)));
     for (let i = 0; i < count && particles.length < budget.particles; i += 1) {
       const t = Math.random();
       const orbit = kind === "paper" || kind === "alchemist" || kind === "dragonWood" || kind === "voidChef" || kind === "chronoPlumber" || kind === "mirrorFox";
@@ -10893,8 +10931,21 @@
       state.shake = Math.max(state.shake, tigerMetal ? 6.4 : rocketBao ? 6 : voidChef ? 5.6 : dragonWood ? 5.2 : mirrorFox ? 4.8 : jet ? 4.2 : chronoPlumber ? 4 : neonMedic ? 3.6 : ikun ? 3.2 : 2.5);
       if (boss.hp <= 0) defeatBoss();
     }
-    for (let i = hazards.length - 1; i >= 0; i -= 1) {
+    const hazardTotal = hazards.length;
+    const scanEase = (state.ultimatePerfGuardTimer > 0 || isSmoothQuality() ? 0.56 : 1) * (isLandscapePlay() ? 0.86 : 1);
+    const scanLimit = Math.min(hazardTotal, clamp(Math.floor(ULTIMATE_HAZARD_SCAN_MAX * scanEase), ULTIMATE_HAZARD_SCAN_MIN, ULTIMATE_HAZARD_SCAN_MAX));
+    const popColor = tigerMetal ? "#fff8e8" : rocketBao ? "#ff8d54" : voidChef ? "#33f0df" : mirrorFox ? "#c45dff" : chronoPlumber ? "#6ee7ff" : neonMedic ? "#54d0ff" : dragonWood ? "#35d07f" : ikun ? "#fff3c4" : jet ? "#9de8ff" : alchemist ? "#a7f04a" : paper ? "#fff8e8" : "#ffcf5c";
+    const popCount = tigerMetal ? 16 : rocketBao ? 16 : voidChef ? 15 : mirrorFox ? 14 : chronoPlumber ? 13 : neonMedic ? 13 : dragonWood ? 15 : ikun ? 12 : paper ? 14 : 8;
+    let scanIndex = hazards.length > 0
+      ? clamp(Math.floor(state.ultimateHazardCursor || hazards.length - 1), 0, hazards.length - 1)
+      : 0;
+    for (let scanned = 0; scanned < scanLimit && hazards.length > 0; scanned += 1) {
+      if (scanIndex >= hazards.length) scanIndex = hazards.length - 1;
+      const i = scanIndex;
       const h = hazards[i];
+      scanIndex -= 1;
+      if (scanIndex < 0) scanIndex = hazards.length - 1;
+      if (!h) continue;
       const hit = h.type === "pipeTop" || h.type === "pipeBottom"
         ? !(beam.x + beam.w < h.x || beam.x > h.x + h.w || beam.y + beam.h < h.y || beam.y > h.y + h.h)
         : rectVsEllipse(beam.x, beam.y, beam.w, beam.h, h.x, h.y, Math.max(8, h.w * 0.5), Math.max(8, h.h * 0.5));
@@ -10926,12 +10977,18 @@
         if (chronoPlumber && h.bossDamage) h.slow = Math.max(h.slow || 0, 1.2);
         if (mirrorFox && h.bossDamage) h.vy = (h.vy || 0) * 0.56 + Math.sin(state.ultimatePulse * 6 + i) * 42 * playScale();
       }
-      pop(h.x, h.y, tigerMetal ? "#fff8e8" : rocketBao ? "#ff8d54" : voidChef ? "#33f0df" : mirrorFox ? "#c45dff" : chronoPlumber ? "#6ee7ff" : neonMedic ? "#54d0ff" : dragonWood ? "#35d07f" : ikun ? "#fff3c4" : jet ? "#9de8ff" : alchemist ? "#a7f04a" : paper ? "#fff8e8" : "#ffcf5c", tigerMetal ? 16 : rocketBao ? 16 : voidChef ? 15 : mirrorFox ? 14 : chronoPlumber ? 13 : neonMedic ? 13 : dragonWood ? 15 : ikun ? 12 : paper ? 14 : 8);
+      pop(h.x, h.y, popColor, popCount);
       hazards.splice(i, 1);
+      if (hazards.length <= 0) {
+        scanIndex = 0;
+      } else if (scanIndex >= i) {
+        scanIndex = Math.min(scanIndex, hazards.length - 1);
+      }
       state.combo += 1;
       state.comboTimer = 1.6;
       maybeStartFever();
     }
+    state.ultimateHazardCursor = hazards.length > 0 ? clamp(scanIndex, 0, hazards.length - 1) : 0;
   }
 
   function updateHazards(dt) {
@@ -15637,6 +15694,9 @@
     const voidChef = kind === "voidChef";
     const neonMedic = kind === "neonMedic";
     const tigerMetal = kind === "tigerMetal";
+    const chronoPlumber = kind === "chronoPlumber";
+    const rocketBao = kind === "rocketBao";
+    const mirrorFox = kind === "mirrorFox";
     const pulse = Math.sin(state.ultimatePulse * 16) * 0.5 + 0.5;
     const s = playScale();
     const lifeRatio = clamp(state.ultimateTimer / ULTIMATE_DURATION, 0, 1);
@@ -16003,6 +16063,104 @@
       ctx.fillStyle = `rgba(255, 248, 232, ${0.18 + pulse * 0.16})`;
       ctx.beginPath();
       ctx.ellipse(beam.x + beam.w * 0.38, hero.y, (74 + pulse * 16) * s, beam.h * 0.38, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (chronoPlumber) {
+      const cx = beam.x + beam.w * 0.5;
+      const cy = hero.y;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (let i = 0; i < 5; i += 1) {
+        const x = beam.x + beam.w * (0.16 + i * 0.18);
+        ctx.strokeStyle = i % 2 ? `rgba(255, 241, 166, ${0.34 + pulse * 0.2})` : `rgba(110, 231, 255, ${0.42 + pulse * 0.24})`;
+        ctx.lineWidth = Math.max(2.5, (3.4 + i * 0.25) * s);
+        ctx.beginPath();
+        ctx.arc(x, cy, (28 + i * 8 + pulse * 8) * s, state.ultimatePulse * 1.8 + i, state.ultimatePulse * 1.8 + i + Math.PI * 1.48);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 9; i += 1) {
+        const t = (state.ultimatePulse * 0.34 + i * 0.12) % 1;
+        const x = beam.x + beam.w * (0.06 + t * 0.88);
+        const y = cy + Math.sin(t * Math.PI * 2 + i) * beam.h * 0.3;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(state.ultimatePulse * 2 + i * 0.5);
+        ctx.strokeStyle = `rgba(255, 248, 232, ${0.5 + pulse * 0.2})`;
+        ctx.lineWidth = Math.max(2, 3 * s);
+        ctx.beginPath();
+        ctx.arc(0, 0, (9 + pulse * 3) * s, 0, Math.PI * 2);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -8 * s);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(7 * s, 3 * s);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.fillStyle = `rgba(110, 231, 255, ${0.16 + pulse * 0.14})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, (116 + pulse * 20) * s, beam.h * 0.44, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (rocketBao) {
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      const cx = beam.x + beam.w * 0.46;
+      const cy = hero.y;
+      for (let i = 0; i < 7; i += 1) {
+        const y = cy + (i - 3) * beam.h * 0.08 + Math.sin(state.ultimatePulse * 7 + i) * 7 * s;
+        ctx.strokeStyle = i % 2 ? `rgba(255, 86, 80, ${0.42 + pulse * 0.22})` : `rgba(255, 241, 166, ${0.52 + pulse * 0.2})`;
+        ctx.lineWidth = Math.max(4, (5.2 + i * 0.22) * s);
+        ctx.beginPath();
+        ctx.moveTo(hero.x + 10 * s, y);
+        ctx.bezierCurveTo(beam.x + beam.w * 0.28, y - 34 * s, beam.x + beam.w * 0.62, y + 26 * s, beam.x + beam.w * 0.96, y);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 8; i += 1) {
+        const t = (state.ultimatePulse * 0.48 + i * 0.13) % 1;
+        const x = beam.x + beam.w * t;
+        const y = cy + Math.sin(t * Math.PI * 2 + i * 0.4) * beam.h * 0.25;
+        ctx.fillStyle = i % 2 ? `rgba(255, 248, 232, ${0.5 + pulse * 0.18})` : `rgba(255, 141, 84, ${0.52 + pulse * 0.18})`;
+        ctx.beginPath();
+        ctx.ellipse(x, y, (16 + pulse * 7) * s, (8 + pulse * 4) * s, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const plume = ctx.createRadialGradient(cx, cy, 8 * s, cx, cy, (112 + pulse * 26) * s);
+      plume.addColorStop(0, `rgba(255, 241, 166, ${0.4 + pulse * 0.22})`);
+      plume.addColorStop(0.5, `rgba(255, 141, 84, ${0.2 + pulse * 0.14})`);
+      plume.addColorStop(1, "rgba(255, 86, 80, 0)");
+      ctx.fillStyle = plume;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, (124 + pulse * 22) * s, beam.h * 0.38, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (mirrorFox) {
+      const cx = beam.x + beam.w * 0.56;
+      const cy = hero.y;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (let i = 0; i < 6; i += 1) {
+        const t = (state.ultimatePulse * 0.42 + i * 0.16) % 1;
+        const x = beam.x + beam.w * (0.08 + t * 0.84);
+        const y = cy + Math.sin(t * Math.PI * 2 + i) * beam.h * 0.34;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(-0.35 + Math.sin(state.ultimatePulse * 5 + i) * 0.22);
+        ctx.fillStyle = `rgba(255, 248, 232, ${0.32 + pulse * 0.18})`;
+        ctx.strokeStyle = `rgba(196, 93, 255, ${0.54 + pulse * 0.22})`;
+        ctx.lineWidth = Math.max(2, 3 * s);
+        roundRect(-18 * s, -12 * s, 36 * s, 24 * s, 5 * s);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      for (let i = 0; i < 4; i += 1) {
+        const x = beam.x + beam.w * (0.26 + i * 0.17);
+        ctx.strokeStyle = i % 2 ? `rgba(157, 232, 255, ${0.36 + pulse * 0.22})` : `rgba(196, 93, 255, ${0.42 + pulse * 0.24})`;
+        ctx.lineWidth = Math.max(3, 4.8 * s);
+        ctx.beginPath();
+        ctx.ellipse(x, cy, (44 + pulse * 12) * s, beam.h * (0.26 + i * 0.035), state.ultimatePulse * 0.4 + i * 0.3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = `rgba(196, 93, 255, ${0.16 + pulse * 0.16})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, (122 + pulse * 20) * s, beam.h * 0.46, 0, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.strokeStyle = `rgba(255, 241, 166, ${0.44 + pulse * 0.25})`;
@@ -18770,6 +18928,9 @@
     state.ultimateCooldown = Math.max(8, (ULTIMATE_COOLDOWN - runPerkLevel("overcharge") * 1.2) * (runModifier().cooldown || 1));
     state.ultimatePulse = 0;
     state.ultimateBreakTick = 0;
+    state.ultimateHazardCursor = 0;
+    state.ultimateFramePopCount = 0;
+    state.ultimatePerfGuardTimer = 0;
     state.shake = Math.max(state.shake, 8);
     state.eventName = ultimateSkillName();
     state.eventLabelTimer = Math.max(state.eventLabelTimer, 1.2);
@@ -19172,10 +19333,17 @@
 
   function pop(x, y, color, count) {
     const budget = effectBudget();
+    let particleRoom = Math.max(0, budget.particles - particles.length);
+    if (state.ultimateTimer > 0) {
+      const frameRoom = Math.max(0, ULTIMATE_POPS_PER_FRAME * (state.effectiveQuality === "smooth" ? 2 : 3) - (state.ultimateFramePopCount || 0));
+      particleRoom = Math.min(particleRoom, frameRoom);
+    }
     const capped = Math.min(
       Math.max(1, Math.round(count * budget.pop)),
-      Math.max(0, budget.particles - particles.length)
+      particleRoom
     );
+    if (capped <= 0) return;
+    if (state.ultimateTimer > 0) state.ultimateFramePopCount = (state.ultimateFramePopCount || 0) + capped;
     for (let i = 0; i < capped; i += 1) {
       const a = random(0, Math.PI * 2);
       const s = random(70, 270);
@@ -19579,6 +19747,10 @@
       const stat = document.createElement("div");
       stat.className = "hero-card-stat";
       stat.textContent = trialAvailable && !unlocked ? `${profile.stat} · 可试用` : profile.stat;
+      const ultimate = document.createElement("div");
+      ultimate.className = "hero-card-ultimate";
+      const skillKind = profile.ultimate || "poop";
+      ultimate.textContent = `终极 ${ultimateSkillName(skillKind)}：${ultimateSkillSummary(skillKind)}`;
       const actions = document.createElement("div");
       actions.className = "hero-card-actions";
       const button = document.createElement("button");
@@ -19594,7 +19766,7 @@
         button.addEventListener("click", () => selectHero(profile.key));
       }
       actions.appendChild(button);
-      card.append(portrait, name, stat, actions);
+      card.append(portrait, name, stat, ultimate, actions);
       heroGrid.appendChild(card);
     }
   }
