@@ -11135,8 +11135,14 @@
       }
 
       awardNearMiss(h);
-      if (h.x < -180) {
-        awardClassicRouteClear(h);
+      const isBossThreat = !!(h.bossDamage || h.type === "bossPoop");
+      const isOffScreen = h.x < -180 || 
+                          (isBossThreat && h.x > state.width + 180) || 
+                          (isBossThreat && (h.y < -180 || h.y > state.height + 180));
+      if (isOffScreen) {
+        if (h.x < -180) {
+          awardClassicRouteClear(h);
+        }
         hazards.splice(i, 1);
       }
     }
@@ -11823,6 +11829,34 @@
         pushBossPoop(-28 * s, y - boss.y, -(230 + level * 30) * s, lane * 82 * s, profile.color, 1.03);
       }
       pushBossEnergyBall(-18 * s, 0, -(118 + level * 8) * s, 0, "#c45dff", 0.92);
+    } else if (profile.attack === "demonRain") {
+      const count = bossPatternCount(Math.min(landscape ? 6 : 8, 4 + Math.floor(level / (landscape ? 3 : 2))), landscape ? 4 : 5);
+      for (let i = 0; i < count; i += 1) {
+        const offset = (i - (count - 1) / 2) * 20 * s * laneEase;
+        pushBossPoop(
+          -i * 24 * s,
+          offset,
+          -(260 + level * 38) * s,
+          offset * 1.2,
+          profile.color,
+          1.15
+        );
+      }
+      if (level >= 3) {
+        const ballCount = landscape ? 2 : 3;
+        for (let i = 0; i < ballCount; i += 1) {
+          const spawnX = boss.x - boss.w * 0.5 - i * 60 * s;
+          const fromTop = i % 2 === 0;
+          pushBossEnergyBall(
+            spawnX - boss.x,
+            fromTop ? playTop() - boss.y : playBottom() - boss.y,
+            -(160 + level * 12) * s,
+            fromTop ? (130 + level * 9) * s : -(130 + level * 9) * s,
+            "#fff1a6",
+            0.92
+          );
+        }
+      }
     } else if (profile.attack === "poopVolley") {
       const volley = bossPatternCount(Math.min(landscape ? 4 : 5, 2 + Math.floor(level / (landscape ? 3 : 2))), 2);
       for (let i = 0; i < volley; i += 1) {
