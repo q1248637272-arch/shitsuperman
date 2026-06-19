@@ -11342,7 +11342,7 @@
     return Math.max(boss && boss.daily ? 9 : 11, Math.floor((budget * compactEase * dailyEase - tight * 4) * BOSS_PROJECTILE_DENSITY_SCALE));
   }
 
-  function trimBossThreatOverflow() {
+  function trimBossThreatOverflow(force = false) {
     const budget = bossThreatBudget();
     let count = bossThreatCount();
     if (count < budget) return;
@@ -11351,7 +11351,7 @@
     for (let i = 0; i < hazards.length && count > target; i += 1) {
       const hazard = hazards[i];
       if (!hazard || !(hazard.bossDamage || hazard.type === "bossPoop")) continue;
-      if (hazard.x > hero.x - 70 * s && count <= budget + 2) continue;
+      if (!force && hazard.x > hero.x - 70 * s && count <= budget + 2) continue;
       hazards.splice(i, 1);
       i -= 1;
       count -= 1;
@@ -11378,7 +11378,7 @@
   function forceBossFallbackAttack(profile) {
     if (!boss) return false;
     trimStaleBossThreats(true);
-    trimBossThreatOverflow();
+    trimBossThreatOverflow(true);
     if (bossThreatCount() >= bossThreatBudget()) return false;
     const before = bossThreatCount();
     const s = bossAttackScale();
@@ -11424,7 +11424,7 @@
     if (count >= bossThreatBudget()) {
       boss.blockedThreatTimer = (boss.blockedThreatTimer || 0) + dt;
       if (boss.blockedThreatTimer > 1.1) trimStaleBossThreats(true);
-      if (boss.blockedThreatTimer > 2.2) trimBossThreatOverflow();
+      if (boss.blockedThreatTimer > 2.2) trimBossThreatOverflow(true);
     } else {
       boss.blockedThreatTimer = 0;
     }
